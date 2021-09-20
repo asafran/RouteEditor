@@ -80,7 +80,6 @@ void ParentVisitor::apply(const LOD& lod)
             if (this->child == child.node)
                 pathToChild = _nodePath;
             child.node->accept(*this);
-            break;
         }        
     }
 }
@@ -88,16 +87,13 @@ void ParentVisitor::apply(const LOD& lod)
 void ParentVisitor::apply(const PagedLOD& plod)
 {
     PushPopNode ppn(_nodePath, &plod);
-    qDebug() << &plod << "plod";
 
     for (auto it = plod.children.begin(); it != plod.children.end(); ++it)
     {
         if (it->node)
         {
-            //qDebug() << it->node->className() << "trav" << it->node.get();
             if (child == it->node)
                 pathToChild = _nodePath;
-
            it->node->accept(*this);
         }
     }

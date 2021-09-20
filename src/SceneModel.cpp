@@ -60,10 +60,8 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
         auto parentVisitor = ParentVisitor::create(childInfo);
         root->accept(*parentVisitor);
         if (parentVisitor->pathToChild.empty())
-        {
-            qDebug() << childInfo->className() << childInfo << "failed";
             return QModelIndex();
-        }
+
         if(parentVisitor->pathToChild.size() > 1)
         {
             auto parent = parentVisitor->pathToChild.back();
@@ -127,7 +125,6 @@ int SceneModel::rowCount(const QModelIndex &parent) const
         } else if (parentNode->type_info() == typeid (vsg::PagedLOD))
         {
             auto plod = parentNode->cast<vsg::PagedLOD>();
-            qDebug() << plod->children.back().node << "row" << plod;
             return plod->children.size();
         } else if (parentNode->type_info() == typeid (vsgGIS::TileDatabase))
         {
