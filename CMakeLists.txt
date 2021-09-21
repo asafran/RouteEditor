@@ -17,6 +17,8 @@ set(SOURCES
     src/cursorhandler.cpp
     src/contentmanager.h
     src/contentmanager.cpp
+    src/databasemanager.cpp
+    src/databasemanager.h
 #    src/ObjectModel.h
 #    src/ObjectModel.cpp
     src/SceneModel.h

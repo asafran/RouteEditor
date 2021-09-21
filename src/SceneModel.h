@@ -41,10 +41,7 @@ public:
     bool hasChildren(const QModelIndex &parent) const;
 
 private:
-/*
-    typedef QVector<NodeInfo> NodeInfoList;
-    NodeInfoList _nodes;
-*/
+
     enum Columns
         {
             Type,

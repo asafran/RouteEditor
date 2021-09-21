@@ -3,8 +3,10 @@
 #include <QMainWindow>
 #include <QGridLayout>
 #include <QSplitter>
-#include <vsg/all.h>
 #include <vsgQt/ViewerWindow.h>
+#include <QTreeView>
+#include "databasemanager.h"
+#include "SceneModel.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -19,12 +21,13 @@ public:
     ~MainWindow();
 
 public slots:
-    void loadToRoot(QString &filename);
+    void addToRoot(vsg::Node *node);
+    void setTilesModel(SceneModel *model);
 
 private:
     QWindow* initilizeVSGwindow();
 
-
+    void constructWidgets();
 
     Ui::MainWindow *ui;
     QSplitter *centralsplitter;
@@ -34,5 +37,8 @@ private:
     vsg::ref_ptr<vsg::Trackball> trackball;
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;
+    QTreeView *scenetree;
+    QTreeView *tilestree;
+    QScopedPointer<DatabaseManager> database;
 
 };

@@ -22,7 +22,7 @@ QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) co
     try {
         if (!parent.isValid())
         {
-            return createIndex(row, column, root->children.at(row));
+            return createIndex(row, column, root);
         }
         auto parentNode = static_cast<vsg::Node*>(parent.internalPointer());
 
@@ -67,9 +67,7 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
             auto parent = parentVisitor->pathToChild.back();
             auto grandParent = *(parentVisitor->pathToChild.end() - 2);
             if (parent && grandParent)
-                return createIndex(findRow(grandParent, parent), 0, &parent);
-        } else if((*parentVisitor->pathToChild.begin())->is_compatible(typeid (vsg::Group))) {
-
+                return createIndex(findRow(grandParent, parent), 0, const_cast<vsg::Node*>(parent));
         }
     }
     return QModelIndex();
