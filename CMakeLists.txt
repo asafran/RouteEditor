@@ -10,8 +10,6 @@ project(RouteEditor
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 set(SOURCES
-    src/VSGViewer.cpp
-    src/VSGViewer.h
     src/MainWindow.cpp
     src/MainWindow.h
     src/MainWindow.ui
@@ -43,16 +41,13 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 COMPONENTS Widgets REQUIRED)
-find_package(Qt6 COMPONENTS Core REQUIRED)
-find_package(Qt6 COMPONENTS Xml REQUIRED)
-find_package(Qt6 COMPONENTS Svg REQUIRED)
-find_package(Qt6 COMPONENTS Concurrent REQUIRED)
+find_package(Qt5 COMPONENTS Widgets REQUIRED)
+find_package(Qt5 COMPONENTS Xml REQUIRED)
+find_package(Qt5 COMPONENTS Concurrent REQUIRED)
 
 find_package(vsg REQUIRED)
 find_package(vsgXchange REQUIRED)
-# set the use of C++17 globally as all examples require it
-set(CMAKE_CXX_STANDARD 17)
+find_package(vsgQt REQUIRED)
 
 if(TARGET assimp::assimp)
   get_property(assimp_INTERFACE_INCLUDE_DIRECTORIES
@@ -72,6 +67,9 @@ if(TARGET assimp::assimp)
   endif()
 endif()
 
+# set the use of C++17 globally as all examples require it
+set(CMAKE_CXX_STANDARD 17)
+
 # add clobber build target to clear all the non git registered files/directories
 add_custom_target(clobber
     COMMAND git clean -d -f -x
@@ -80,4 +78,6 @@ add_executable(editor ${SOURCES})
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_link_libraries(editor vsg::vsg vsgXchange::vsgXchange Qt6::Widgets Qt6::Core )
+target_compile_definitions(editor PRIVATE ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
+
+target_link_libraries(editor vsg::vsg vsgXchange::vsgXchange vsgQt::vsgQt )
