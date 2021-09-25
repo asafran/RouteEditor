@@ -13,12 +13,16 @@ set(SOURCES
     src/MainWindow.cpp
     src/MainWindow.h
     src/MainWindow.ui
-    src/cursorhandler.h
-    src/cursorhandler.cpp
     src/contentmanager.h
     src/contentmanager.cpp
     src/databasemanager.cpp
     src/databasemanager.h
+    src/undo-redo.cpp
+    src/undo-redo.h
+    src/manipulator.h
+    src/manipulator.cpp
+    src/LambdaVisitor.cpp
+    src/LambdaVisitor.h
 #    src/ObjectModel.h
 #    src/ObjectModel.cpp
     src/SceneModel.h
@@ -43,9 +47,9 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
-find_package(Qt5 COMPONENTS Xml REQUIRED)
-find_package(Qt5 COMPONENTS Concurrent REQUIRED)
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Xml REQUIRED)
+find_package(Qt6 COMPONENTS Concurrent REQUIRED)
 
 find_package(vsg REQUIRED)
 find_package(vsgXchange REQUIRED)
@@ -76,10 +80,24 @@ set(CMAKE_CXX_STANDARD 17)
 add_custom_target(clobber
     COMMAND git clean -d -f -x
 )
+
+if(WIN32)
+    add_definitions(-DVK_USE_PLATFORM_WIN32_KHR -DNOMINMAX)
+    set(MODE WIN32)
+elseif(APPLE)
+    add_definitions(-DVK_USE_PLATFORM_MACOS_MVK)
+elseif(UNIX)
+    add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
+else()
+    add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
+endif()
+
+add_subdirectory(src/vsgQt)
+
 add_executable(editor ${SOURCES})
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
 target_compile_definitions(editor PRIVATE ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
-target_link_libraries(editor vsg::vsg vsgXchange::vsgXchange vsgQt::vsgQt )
+target_link_libraries(editor vsgQt vsg::vsg vsgXchange::vsgXchange Qt6::Concurrent)

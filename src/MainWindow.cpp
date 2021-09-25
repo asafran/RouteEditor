@@ -1,36 +1,23 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
-#include <vsgXchange/all.h>
 #include <vsgQt/ViewerWindow.h>
 
 #include <QFileDialog>
 #include <QColorDialog>
-#include <QSettings>
-#include "databasemanager.h"
+#include <QErrorMessage>
+#include "manipulator.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
+
     ui->setupUi(this);
 
     constructWidgets();
 
-    connect(ui->actionOpen, &QAction::triggered, this, [=]() {
-        scene->children.clear();
-        if (const auto filename = QFileDialog::getOpenFileName(this, tr("Open file"), nullptr, "VSG bin files (*.vsgb);;All files (*.*)"); !filename.isEmpty())
-        {
-            database.reset(new DatabaseManager(filename, options.get()));
-            tilestree->setModel(database->getTilesModel());
-            connect(database.data(), &DatabaseManager::emitTilesRoot, tilestree, &QTreeView::setRootIndex);
-            if( auto root = database->loadDatabase(); root)
-                addToRoot(root);
-        }
-    });
-    connect(ui->actionUpdate, &QAction::triggered, this, [=]() {
-        scenetree->setRootIndex(scenetree->model()->index(0,0));
-    });
+    connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openRoute);
 
 }
 QWindow* MainWindow::initilizeVSGwindow()
@@ -65,8 +52,8 @@ QWindow* MainWindow::initilizeVSGwindow()
     scene->addChild(builder->createBox(geomInfo, stateInfo));
 
     auto scenemodel = new SceneModel(scene, this);
-    scenetree->setModel(scenemodel);
-    scenetree->setRootIndex(scenemodel->index(0,0));
+    ui->sceneTreeView->setModel(scenemodel);
+    ui->sceneTreeView->setRootIndex(scenemodel->index(0,0));
 
     viewerWindow = new vsgQt::ViewerWindow();
     viewerWindow->traits = windowTraits;
@@ -94,7 +81,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         auto lookAt = vsg::LookAt::create(centre + vsg::dvec3(0.0, -radius * 3.5, 0.0), centre, vsg::dvec3(0.0, 0.0, 1.0));
 
         vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
-        vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel(scene->getObject<vsg::EllipsoidModel>("EllipsoidModel"));
+        vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel(scene->children.front()->getObject<vsg::EllipsoidModel>("EllipsoidModel"));
         if (ellipsoidModel)
         {
             perspective = vsg::EllipsoidPerspective::create(
@@ -118,7 +105,8 @@ QWindow* MainWindow::initilizeVSGwindow()
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
         // add trackball to enable mouse driven camera view control.
-        trackball = vsg::Trackball::create(camera, ellipsoidModel);
+        auto trackball = Manipulator::create(camera, ellipsoidModel, builder, scene, radius * 0.1, options);
+
         viewer->addEventHandler(trackball);
 
         auto commandGraph = vsg::createCommandGraphForView(window, camera, scene);
@@ -153,44 +141,42 @@ void MainWindow::addToRoot(vsg::Node *node)
     scene->addChild(vsg::ref_ptr<vsg::Node>(node));
     viewerWindow->viewer = vsg::Viewer::create();
     viewerWindow->initializeCallback(*viewerWindow);
-    scenetree->setRootIndex(scenetree->model()->index(0,0));
+    ui->sceneTreeView->setRootIndex(ui->sceneTreeView->model()->index(0,0));
 
 }
+void MainWindow::openRoute()
+{
+    scene->children.clear();
 
+    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+
+    if (const auto file = QFileDialog::getOpenFileName(this, tr("Открыть базу данных"), settings.value("ROUTES", qApp->applicationDirPath()).toString()); !file.isEmpty())
+    {
+        try {
+            database.reset(new DatabaseManager(file));
+            ui->loadedTilesView->setModel(database->getLoadedTilesModel());
+            ui->cachedTilesView->setModel(database->getCahedTilesModel());
+            QObject::connect(database.get(), &DatabaseManager::emitFileTilesRoot, ui->loadedTilesView, &QTreeView::setRootIndex);
+            QObject::connect(database.get(), &DatabaseManager::emitCahedTilesRoot, ui->cachedTilesView, &QTreeView::setRootIndex);
+            QObject::connect(ui->updateButt, &QPushButton::pressed, database.get(), &DatabaseManager::updateTileCache);
+            QObject::connect(ui->updateFilesButt, &QPushButton::pressed, database.get(), &DatabaseManager::loadTiles);
+            addToRoot(database->getDatabase());
+
+        }  catch (DatabaseException &ex) {
+            auto errorMessageDialog = new QErrorMessage(this);
+            errorMessageDialog->showMessage(ex.getErrPath());
+        }
+    }
+}
 
 void MainWindow::constructWidgets()
 {
-    QWidget *centralWidget = new QWidget( this );
-    centralWidget->setObjectName("centralWidget");
-    setCentralWidget(centralWidget);
 
-    QGridLayout *baseWidgetLayout = new QGridLayout( centralWidget );
-    baseWidgetLayout->setSpacing(0);
-    baseWidgetLayout->setContentsMargins(0, 0, 0, 0);
-    baseWidgetLayout->setObjectName("gridLayout");
-
-    //treeview->setItemDelegateForColumn(0, )
-    centralsplitter = new QSplitter( this );
-    auto analyzers = new QTabWidget(centralsplitter);
-    scenetree = new QTreeView(analyzers);
-    scenetree->setAllColumnsShowFocus(true);
-    tilestree = new QTreeView(analyzers);
-    tilestree->setAllColumnsShowFocus(true);
-    analyzers->addTab(scenetree, "Scene");
-    analyzers->addTab(tilestree, "Objects");
-
-    auto widget = QWidget::createWindowContainer(initilizeVSGwindow(), this);
-
-    centralsplitter->setObjectName("Centralsplitter");
-    centralsplitter->setOrientation( Qt::Horizontal );
-    centralsplitter->addWidget( widget );
-    centralsplitter->addWidget( analyzers );
-
-    baseWidgetLayout->addWidget( centralsplitter, 0, 0 );
-
+    auto widged = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
+    ui->centralsplitter->addWidget(widged);
     QList<int> sizes;
-    sizes << 350 << 500;
-    centralsplitter->setSizes( sizes );
+        sizes << 100 << 720;
+        ui->centralsplitter->setSizes(sizes);
 }
 
 MainWindow::~MainWindow()
