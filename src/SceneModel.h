@@ -2,9 +2,7 @@
 #define SCENEOBJECT_H
 
 #include <QAbstractItemModel>
-#include <vsg/nodes/PagedLOD.h>
-#include <vsg/nodes/Group.h>
-#include <vsg/traversals/Intersector.h>
+#include <vsg/all.h>
 #include <algorithm>
 
 class SceneModel : public QAbstractItemModel
@@ -12,7 +10,8 @@ class SceneModel : public QAbstractItemModel
     Q_OBJECT
 public:
 
-    SceneModel(vsg::Group *group, QObject* parent = 0);
+    SceneModel(vsg::ref_ptr<vsg::Group> group, QObject* parent = 0);
+    SceneModel(QObject* parent = 0);
 
     virtual ~SceneModel();
 
@@ -34,6 +33,8 @@ public:
 //    void updateItem( QObject* propertyObject, const QModelIndex& parent = QModelIndex() ) ;
 
     int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
+
+    QModelIndex rootIndexForItem(const vsg::Node *parentNode) { return createIndex(0,0,parentNode); }
 
     void setRoot(vsg::Group *group);
 

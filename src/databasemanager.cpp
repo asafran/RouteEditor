@@ -1,45 +1,68 @@
 #include "databasemanager.h"
+#include "LambdaVisitor.h"
+#include "vsgGIS/TileDatabase.h"
+#include <QtConcurrent/QtConcurrent>
 
-DatabaseManager::DatabaseManager(const QString &path, vsg::Options *opt, QObject *parent) : QObject(parent)
-  , options(opt)
-  , path(path)
-  , tiles(vsg::Group::create())
-{    
-    tilesmodel = new SceneModel(tiles, this);
-}
 
-void DatabaseManager::cacheTiles()
+DatabaseManager::DatabaseManager(const QString &path, QObject *parent) : QObject(parent)
+  , loadedTiles(vsg::Group::create())
+  , cachedTiles(vsg::Group::create())
+  , database(vsg::Group::create())
 {
-    QString fileName = "L8";
-    QStringList filter;
-    if (!fileName.isEmpty())
-        filter << fileName;
-    QDirIterator it(path, filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
-    QStringList dirs;
+    QFileInfo directory(path);
+    fileTilesModel = new SceneModel(loadedTiles, this);
+    cachedTilesModel =  new SceneModel(cachedTiles, this);
+    fsWatcher = new QFileSystemWatcher(QStringList(directory.absolutePath() + QDir::separator() + "Tiles"), this);
+
+    QStringList filter("database_L5*");
+    QDirIterator it(directory.absolutePath(), filter, QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
     while (it.hasNext())
-        dirs << it.next();
+        tileFiles << it.next();
 
-    std::function<vsg::Node> *load(const QString &path)
-    {
-        auto tile = vsg::read_cast<vsg::Node>(path.toStdString(), options);
-        if (database)
-        {
-            root = database;
-        }
-    }
-    if (!text.isEmpty())
-        files = findFiles(files, text);
-    files.sort();
-    showFiles(files);
+    database->addChild(vsg::ref_ptr<vsg::Node>(read(path)));
 }
-
-vsg::Node* DatabaseManager::loadDatabase()
+void addToGroup(vsg::ref_ptr<vsg::Group> &group, vsg::Node *node)
 {
-    auto database = vsg::read_cast<vsg::Node>(path.toStdString(), options);
-    if (database)
-    {
-        root = database;
-        return database;
-    }
-    return nullptr;
+    group->addChild(vsg::ref_ptr<vsg::Node>(node));
 }
+
+vsg::Node* DatabaseManager::read(const QString &path)
+{
+    auto tile = vsg::read_cast<vsg::Node>(path.toStdString());
+    if (tile)
+    {
+        tile->setValue("Name", path.toStdString());
+        return tile.release();
+    } else
+        throw (DatabaseException(path));
+}
+
+void DatabaseManager::loadTiles()
+{
+    try {
+        loadedTiles->children.erase(loadedTiles->children.begin(), loadedTiles->children.end());
+        QFuture<vsg::ref_ptr<vsg::Group>> future = QtConcurrent::mappedReduced(tileFiles, &DatabaseManager::read, addToGroup, loadedTiles, QtConcurrent::OrderedReduce);
+        future.waitForFinished();
+
+        emit emitFileTilesRoot(fileTilesModel->index(0,0));
+    }  catch (DatabaseException &ex) {
+
+    }
+
+}
+void DatabaseManager::writeTiles()
+{
+
+}
+
+void DatabaseManager::updateTileCache()
+{
+    TilesVisitor visitor(cachedTiles);
+    database->accept(visitor);
+
+    qDebug() << cachedTiles->children.size();
+
+    emit emitCahedTilesRoot(cachedTilesModel->index(0,0));
+}
+
+

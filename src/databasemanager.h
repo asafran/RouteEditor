@@ -2,33 +2,82 @@
 #define DATABASEMANAGER_H
 
 #include <QObject>
-#include <vsg/all.h>
 #include <QDirIterator>
+#include <QFileSystemWatcher>
+#include <QException>
 #include "SceneModel.h"
+#include <QSettings>
+#include <vsgXchange/all.h>
+
+class TilesVisitor : public vsg::ConstVisitor
+{
+public:
+    TilesVisitor(vsg::ref_ptr<vsg::Group> group) :
+    tiles(group)
+    {
+    }
+
+    using vsg::ConstVisitor::apply;
+
+    void apply(const vsg::Object& object) override
+    {
+            object.traverse(*this);
+    }
+
+    void apply(const vsg::PagedLOD& plod) override
+    {
+        if(auto group = plod.children.front().node.cast<vsg::Group>(); group
+                && group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
+            tiles->addChild(plod);
+        plod.traverse(*this);
+    }
+    vsg::ref_ptr<vsg::Group> tiles;
+};
+
+class DatabaseException : public QException
+{
+public:
+    DatabaseException(const QString &path)
+        : err_path(path)
+    {
+    }
+    void raise() const override { throw *this; }
+    DatabaseException *clone() const override { return new DatabaseException(*this); }
+    QString getErrPath() { return err_path; }
+private:
+    QString err_path;
+};
 
 class DatabaseManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit DatabaseManager(const QString &path, vsg::Options *opt, QObject *parent = nullptr);
+    explicit DatabaseManager(const QString &path, QObject *parent = nullptr);
 
-    vsg::Node* loadDatabase();
-    SceneModel *getTilesModel();
+    vsg::Node* getDatabase() { return database.get(); }
+    SceneModel *getCahedTilesModel() { return cachedTilesModel; }
+    SceneModel *getLoadedTilesModel() { return fileTilesModel; }
+
+    static vsg::Node *read(const QString &path);
 
 public slots:
-
+    void updateTileCache();
+    void writeTiles();
+    void loadTiles();
 
 signals:
-    void emitTilesRoot(const QModelIndex &index);
+    void emitCahedTilesRoot(const QModelIndex &index);
+    void emitFileTilesRoot(const QModelIndex &index);
 
 private:
-    void cacheTiles();
-    vsg::ref_ptr<vsg::Group> root;
-    vsg::ref_ptr<vsg::Group> tiles;
-    vsg::ref_ptr<vsg::Options> options;
-    const QString path;
-    SceneModel *tilesmodel;
 
+    vsg::ref_ptr<vsg::Group> loadedTiles;
+    vsg::ref_ptr<vsg::Group> cachedTiles;
+    vsg::ref_ptr<vsg::Group> database;
+    QStringList tileFiles;
+    SceneModel *fileTilesModel;
+    SceneModel *cachedTilesModel;
+    QFileSystemWatcher *fsWatcher;
 };
 
 #endif // DATABASEMANAGER_H

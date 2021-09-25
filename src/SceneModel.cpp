@@ -1,13 +1,18 @@
 #include "SceneModel.h"
 #include "ParentVisitor.h"
 
-SceneModel::SceneModel(vsg::Group* group, QObject *parent) :
+SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, QObject *parent) :
     QAbstractItemModel(parent)
   , root(group)
 {
 
 }
 
+SceneModel::SceneModel(QObject *parent) :
+    QAbstractItemModel(parent)
+{
+
+}
 
 
 SceneModel::~SceneModel()
@@ -22,7 +27,7 @@ QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) co
     try {
         if (!parent.isValid())
         {
-            return createIndex(row, column, root);
+            return createIndex(row, column, root.get());
         }
         auto parentNode = static_cast<vsg::Node*>(parent.internalPointer());
 
@@ -147,9 +152,9 @@ QVariant SceneModel::data(const QModelIndex &index, int role) const
             return nodeInfo->className();
         }
         case Name: {
-            QString name;
+            std::string name;
             if(nodeInfo->getValue("Name", name)){
-                return name;
+                return QString(name.c_str());
             }
             break;
         }
@@ -206,7 +211,7 @@ bool SceneModel::setData(const QModelIndex &index, const QVariant &value, int ro
 
 QVariant SceneModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
-    const QStringList headers = {"Тип", "Имя"};
+    const QStringList headers = {tr("Тип"), tr("Имя")};
     if (orientation == Qt::Horizontal && role == Qt::DisplayRole && section < headers.size()) {
         return headers[section];
     }
