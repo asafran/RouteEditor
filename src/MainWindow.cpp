@@ -51,7 +51,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
     scene->addChild(builder->createBox(geomInfo, stateInfo));
 
-    auto scenemodel = new SceneModel(scene, this);
+    SceneModel *scenemodel = new SceneModel(scene, this);
     ui->sceneTreeView->setModel(scenemodel);
     ui->sceneTreeView->setRootIndex(scenemodel->index(0,0));
 
@@ -136,9 +136,9 @@ QWindow* MainWindow::initilizeVSGwindow()
     return viewerWindow;
 }
 
-void MainWindow::addToRoot(vsg::Node *node)
+void MainWindow::addToRoot(vsg::ref_ptr<vsg::Node> node)
 {
-    scene->addChild(vsg::ref_ptr<vsg::Node>(node));
+    scene->addChild(node);
     viewerWindow->viewer = vsg::Viewer::create();
     viewerWindow->initializeCallback(*viewerWindow);
     ui->sceneTreeView->setRootIndex(ui->sceneTreeView->model()->index(0,0));

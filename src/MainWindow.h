@@ -20,7 +20,7 @@ public:
     ~MainWindow();
 
 public slots:
-    void addToRoot(vsg::Node *node);
+    void addToRoot(vsg::ref_ptr<vsg::Node> node);
 //    void setTilesModel(SceneModel *model);
     void openRoute();
 

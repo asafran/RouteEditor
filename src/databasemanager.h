@@ -28,7 +28,7 @@ public:
     {
         if(auto group = plod.children.front().node.cast<vsg::Group>(); group
                 && group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
-            tiles->addChild(plod);
+            tiles->addChild(group);
         plod.traverse(*this);
     }
     vsg::ref_ptr<vsg::Group> tiles;
@@ -54,7 +54,7 @@ class DatabaseManager : public QObject
 public:
     explicit DatabaseManager(const QString &path, QObject *parent = nullptr);
 
-    vsg::Node* getDatabase() { return database.get(); }
+    vsg::ref_ptr<vsg::Node> getDatabase() { return database; }
     SceneModel *getCahedTilesModel() { return cachedTilesModel; }
     SceneModel *getLoadedTilesModel() { return fileTilesModel; }
 
@@ -73,7 +73,7 @@ private:
 
     vsg::ref_ptr<vsg::Group> loadedTiles;
     vsg::ref_ptr<vsg::Group> cachedTiles;
-    vsg::ref_ptr<vsg::Group> database;
+    vsg::ref_ptr<vsg::Node> database;
     QStringList tileFiles;
     SceneModel *fileTilesModel;
     SceneModel *cachedTilesModel;

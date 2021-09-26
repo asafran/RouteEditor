@@ -73,7 +73,8 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
             auto grandParent = *(parentVisitor->pathToChild.end() - 2);
             if (parent && grandParent)
                 return createIndex(findRow(grandParent, parent), 0, const_cast<vsg::Node*>(parent));
-        }
+        } else
+            return index(0,0);
     }
     return QModelIndex();
 }

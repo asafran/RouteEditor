@@ -19,7 +19,7 @@ DatabaseManager::DatabaseManager(const QString &path, QObject *parent) : QObject
     while (it.hasNext())
         tileFiles << it.next();
 
-    database->addChild(vsg::ref_ptr<vsg::Node>(read(path)));
+    database = read(path);
 }
 void addToGroup(vsg::ref_ptr<vsg::Group> &group, vsg::Node *node)
 {
@@ -59,8 +59,6 @@ void DatabaseManager::updateTileCache()
 {
     TilesVisitor visitor(cachedTiles);
     database->accept(visitor);
-
-    qDebug() << cachedTiles->children.size();
 
     emit emitCahedTilesRoot(cachedTilesModel->index(0,0));
 }
