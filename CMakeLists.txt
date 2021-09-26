@@ -13,6 +13,11 @@ set(SOURCES
     src/MainWindow.cpp
     src/MainWindow.h
     src/MainWindow.ui
+    src/AddDialog.ui
+    src/AddDialog.cpp
+    src/AddDialog.h
+    src/metainf.h
+    src/metainf.cpp
     src/contentmanager.h
     src/contentmanager.cpp
     src/databasemanager.cpp
@@ -98,6 +103,6 @@ add_executable(editor ${SOURCES})
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_compile_definitions(editor PRIVATE ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
+target_compile_definitions(editor PRIVATE META_NAME="MetaName" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
 target_link_libraries(editor vsgQt vsg::vsg vsgXchange::vsgXchange Qt6::Concurrent)

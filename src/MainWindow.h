@@ -6,6 +6,8 @@
 #include <QTreeView>
 #include "databasemanager.h"
 #include <vsgQt/ViewerWindow.h>
+#include <QUndoView>
+#include <QUndoStack>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -23,6 +25,8 @@ public slots:
     void addToRoot(vsg::ref_ptr<vsg::Node> node);
 //    void setTilesModel(SceneModel *model);
     void openRoute();
+    void addObject();
+    void pushCommand(QUndoCommand *command);
 
 private:
     QWindow* initilizeVSGwindow();
@@ -36,5 +40,8 @@ private:
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;
     QScopedPointer<DatabaseManager> database;
+
+    QUndoStack *undoStack;
+    QUndoView *undoView;
 
 };

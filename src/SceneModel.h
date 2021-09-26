@@ -2,6 +2,7 @@
 #define SCENEOBJECT_H
 
 #include <QAbstractItemModel>
+#include "undo-redo.h"
 #include <vsg/all.h>
 #include <algorithm>
 
@@ -32,6 +33,10 @@ public:
 
 //    void updateItem( QObject* propertyObject, const QModelIndex& parent = QModelIndex() ) ;
 
+//    Qt::DropActions supportedDropActions() const;
+
+
+
     int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
     QModelIndex rootIndexForItem(const vsg::Node *parentNode) { return createIndex(0,0,parentNode); }
@@ -40,6 +45,9 @@ public:
 
 //    void clear();
     bool hasChildren(const QModelIndex &parent) const;
+
+signals:
+    void renameObject(QUndoCommand *command);
 
 private:
 
@@ -50,6 +58,9 @@ private:
             ColumnCount
         };
     vsg::ref_ptr<vsg::Group> root;
+
+    // QAbstractItemModel interface
+
 };
 
 #endif // SCENEOBJECT_H

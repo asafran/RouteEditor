@@ -5,7 +5,10 @@
 #include <QFileDialog>
 #include <QColorDialog>
 #include <QErrorMessage>
+#include <QMessageBox>
 #include "manipulator.h"
+#include "AddDialog.h"
+#include "undo-redo.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -17,8 +20,16 @@ MainWindow::MainWindow(QWidget *parent)
 
     constructWidgets();
 
+    ui->cachedTilesView->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->cachedTilesView->setSelectionBehavior(QAbstractItemView::SelectItems);
+
+    undoStack = new QUndoStack(this);
+    undoView = new QUndoView(undoStack, ui->tabWidget);
+    ui->tabWidget->addTab(undoView, tr("Действия"));
+
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openRoute);
 
+    connect(ui->addObjectButt, &QPushButton::pressed, this, &MainWindow::addObject);
 }
 QWindow* MainWindow::initilizeVSGwindow()
 {
@@ -54,6 +65,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     SceneModel *scenemodel = new SceneModel(scene, this);
     ui->sceneTreeView->setModel(scenemodel);
     ui->sceneTreeView->setRootIndex(scenemodel->index(0,0));
+    connect(scenemodel, &SceneModel::renameObject, this, &MainWindow::pushCommand);
 
     viewerWindow = new vsgQt::ViewerWindow();
     viewerWindow->traits = windowTraits;
@@ -144,6 +156,35 @@ void MainWindow::addToRoot(vsg::ref_ptr<vsg::Node> node)
     ui->sceneTreeView->setRootIndex(ui->sceneTreeView->model()->index(0,0));
 
 }
+void MainWindow::addObject()
+{
+    const auto selectedIndexes = ui->cachedTilesView->selectionModel()->selectedIndexes();
+    if(selectedIndexes.isEmpty())
+        return;
+    auto selected = static_cast<vsg::Node*>(selectedIndexes.front().internalPointer());
+    if(auto group = selected->cast<vsg::Group>(); group)
+    {
+        AddDialog dialog(this);
+        switch( dialog.exec() ) {
+        case QDialog::Accepted:
+        {
+            auto add = new AddObject(group, dialog.constructNode());
+            undoStack->push(add);
+            ui->cachedTilesView->update(selectedIndexes.front());
+            break;
+        }
+        case QDialog::Rejected:
+            break;
+        default:
+            break;
+        }
+    } else {
+        QMessageBox msgBox;
+        msgBox.setText("Пожалуйста, выберите группу сначала");
+        msgBox.exec();
+    }
+}
+
 void MainWindow::openRoute()
 {
     scene->children.clear();
@@ -167,6 +208,11 @@ void MainWindow::openRoute()
             errorMessageDialog->showMessage(ex.getErrPath());
         }
     }
+}
+
+void MainWindow::pushCommand(QUndoCommand *command)
+{
+    undoStack->push(command);
 }
 
 void MainWindow::constructWidgets()
