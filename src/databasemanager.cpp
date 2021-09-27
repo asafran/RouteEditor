@@ -4,14 +4,15 @@
 #include <QtConcurrent/QtConcurrent>
 
 
-DatabaseManager::DatabaseManager(const QString &path, QObject *parent) : QObject(parent)
+DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, QObject *parent) : QObject(parent)
   , loadedTiles(vsg::Group::create())
   , cachedTiles(vsg::Group::create())
   , database(vsg::Group::create())
+  , undoStack(stack)
 {
     QFileInfo directory(path);
     fileTilesModel = new SceneModel(loadedTiles, this);
-    cachedTilesModel =  new SceneModel(cachedTiles, this);
+    cachedTilesModel =  new SceneModel(cachedTiles, undoStack, this);
     fsWatcher = new QFileSystemWatcher(QStringList(directory.absolutePath() + QDir::separator() + "Tiles"), this);
 
     QStringList filter("database_L5*");
@@ -43,7 +44,6 @@ void DatabaseManager::loadTiles()
         loadedTiles->children.erase(loadedTiles->children.begin(), loadedTiles->children.end());
         QFuture<vsg::ref_ptr<vsg::Group>> future = QtConcurrent::mappedReduced(tileFiles, &DatabaseManager::read, addToGroup, loadedTiles, QtConcurrent::OrderedReduce);
         future.waitForFinished();
-        qDebug() << loadedTiles->children.size();
 
         emit emitFileTilesRoot(fileTilesModel->index(0,0));
     }  catch (DatabaseException &ex) {

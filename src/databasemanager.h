@@ -52,7 +52,7 @@ class DatabaseManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit DatabaseManager(const QString &path, QObject *parent = nullptr);
+    explicit DatabaseManager(const QString &path, QUndoStack *stack, QObject *parent = nullptr);
 
     vsg::ref_ptr<vsg::Node> getDatabase() { return database; }
     SceneModel *getCahedTilesModel() { return cachedTilesModel; }
@@ -77,6 +77,7 @@ private:
     QStringList tileFiles;
     SceneModel *fileTilesModel;
     SceneModel *cachedTilesModel;
+    QUndoStack *undoStack;
     QFileSystemWatcher *fsWatcher;
 };
 

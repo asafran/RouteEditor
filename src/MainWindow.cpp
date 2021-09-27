@@ -18,12 +18,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->setupUi(this);
 
+    undoStack = new QUndoStack(this);
+
     constructWidgets();
 
-    ui->cachedTilesView->setSelectionMode(QAbstractItemView::SingleSelection);
-    ui->cachedTilesView->setSelectionBehavior(QAbstractItemView::SelectItems);
-
-    undoStack = new QUndoStack(this);
     undoView = new QUndoView(undoStack, ui->tabWidget);
     ui->tabWidget->addTab(undoView, tr("Действия"));
 
@@ -62,10 +60,9 @@ QWindow* MainWindow::initilizeVSGwindow()
 
     scene->addChild(builder->createBox(geomInfo, stateInfo));
 
-    SceneModel *scenemodel = new SceneModel(scene, this);
+    SceneModel *scenemodel = new SceneModel(scene, undoStack, this);
     ui->sceneTreeView->setModel(scenemodel);
     ui->sceneTreeView->setRootIndex(scenemodel->index(0,0));
-    connect(scenemodel, &SceneModel::renameObject, this, &MainWindow::pushCommand);
 
     viewerWindow = new vsgQt::ViewerWindow();
     viewerWindow->traits = windowTraits;
@@ -194,7 +191,7 @@ void MainWindow::openRoute()
     if (const auto file = QFileDialog::getOpenFileName(this, tr("Открыть базу данных"), settings.value("ROUTES", qApp->applicationDirPath()).toString()); !file.isEmpty())
     {
         try {
-            database.reset(new DatabaseManager(file));
+            database.reset(new DatabaseManager(file, undoStack));
             ui->loadedTilesView->setModel(database->getLoadedTilesModel());
             ui->cachedTilesView->setModel(database->getCahedTilesModel());
             QObject::connect(database.get(), &DatabaseManager::emitFileTilesRoot, ui->loadedTilesView, &QTreeView::setRootIndex);

@@ -1,14 +1,18 @@
 #include "SceneModel.h"
 #include "ParentVisitor.h"
+#include <QMimeData>
+#include <sstream>
 
+SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, QUndoStack *stack, QObject *parent) :
+    QAbstractItemModel(parent)
+  , root(group)
+  , undoStack(stack)
+{
+}
 SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, QObject *parent) :
     QAbstractItemModel(parent)
   , root(group)
-{
-}
-
-SceneModel::SceneModel(QObject *parent) :
-    QAbstractItemModel(parent)
+  , undoStack(Q_NULLPTR)
 {
 }
 
@@ -70,6 +74,29 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
     return QModelIndex();
 }
 
+bool SceneModel::removeRows(int row, int count, const QModelIndex &parent)
+{
+    if (parent.isValid())
+        return false;
+
+    auto parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root;
+
+    if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
+    {
+        Q_ASSERT(parentGroup->children.size() <= count);
+        beginRemoveRows(parent, row, row + count - 1);
+        auto count_iterator = parentGroup->children.cbegin() + count + 1;
+        for(auto it = parentGroup->children.cbegin(); it != count_iterator; ++it)
+            parentGroup->children.erase(it);
+        endRemoveRows();
+    }
+    else if (auto plod = parentNode->cast<vsg::PagedLOD>(); plod)
+    {
+        return false;
+    }
+    return true;
+}
+
 int SceneModel::findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const
 {
     Q_ASSERT(childNode != 0);
@@ -94,21 +121,85 @@ int SceneModel::findRow(const vsg::Node *parentNode, const vsg::Node *childNode)
     return 0;
 }
 
-void SceneModel::setRoot(vsg::Group *group)
-{
-    root = group;
-}
-
 int SceneModel::columnCount ( const QModelIndex & /*parent = QModelIndex()*/ ) const
 {
     return ColumnCount;
 }
-/*
+
 Qt::DropActions SceneModel::supportedDropActions() const
 {
     return Qt::MoveAction|Qt::CopyAction;
 }
-*/
+
+QStringList SceneModel::mimeTypes() const
+{
+    QStringList types;
+    types << "model/vsg-text";
+    return types;
+}
+
+QMimeData *SceneModel::mimeData(const QModelIndexList &indexes) const
+{
+    Q_ASSERT(indexes.count());
+    if(indexes.count() != 1)
+        return 0;
+
+    vsg::VSG io;
+    auto options = vsg::Options::create();
+    options->extensionHint = "vsgt";
+
+    std::ostringstream oss;
+
+    if (indexes.at(0).isValid()) {
+        if(auto node = static_cast<vsg::Node*>(indexes.at(0).internalPointer()); node)
+        {
+            io.write(node, oss, options);
+        }
+    } else
+        return 0;
+
+    QMimeData *mimeData = new QMimeData();
+    QByteArray encodedData(oss.str().c_str());
+
+    mimeData->setData("model/vsg-text", encodedData);
+    return mimeData;
+}
+
+bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
+                               int row, int column, const QModelIndex &parent)
+{
+    if (!data->hasFormat("model/vsg-text"))
+        return false;
+
+    if (action == Qt::IgnoreAction)
+        return true;
+
+    if (column > 0)
+        return false;
+
+    if (!parent.isValid())
+        return false;
+    else if(auto group = static_cast<vsg::Node*>(parent.internalPointer())->cast<vsg::Group>(); group)
+    {
+        auto options = vsg::Options::create();
+        options->extensionHint = "vsgt";
+
+        QByteArray encodedData = data->data("model/vsg-text");
+        std::istringstream iss(encodedData.toStdString());
+
+        vsg::VSG io;
+
+        auto object = io.read(iss, options);
+        auto node = object.cast<vsg::Node>();
+        QUndoCommand *command = new AddNode(group, node.release());
+        beginInsertRows(parent, row, row);
+        Q_ASSERT(undoStack);
+        undoStack->push(command);
+        endInsertRows();
+    }
+    return true;
+}
+
 int SceneModel::rowCount(const QModelIndex &parent) const
 {
     if (!parent.isValid()) {
@@ -191,7 +282,11 @@ bool SceneModel::setData(const QModelIndex &index, const QVariant &value, int ro
     QString newName = value.toString();
     auto object = static_cast<vsg::Object*>(index.internalPointer());
     QUndoCommand *command = new RenameObject(object, newName);
-    emit renameObject(command);
+
+    if(undoStack == Q_NULLPTR)
+        emit sendCommand(command);
+    else
+        undoStack->push(command);
 
     emit dataChanged(index, index.sibling(index.row(), ColumnCount));
     return true;
@@ -209,9 +304,21 @@ QVariant SceneModel::headerData(int section, Qt::Orientation orientation, int ro
 Qt::ItemFlags SceneModel::flags(const QModelIndex &index) const
 {
     Qt::ItemFlags flags = QAbstractItemModel::flags(index);
-    if (index.isValid() && index.column() == Name) {
-        //auto nodeInfo = static_cast<vsg::Node*>(index.internalPointer());
-        flags |= Qt::ItemIsEditable;
+    if (index.isValid())
+    {
+        flags |= Qt::ItemIsSelectable;
+        switch (index.column()) {
+        case Name:
+        {
+            flags |= Qt::ItemIsEditable;
+            break;
+        }
+        case Type:
+        {
+            flags |= Qt::ItemIsDragEnabled|Qt::ItemIsDropEnabled;
+            break;
+        }
+        }
     }
     return flags;
 }

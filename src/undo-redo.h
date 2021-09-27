@@ -8,12 +8,11 @@
 class AddNode : public QUndoCommand
 {
 public:
-    AddNode(vsg::ref_ptr<vsg::Group> group, const vsg::ref_ptr<vsg::Node> node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddNode(vsg::Group *group, vsg::Node *node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _group(group)
         , _node(node)
     {
         setText(QObject::tr("Новая нода %1").arg(node->className()));
-        group->addChild(vsg::ref_ptr<vsg::Node>(node));
     }
     void undo() override
     {
@@ -24,6 +23,31 @@ public:
     void redo() override
     {
         _group->addChild(vsg::ref_ptr<vsg::Node>(_node));
+    }
+private:
+    vsg::ref_ptr<vsg::Group> _group;
+    vsg::ref_ptr<vsg::Node> _node;
+
+};
+
+class RemoveNode : public QUndoCommand
+{
+public:
+    RemoveNode(vsg::Group *group, vsg::Node *node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _group(group)
+        , _node(node)
+    {
+        setText(QObject::tr("Удалена нода %1").arg(node->className()));
+    }
+    void undo() override
+    {
+        _group->addChild(vsg::ref_ptr<vsg::Node>(_node));
+    }
+    void redo() override
+    {
+        auto position = std::find(_group->children.cbegin(), _group->children.cend(), _node);
+        Q_ASSERT(position != _group->children.end());
+        _group->children.erase(position);
     }
 private:
     vsg::ref_ptr<vsg::Group> _group;

@@ -12,7 +12,7 @@ class SceneModel : public QAbstractItemModel
 public:
 
     SceneModel(vsg::ref_ptr<vsg::Group> group, QObject* parent = 0);
-    SceneModel(QObject* parent = 0);
+    SceneModel(vsg::ref_ptr<vsg::Group> group, QUndoStack *stack, QObject* parent = 0);
 
     virtual ~SceneModel();
 
@@ -29,25 +29,27 @@ public:
 
     QVariant headerData ( int section, Qt::Orientation orientation, int role = Qt::DisplayRole ) const;
 
-//    void addItem( QObject* propertyObject );
+    bool removeRows(int row, int count, const QModelIndex &parent);
 
-//    void updateItem( QObject* propertyObject, const QModelIndex& parent = QModelIndex() ) ;
+    Qt::DropActions supportedDropActions() const;
 
-//    Qt::DropActions supportedDropActions() const;
+    QStringList mimeTypes() const;
 
+    QMimeData *mimeData(const QModelIndexList &indexes) const;
 
+    //bool canDropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) const;
+
+    bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent);
 
     int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
     QModelIndex rootIndexForItem(const vsg::Node *parentNode) { return createIndex(0,0,parentNode); }
 
-    void setRoot(vsg::Group *group);
-
 //    void clear();
     bool hasChildren(const QModelIndex &parent) const;
 
 signals:
-    void renameObject(QUndoCommand *command);
+    void sendCommand(QUndoCommand *command);
 
 private:
 
@@ -58,8 +60,7 @@ private:
             ColumnCount
         };
     vsg::ref_ptr<vsg::Group> root;
-
-    // QAbstractItemModel interface
+    QUndoStack *undoStack;
 
 };
 
