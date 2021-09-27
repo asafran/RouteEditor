@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>413</width>
+    <width>425</width>
     <height>163</height>
    </rect>
   </property>
@@ -44,7 +44,7 @@
        </item>
        <item>
         <property name="text">
-         <string>Слой путевой инфраструктуры</string>
+         <string>Группа</string>
         </property>
        </item>
        <item>

@@ -9,16 +9,16 @@ AddDialog::AddDialog(QWidget *parent) :
     ui->setupUi(this);
 }
 
-vsg::Node* AddDialog::constructNode()
+QUndoCommand *AddDialog::constructCommand(vsg::Group *group)
 {
     switch (ui->comboBox->currentIndex()) {
+    case ObjectLayer:
+    {
+        return new AddNode(group, createGroup());
+    }
     case ObjectGroup:
     {
-        return createGroup();
-    }
-    case RailsGroup:
-    {
-        return createGroup();
+        return new AddObject(group, createGroup());
     }
     case BinGroup:
     {
@@ -37,8 +37,7 @@ vsg::Node* AddDialog::constructNode()
 vsg::Group* AddDialog::createGroup()
 {
     auto group = vsg::Group::create();
-    group->setValue("MetaName", ui->lineEdit->text().toStdString());
-    std::string name;
+    group->setValue(META_NAME, ui->lineEdit->text().toStdString());
     return group.release();
 }
 

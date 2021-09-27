@@ -41,6 +41,8 @@ public:
 
     bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent);
 
+    void addNode(const QModelIndex &parent, QUndoCommand *command);
+
     int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
     QModelIndex rootIndexForItem(const vsg::Node *parentNode) { return createIndex(0,0,parentNode); }

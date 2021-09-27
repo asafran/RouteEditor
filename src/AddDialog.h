@@ -4,6 +4,7 @@
 #include <QDialog>
 #include <vsg/nodes/MatrixTransform.h>
 #include "metainf.h"
+#include "undo-redo.h"
 
 namespace Ui {
 class AddDialog;
@@ -17,7 +18,7 @@ public:
     explicit AddDialog(QWidget *parent = nullptr);
     ~AddDialog();
 
-    vsg::Node* constructNode();
+    QUndoCommand *constructCommand(vsg::Group *group);
 
 private:
 

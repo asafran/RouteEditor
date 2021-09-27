@@ -32,7 +32,7 @@ vsg::Node* DatabaseManager::read(const QString &path)
     auto tile = vsg::read_cast<vsg::Node>(path.toStdString());
     if (tile)
     {
-        tile->setValue("MetaName", path.toStdString());
+        tile->setValue(META_NAME, path.toStdString());
         return tile.release();
     } else
         throw (DatabaseException(path));
@@ -45,7 +45,7 @@ void DatabaseManager::loadTiles()
         QFuture<vsg::ref_ptr<vsg::Group>> future = QtConcurrent::mappedReduced(tileFiles, &DatabaseManager::read, addToGroup, loadedTiles, QtConcurrent::OrderedReduce);
         future.waitForFinished();
 
-        emit emitFileTilesRoot(fileTilesModel->index(0,0));
+        emit updateViews();
     }  catch (DatabaseException &ex) {
 
     }
@@ -62,7 +62,7 @@ void DatabaseManager::updateTileCache()
     TilesVisitor visitor(cachedTiles);
     database->accept(visitor);
 
-    emit emitCahedTilesRoot(cachedTilesModel->index(0,0));
+    emit updateViews();
 }
 
 

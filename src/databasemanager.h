@@ -28,7 +28,11 @@ public:
     {
         if(auto group = plod.children.front().node.cast<vsg::Group>(); group
                 && group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
+        {
+            QFileInfo file(plod.filename.c_str());
+            group->setValue(META_NAME, file.baseName().toStdString());
             tiles->addChild(group);
+        }
         plod.traverse(*this);
     }
     vsg::ref_ptr<vsg::Group> tiles;
@@ -66,8 +70,7 @@ public slots:
     void loadTiles();
 
 signals:
-    void emitCahedTilesRoot(const QModelIndex &index);
-    void emitFileTilesRoot(const QModelIndex &index);
+    void updateViews();
 
 private:
 

@@ -6,8 +6,8 @@
 
 enum ObjectType
 {
+    ObjectLayer,
     ObjectGroup,
-    RailsGroup,
     BinGroup,
     ShaderGroup,
     Object,
@@ -15,24 +15,4 @@ enum ObjectType
     Track,
     Trackside
 };
-/*
-struct MetaInfo : vsg::Object
-{
-    MetaInfo(QString in_name, ObjectType in_type)
-        : name(in_name)
-        , type(in_type)
-    {
-    }
-    MetaInfo()
-    {
-    }
-    MetaInfo(const MetaInfo &other)
-        : name(other.name)
-        , type(other.type)
-    {
-    }
-    QString name;
-    ObjectType type;
-};
-*/
 #endif // METAINF_H

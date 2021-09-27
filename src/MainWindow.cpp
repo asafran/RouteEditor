@@ -62,7 +62,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
     SceneModel *scenemodel = new SceneModel(scene, undoStack, this);
     ui->sceneTreeView->setModel(scenemodel);
-    ui->sceneTreeView->setRootIndex(scenemodel->index(0,0));
+    ui->sceneTreeView->expandAll();
 
     viewerWindow = new vsgQt::ViewerWindow();
     viewerWindow->traits = windowTraits;
@@ -165,9 +165,8 @@ void MainWindow::addObject()
         switch( dialog.exec() ) {
         case QDialog::Accepted:
         {
-            auto add = new AddObject(group, dialog.constructNode());
-            undoStack->push(add);
-            ui->cachedTilesView->update(selectedIndexes.front());
+            auto add = dialog.constructCommand(group);
+            database->getCahedTilesModel()->addNode(selectedIndexes.front(), add);
             break;
         }
         case QDialog::Rejected:
@@ -194,8 +193,8 @@ void MainWindow::openRoute()
             database.reset(new DatabaseManager(file, undoStack));
             ui->loadedTilesView->setModel(database->getLoadedTilesModel());
             ui->cachedTilesView->setModel(database->getCahedTilesModel());
-            QObject::connect(database.get(), &DatabaseManager::emitFileTilesRoot, ui->loadedTilesView, &QTreeView::setRootIndex);
-            QObject::connect(database.get(), &DatabaseManager::emitCahedTilesRoot, ui->cachedTilesView, &QTreeView::setRootIndex);
+            QObject::connect(database.get(), &DatabaseManager::updateViews, ui->loadedTilesView, &QTreeView::expandAll);
+            QObject::connect(database.get(), &DatabaseManager::updateViews, ui->cachedTilesView, &QTreeView::expandAll);
             QObject::connect(ui->updateButt, &QPushButton::pressed, database.get(), &DatabaseManager::updateTileCache);
             QObject::connect(ui->updateFilesButt, &QPushButton::pressed, database.get(), &DatabaseManager::loadTiles);
             addToRoot(database->getDatabase());

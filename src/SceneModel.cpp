@@ -17,7 +17,8 @@ SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, QObject *parent) :
 }
 
 SceneModel::~SceneModel()
-{}
+{
+}
 
 QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) const
 {
@@ -26,23 +27,14 @@ QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) co
         return QModelIndex();
     }
     try {
-        if (!parent.isValid())
-        {
-            return createIndex(row, column, root.get());
-        }
-        auto parentNode = static_cast<vsg::Node*>(parent.internalPointer());
+        auto parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root;
 
         if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
             return createIndex(row, column, parentGroup->children.at(row).get());
         else if (auto plod = parentNode->cast<vsg::PagedLOD>(); plod)
             return createIndex(row, column, plod->children.at(row).node.get());
-        /*else if (parentNode->type_info() == typeid (vsgGIS::TileDatabase))
-        {
-            auto database = parentNode->cast<vsgGIS::TileDatabase>();
-            return createIndex(row, column, database->child.get());
-        } */else {
+        else
             return QModelIndex();
-        }
     }
     catch (std::out_of_range){
         return QModelIndex();
@@ -116,9 +108,16 @@ int SceneModel::findRow(const vsg::Node *parentNode, const vsg::Node *childNode)
         }
         Q_ASSERT(it != plod->children.end());
         return std::distance(plod->children.begin(), it);
-    } /*else if (parentNode->type_info() == typeid (vsgGIS::TileDatabase))
-        return 1;*/
+    }
     return 0;
+}
+void SceneModel::addNode(const QModelIndex &parent, QUndoCommand *command)
+{
+    int row = rowCount(parent);
+    beginInsertRows(parent, row, row);
+    Q_ASSERT(undoStack);
+    undoStack->push(command);
+    endInsertRows();
 }
 
 int SceneModel::columnCount ( const QModelIndex & /*parent = QModelIndex()*/ ) const
@@ -134,7 +133,7 @@ Qt::DropActions SceneModel::supportedDropActions() const
 QStringList SceneModel::mimeTypes() const
 {
     QStringList types;
-    types << "model/vsg-text";
+    types << "text/plain" << "application/octet-stream";
     return types;
 }
 
@@ -159,16 +158,14 @@ QMimeData *SceneModel::mimeData(const QModelIndexList &indexes) const
         return 0;
 
     QMimeData *mimeData = new QMimeData();
-    QByteArray encodedData(oss.str().c_str());
-
-    mimeData->setData("model/vsg-text", encodedData);
+    mimeData->setText(oss.str().c_str());
     return mimeData;
 }
 
 bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
                                int row, int column, const QModelIndex &parent)
 {
-    if (!data->hasFormat("model/vsg-text"))
+    if (!data->hasText())
         return false;
 
     if (action == Qt::IgnoreAction)
@@ -184,13 +181,14 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
         auto options = vsg::Options::create();
         options->extensionHint = "vsgt";
 
-        QByteArray encodedData = data->data("model/vsg-text");
-        std::istringstream iss(encodedData.toStdString());
+        std::istringstream iss(data->text().toStdString());
 
         vsg::VSG io;
 
         auto object = io.read(iss, options);
         auto node = object.cast<vsg::Node>();
+        if(!node)
+            return false;
         QUndoCommand *command = new AddNode(group, node.release());
         beginInsertRows(parent, row, row);
         Q_ASSERT(undoStack);
@@ -211,10 +209,6 @@ int SceneModel::rowCount(const QModelIndex &parent) const
             return parentGroup->children.size();
         else if (auto plod = parentNode->cast<vsg::PagedLOD>(); plod)
             return plod->children.size();
-        /*else if (parentNode->type_info() == typeid (vsgGIS::TileDatabase))
-        {
-            return 1;
-        }*/
     }
     return 0;
 
@@ -258,10 +252,6 @@ bool SceneModel::hasChildren(const QModelIndex &parent) const
                 return !parentGroup->children.empty();
             else if (auto plod = parentNode->cast<vsg::PagedLOD>(); plod)
                 return !plod->children.empty();
-            /*else if (parentNode->type_info() == typeid (vsgGIS::TileDatabase))
-            {
-                return true;
-            }*/
         }
     }
     return QAbstractItemModel::hasChildren(parent);
