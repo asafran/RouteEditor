@@ -30,12 +30,14 @@ public:
                 && group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
         {
             QFileInfo file(plod.filename.c_str());
-            group->setValue(META_NAME, file.baseName().toStdString());
+            group->setValue(META_NAME, file.absoluteFilePath().toStdString());
             tiles->addChild(group);
+            filenames.insert(file.absoluteFilePath());
         }
         plod.traverse(*this);
     }
     vsg::ref_ptr<vsg::Group> tiles;
+    QSet<QString> filenames;
 };
 
 class DatabaseException : public QException
@@ -60,24 +62,22 @@ public:
 
     vsg::ref_ptr<vsg::Node> getDatabase() { return database; }
     SceneModel *getCahedTilesModel() { return cachedTilesModel; }
-    SceneModel *getLoadedTilesModel() { return fileTilesModel; }
+    SceneModel *loadTiles();
+
 
     static vsg::Node *read(const QString &path);
 
 public slots:
     void updateTileCache();
     void writeTiles();
-    void loadTiles();
 
 signals:
     void updateViews();
 
 private:
-
-    vsg::ref_ptr<vsg::Group> loadedTiles;
     vsg::ref_ptr<vsg::Group> cachedTiles;
     vsg::ref_ptr<vsg::Node> database;
-    QStringList tileFiles;
+    QSet<QString> tileFiles;
     SceneModel *fileTilesModel;
     SceneModel *cachedTilesModel;
     QUndoStack *undoStack;

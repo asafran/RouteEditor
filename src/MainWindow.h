@@ -5,9 +5,11 @@
 #include <QSplitter>
 #include <QTreeView>
 #include "databasemanager.h"
+#include "sorter.h"
 #include <vsgQt/ViewerWindow.h>
 #include <QUndoView>
 #include <QUndoStack>
+#include <QRegularExpression>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -25,6 +27,7 @@ public slots:
     void addToRoot(vsg::ref_ptr<vsg::Node> node);
 //    void setTilesModel(SceneModel *model);
     void openRoute();
+    void search();
     void addObject();
     void pushCommand(QUndoCommand *command);
 

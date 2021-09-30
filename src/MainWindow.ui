@@ -104,6 +104,32 @@
           <string>Тайлы</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout">
+          <item row="1" column="0">
+           <widget class="QPushButton" name="updateButt">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>U</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="3">
+           <widget class="QPushButton" name="removeButt">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Rm</string>
+            </property>
+           </widget>
+          </item>
           <item row="0" column="0" colspan="4">
            <widget class="QTreeView" name="cachedTilesView">
             <property name="acceptDrops">
@@ -118,36 +144,7 @@
             <property name="defaultDropAction">
              <enum>Qt::MoveAction</enum>
             </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QPushButton" name="updateButt">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>U</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QPushButton" name="autoUpdateButt">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>AU</string>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="checked">
+            <property name="sortingEnabled">
              <bool>true</bool>
             </property>
            </widget>
@@ -165,8 +162,8 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="3">
-           <widget class="QPushButton" name="removeButt">
+          <item row="1" column="1">
+           <widget class="QPushButton" name="searchButt">
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
               <horstretch>0</horstretch>
@@ -174,28 +171,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string>Rm</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="loadedTiles">
-         <attribute name="title">
-          <string>Объекты/поиск по БД</string>
-         </attribute>
-         <layout class="QVBoxLayout" name="verticalLayout_3">
-          <item>
-           <widget class="QTreeView" name="loadedTilesView">
-            <property name="sortingEnabled">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="updateFilesButt">
-            <property name="text">
-             <string>Обновить</string>
+             <string>Search</string>
             </property>
            </widget>
           </item>
@@ -245,10 +221,8 @@
      <string>Файл</string>
     </property>
     <addaction name="actionOpen"/>
-    <addaction name="actionExport_route"/>
     <addaction name="actionAdd_markers"/>
     <addaction name="actionLoad_skybox"/>
-    <addaction name="actionLoad_track_database"/>
     <addaction name="actionSave"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
@@ -283,7 +257,6 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionAdd_model"/>
-   <addaction name="actionUpdate"/>
   </widget>
   <widget class="QToolBar" name="toolBar_2">
    <property name="windowTitle">
@@ -337,14 +310,6 @@
     <string>Загрузить БД путей</string>
    </property>
   </action>
-  <action name="actionExport_route">
-   <property name="text">
-    <string>Сохранить и завершить маршрут</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Shift+S</string>
-   </property>
-  </action>
   <action name="actionSettings">
    <property name="text">
     <string>Настройки</string>
@@ -372,14 +337,6 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
-   </property>
-  </action>
-  <action name="actionUpdate">
-   <property name="text">
-    <string>Обновить</string>
-   </property>
-   <property name="toolTip">
-    <string>Update model</string>
    </property>
   </action>
  </widget>

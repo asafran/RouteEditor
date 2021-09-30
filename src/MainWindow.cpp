@@ -28,6 +28,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openRoute);
 
     connect(ui->addObjectButt, &QPushButton::pressed, this, &MainWindow::addObject);
+
+
 }
 QWindow* MainWindow::initilizeVSGwindow()
 {
@@ -191,18 +193,27 @@ void MainWindow::openRoute()
     {
         try {
             database.reset(new DatabaseManager(file, undoStack));
-            ui->loadedTilesView->setModel(database->getLoadedTilesModel());
             ui->cachedTilesView->setModel(database->getCahedTilesModel());
-            QObject::connect(database.get(), &DatabaseManager::updateViews, ui->loadedTilesView, &QTreeView::expandAll);
-            QObject::connect(database.get(), &DatabaseManager::updateViews, ui->cachedTilesView, &QTreeView::expandAll);
-            QObject::connect(ui->updateButt, &QPushButton::pressed, database.get(), &DatabaseManager::updateTileCache);
-            QObject::connect(ui->updateFilesButt, &QPushButton::pressed, database.get(), &DatabaseManager::loadTiles);
+            connect(database.get(), &DatabaseManager::updateViews, ui->cachedTilesView, &QTreeView::expandAll);
+            connect(ui->updateButt, &QPushButton::pressed, database.get(), &DatabaseManager::updateTileCache);
+            connect(ui->actionSave, &QAction::triggered, database.get(), &DatabaseManager::writeTiles);
+            connect(ui->searchButt, &QPushButton::pressed, this, &MainWindow::search);
             addToRoot(database->getDatabase());
 
         }  catch (DatabaseException &ex) {
             auto errorMessageDialog = new QErrorMessage(this);
             errorMessageDialog->showMessage(ex.getErrPath());
         }
+    }
+}
+void MainWindow::search()
+{
+    try {
+        auto sorter = new Sorter(database->loadTiles(), this);
+        sorter->open();
+    }  catch (DatabaseException &ex) {
+        auto errorMessageDialog = new QErrorMessage(this);
+        errorMessageDialog->showMessage(ex.getErrPath());
     }
 }
 
@@ -217,8 +228,8 @@ void MainWindow::constructWidgets()
     auto widged = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
     ui->centralsplitter->addWidget(widged);
     QList<int> sizes;
-        sizes << 100 << 720;
-        ui->centralsplitter->setSizes(sizes);
+    sizes << 100 << 720;
+    ui->centralsplitter->setSizes(sizes);
 }
 
 MainWindow::~MainWindow()

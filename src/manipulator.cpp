@@ -5,54 +5,13 @@ Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera, vsg::ref_ptr<vsg::Ell
     vsg::Inherit<vsg::Trackball, Manipulator>(camera, ellipsoidModel),
     builder(in_builder),
     options(in_options),
-    scenegraph(in_scenegraph)
+    scenegraph(in_scenegraph),
+    pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center)))
 {
     rotateButtonMask = vsg::BUTTON_MASK_2;
     supportsThrow = false;
-}
-
-void Manipulator::apply(vsg::KeyPressEvent& keyPress)
-{
-    /*
-    if (_previousPointerEvent)
-    {
-        interesection(*_previousPointerEvent);
-        if (!lastIntersection.front()) return;
-
-        vsg::GeometryInfo info;
-        info.position = vsg::vec3(lastIntersection.front().localIntersection);
-
-        vsg::Intersector::NodePath path = lastIntersection.front().nodePath;
-
-        info.dx.set(1.0f, 0.0f, 0.0f);
-        info.dy.set(0.0f, 1.0f, 0.0f);
-        info.dz.set(0.0f, 0.0f, 1.0f);
-
-        for (auto it = path.crbegin(); it != path.crend(); ++it)
-        {
-            if (auto plod = (*it)->cast<vsg::PagedLOD>(); plod)
-            {
-            }
-        }
-
-        if (keyPress.keyBase == 'b')
-        {
-            lastIntersection.front() ->addChild(builder->createBox(info));
-        }
-        else if (keyPress.keyBase == 'c')
-        {
-            scenegraph->addChild(builder->createCylinder(info));
-        }
-        else if (keyPress.keyBase == 's')
-        {
-            scenegraph->addChild(builder->createSphere(info));
-        }
-        else if (keyPress.keyBase == 'n')
-        {
-            scenegraph->addChild(builder->createCone(info));
-        }
-    }
-    */
+    scenegraph->addChild(pointer);
+    addPointer();
 }
 
 void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
@@ -71,10 +30,10 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     else if (buttonPress.mask & vsg::BUTTON_MASK_3 && _ellipsoidModel){
         _updateMode = INACTIVE;
         auto isection = interesection(buttonPress);
-        auto lookAt = vsg::LookAt::create();
-        lookAt->eye = isection.worldIntersection + vsg::dvec3(0.0, 0.0, 2000.0);
+        auto lookAt = vsg::LookAt::create(*_lookAt);
+        lookAt->eye += (isection.worldIntersection - _lookAt->center);
         lookAt->center = isection.worldIntersection;
-        lookAt->up = normalize(cross(lookAt->center, vsg::dvec3(-lookAt->center.y, lookAt->center.x, lookAt->center.z)));
+        pointer->matrix = vsg::translate(isection.worldIntersection);
 
         emit tileClicked();
         setViewpoint(lookAt);
@@ -89,6 +48,16 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     _rotateAngle = 0.0;
 
     _previousPointerEvent = &buttonPress;
+}
+void Manipulator::addPointer()
+{
+    pointer->children.erase(pointer->children.begin(), pointer->children.end());
+    vsg::GeometryInfo info;
+
+    info.dx.set(1000.0f, 0.0f, 0.0f);
+    info.dy.set(0.0f, 1000.0f, 0.0f);
+    info.dz.set(0.0f, 0.0f, 1000.0f);
+    pointer->addChild(builder->createCone(info));
 }
 
 void Manipulator::apply(vsg::PointerEvent& pointerEvent)

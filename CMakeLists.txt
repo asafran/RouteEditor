@@ -16,6 +16,9 @@ set(SOURCES
     src/AddDialog.ui
     src/AddDialog.cpp
     src/AddDialog.h
+    src/sorter.ui
+    src/sorter.h
+    src/sorter.cpp
     src/metainf.h
     src/metainf.cpp
     src/contentmanager.h
@@ -26,6 +29,10 @@ set(SOURCES
     src/undo-redo.h
     src/manipulator.h
     src/manipulator.cpp
+    src/sceneobject.h
+    src/sceneobject.cpp
+    src/tilessorter.cpp
+    src/tilessorter.h
     src/LambdaVisitor.cpp
     src/LambdaVisitor.h
 #    src/ObjectModel.h

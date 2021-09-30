@@ -5,13 +5,11 @@
 
 
 DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, QObject *parent) : QObject(parent)
-  , loadedTiles(vsg::Group::create())
   , cachedTiles(vsg::Group::create())
   , database(vsg::Group::create())
   , undoStack(stack)
 {
     QFileInfo directory(path);
-    fileTilesModel = new SceneModel(loadedTiles, this);
     cachedTilesModel =  new SceneModel(cachedTiles, undoStack, this);
     fsWatcher = new QFileSystemWatcher(QStringList(directory.absolutePath() + QDir::separator() + "Tiles"), this);
 
@@ -38,22 +36,37 @@ vsg::Node* DatabaseManager::read(const QString &path)
         throw (DatabaseException(path));
 }
 
-void DatabaseManager::loadTiles()
+SceneModel *DatabaseManager::loadTiles()
+{
+    auto root = vsg::Group::create();
+    TilesVisitor visitor(root);
+
+    database->accept(visitor);
+    tileFiles.subtract(visitor.filenames);
+
+    QStringList filesToLoad(tileFiles.values());
+    QFuture<vsg::ref_ptr<vsg::Group>> future = QtConcurrent::mappedReduced(filesToLoad, &DatabaseManager::read, addToGroup, root, QtConcurrent::OrderedReduce);
+    future.waitForFinished();
+
+    return new SceneModel(root);
+}
+void write(const vsg::ref_ptr<vsg::Node> node)
+{
+    std::string file;
+    if(node->getValue(META_NAME, file))
+        if(!vsg::write(node, file))
+            throw (DatabaseException(file.c_str()));
+}
+
+void DatabaseManager::writeTiles()
 {
     try {
-        loadedTiles->children.erase(loadedTiles->children.begin(), loadedTiles->children.end());
-        QFuture<vsg::ref_ptr<vsg::Group>> future = QtConcurrent::mappedReduced(tileFiles, &DatabaseManager::read, addToGroup, loadedTiles, QtConcurrent::OrderedReduce);
+        QFuture<void> future = QtConcurrent::map(cachedTiles->children.begin(), cachedTiles->children.end(), write);
         future.waitForFinished();
-
-        emit updateViews();
+        undoStack->setClean();
     }  catch (DatabaseException &ex) {
 
     }
-
-}
-void DatabaseManager::writeTiles()
-{
-
 }
 
 void DatabaseManager::updateTileCache()

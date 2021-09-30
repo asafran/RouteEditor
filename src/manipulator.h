@@ -15,8 +15,6 @@ public:
                 double in_scale,
                 vsg::ref_ptr<vsg::Options> in_options, QObject *parent = nullptr);
 
-    void apply(vsg::KeyPressEvent& keyPress) override;
-
     void apply(vsg::ButtonPressEvent& buttonPressEvent) override;
 
     void apply(vsg::PointerEvent& pointerEvent) override;
@@ -27,12 +25,13 @@ signals:
     void tileClicked();
 
 protected:
+    inline void addPointer();
 
     vsg::ref_ptr<vsg::Builder> builder;
     vsg::ref_ptr<vsg::Options> options;
     vsg::ref_ptr<vsg::Group> scenegraph;
+    vsg::ref_ptr<vsg::MatrixTransform> pointer;
     double height = 0.01;
-    bool verbose = false;
 
     vsg::LineSegmentIntersector::Intersections lastIntersection;
 };

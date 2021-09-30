@@ -27,7 +27,7 @@ QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) co
         return QModelIndex();
     }
     try {
-        auto parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root;
+        auto parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root.get();
 
         if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
             return createIndex(row, column, parentGroup->children.at(row).get());
@@ -68,10 +68,7 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
 
 bool SceneModel::removeRows(int row, int count, const QModelIndex &parent)
 {
-    if (parent.isValid())
-        return false;
-
-    auto parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root;
+    auto parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root.get();
 
     if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
     {
@@ -300,7 +297,8 @@ Qt::ItemFlags SceneModel::flags(const QModelIndex &index) const
         switch (index.column()) {
         case Name:
         {
-            flags |= Qt::ItemIsEditable;
+            if(parent(index).isValid())
+                flags |= Qt::ItemIsEditable;
             break;
         }
         case Type:
