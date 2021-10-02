@@ -32,10 +32,10 @@ QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) co
 
         if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
         {
-            //QModelIndex index();
-            /*if(auto object = parentGroup->children.at(row).cast<SceneObject>(); object)
-                object->index = index;*/
-            return createIndex(row, column, parentGroup->children.at(row).get());
+            QModelIndex index(createIndex(row, column, parentGroup->children.at(row).get()));
+            if(auto object = parentGroup->children.at(row).cast<SceneObject>(); object)
+                object->index = index;
+            return index;
         }
         else if (auto plod = parentNode->cast<vsg::PagedLOD>(); plod)
             return createIndex(row, column, plod->children.at(row).node.get());

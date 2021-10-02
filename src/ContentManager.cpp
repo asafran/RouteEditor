@@ -30,7 +30,7 @@ void ContentManager::addObject(const vsg::dvec3 &pos)
 }
 void ContentManager::setActiveGroup(const QItemSelection &selected, const QItemSelection &deselected)
 {
-    _active.~ref_ptr();
+    _active.release();
     if(auto group = static_cast<vsg::Node*>(selected.indexes().front().internalPointer())->cast<vsg::Group>(); group)
         _active = group;
 }
