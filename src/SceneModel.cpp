@@ -1,5 +1,6 @@
 #include "SceneModel.h"
 #include "ParentVisitor.h"
+#include "undo-redo.h"
 #include <QMimeData>
 #include <sstream>
 
@@ -27,10 +28,15 @@ QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) co
         return QModelIndex();
     }
     try {
-        auto parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root.get();
+        vsg::Node* parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root.get();
 
         if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
+        {
+            //QModelIndex index();
+            /*if(auto object = parentGroup->children.at(row).cast<SceneObject>(); object)
+                object->index = index;*/
             return createIndex(row, column, parentGroup->children.at(row).get());
+        }
         else if (auto plod = parentNode->cast<vsg::PagedLOD>(); plod)
             return createIndex(row, column, plod->children.at(row).node.get());
         else
@@ -49,7 +55,6 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
 
     if(auto childInfo = static_cast<vsg::Node*>(child.internalPointer()))
     {
-
         auto parentVisitor = ParentVisitor::create(childInfo);
         root->accept(*parentVisitor);
         if (parentVisitor->pathToChild.empty())
@@ -68,7 +73,7 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
 
 bool SceneModel::removeRows(int row, int count, const QModelIndex &parent)
 {
-    auto parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root.get();
+    vsg::Node* parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root.get();
 
     if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
     {
@@ -115,6 +120,10 @@ void SceneModel::addNode(const QModelIndex &parent, QUndoCommand *command)
     Q_ASSERT(undoStack);
     undoStack->push(command);
     endInsertRows();
+}
+QModelIndex SceneModel::indexForItem(const vsg::ref_ptr<vsg::Group> parent, const vsg::ref_ptr<vsg::Node> node)
+{
+    return createIndex(findRow(parent, node),0,node.get());
 }
 
 int SceneModel::columnCount ( const QModelIndex & /*parent = QModelIndex()*/ ) const
@@ -194,6 +203,13 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
     }
     return true;
 }
+
+void SceneModel::fetchMore(const QModelIndex &parent)
+{
+    beginInsertRows(parent, 0, rowCount(parent));
+    endRemoveRows();
+}
+
 
 int SceneModel::rowCount(const QModelIndex &parent) const
 {

@@ -21,16 +21,17 @@ set(SOURCES
     src/sorter.cpp
     src/metainf.h
     src/metainf.cpp
-    src/contentmanager.h
-    src/contentmanager.cpp
+    src/ContentManager.h
+    src/ContentManager.cpp
+    src/ContentManager.ui
     src/databasemanager.cpp
     src/databasemanager.h
     src/undo-redo.cpp
     src/undo-redo.h
     src/manipulator.h
     src/manipulator.cpp
-    src/sceneobject.h
-    src/sceneobject.cpp
+#    src/sceneobject.h
+#    src/sceneobject.cpp
     src/tilessorter.cpp
     src/tilessorter.h
     src/LambdaVisitor.cpp

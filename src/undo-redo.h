@@ -2,8 +2,7 @@
 #define CLASS_H
 
 #include <QUndoStack>
-#include <vsg/nodes/MatrixTransform.h>
-#include "metainf.h"
+#include "SceneModel.h"
 
 class AddNode : public QUndoCommand
 {
@@ -12,7 +11,7 @@ public:
         , _group(group)
         , _node(node)
     {
-        setText(QObject::tr("Новая нода %1").arg(node->className()));
+        setText(QObject::tr("Новый объект %1").arg(node->className()));
     }
     void undo() override
     {
@@ -54,35 +53,34 @@ private:
     vsg::ref_ptr<vsg::Node> _node;
 
 };
-
+/*
 class AddObject : public QUndoCommand
 {
 public:
-    AddObject(vsg::Group *group, vsg::Node *node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddObject(vsg::Group *group, SceneObject *object, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _group(group)
-        , _transform(vsg::MatrixTransform::create())
+        , _object(object)
     {
         std::string name;
-        node->getValue(META_NAME, name);
+        object->getValue(META_NAME, name);
         setText(QObject::tr("Новый объект %1").arg(name.c_str()));
-        _transform->addChild(vsg::ref_ptr<vsg::Node>(node));
     }
     void undo() override
     {
-        auto position = std::find(_group->children.cbegin(), _group->children.cend(), _transform);
+        auto position = std::find(_group->children.cbegin(), _group->children.cend(), _object);
         Q_ASSERT(position != _group->children.end());
         _group->children.erase(position);
     }
     void redo() override
     {
-        _group->addChild(_transform);
+        _group->addChild(_object);
     }
 private:
     vsg::ref_ptr<vsg::Group> _group;
-    vsg::ref_ptr<vsg::MatrixTransform> _transform;
+    vsg::ref_ptr<SceneObject> _object;
 
 };
-
+*/
 class RenameObject : public QUndoCommand
 {
 public:
@@ -105,6 +103,35 @@ private:
     vsg::ref_ptr<vsg::Object> _obj;
     std::string _oldName;
     const std::string _newName;
+
+};
+class MoveObject : public QUndoCommand
+{
+public:
+    MoveObject(vsg::MatrixTransform *transform, const vsg::dmat4& matrix, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _transform(transform)
+        , _oldMat(transform->matrix)
+        , _newMat(matrix)
+    {
+        std::string name;
+        transform->getValue(META_NAME, name);
+        if(transform->is_compatible(typeid (SceneObject)))
+            setText(QObject::tr("Перемещен объект %1").arg(name.c_str()));
+        else
+            setText(QObject::tr("Изменена матрица %1").arg(name.c_str()));
+    }
+    void undo() override
+    {
+        _transform->matrix = _oldMat;
+    }
+    void redo() override
+    {
+        _transform->matrix = _newMat;
+    }
+private:
+    vsg::ref_ptr<vsg::MatrixTransform> _transform;
+    const vsg::dmat4 _oldMat;
+    const vsg::dmat4 _newMat;
 
 };
 

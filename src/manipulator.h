@@ -3,6 +3,8 @@
 
 #include <QObject>
 #include <vsg/all.h>
+#include "SceneModel.h"
+#include <QItemSelectionModel>
 
 class Manipulator : public QObject, public vsg::Inherit<vsg::Trackball, Manipulator>
 {
@@ -20,9 +22,22 @@ public:
     void apply(vsg::PointerEvent& pointerEvent) override;
 
     vsg::LineSegmentIntersector::Intersection interesection(vsg::PointerEvent& pointerEvent);
-
+    enum Mode
+    {
+        SELECT,
+        ADD,
+        MOVE
+    };
+/*
+public slots:
+    void selectGroup(const QItemSelection &selected, const QItemSelection &);
+    void selectNewObject(const QItemSelection &selected, const QItemSelection &);
+*/
 signals:
     void tileClicked();
+    void addRequest(const vsg::dvec3 &pos);
+    void objectClicked(const QModelIndex &index, QItemSelectionModel::SelectionFlags command);
+    void sendCommand(QUndoCommand *command);
 
 protected:
     inline void addPointer();
@@ -32,6 +47,7 @@ protected:
     vsg::ref_ptr<vsg::Group> scenegraph;
     vsg::ref_ptr<vsg::MatrixTransform> pointer;
     double height = 0.01;
+    int mode = ADD;
 
     vsg::LineSegmentIntersector::Intersections lastIntersection;
 };

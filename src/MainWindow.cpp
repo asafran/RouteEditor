@@ -6,7 +6,6 @@
 #include <QColorDialog>
 #include <QErrorMessage>
 #include <QMessageBox>
-#include "manipulator.h"
 #include "AddDialog.h"
 #include "undo-redo.h"
 
@@ -28,7 +27,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openRoute);
 
     connect(ui->addObjectButt, &QPushButton::pressed, this, &MainWindow::addObject);
-
 
 }
 QWindow* MainWindow::initilizeVSGwindow()
@@ -116,9 +114,9 @@ QWindow* MainWindow::initilizeVSGwindow()
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
         // add trackball to enable mouse driven camera view control.
-        auto trackball = Manipulator::create(camera, ellipsoidModel, builder, scene, radius * 0.1, options);
+        manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, radius * 0.1, options);
 
-        viewer->addEventHandler(trackball);
+        viewer->addEventHandler(manipulator);
 
         auto commandGraph = vsg::createCommandGraphForView(window, camera, scene);
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
@@ -152,7 +150,7 @@ void MainWindow::addToRoot(vsg::ref_ptr<vsg::Node> node)
     scene->addChild(node);
     viewerWindow->viewer = vsg::Viewer::create();
     viewerWindow->initializeCallback(*viewerWindow);
-    ui->sceneTreeView->setRootIndex(ui->sceneTreeView->model()->index(0,0));
+    ui->sceneTreeView->expandAll();
 
 }
 void MainWindow::addObject()
@@ -198,6 +196,10 @@ void MainWindow::openRoute()
             connect(ui->updateButt, &QPushButton::pressed, database.get(), &DatabaseManager::updateTileCache);
             connect(ui->actionSave, &QAction::triggered, database.get(), &DatabaseManager::writeTiles);
             connect(ui->searchButt, &QPushButton::pressed, this, &MainWindow::search);
+            connect(manipulator.get(), &Manipulator::addRequest, content, &ContentManager::addObject);
+            connect(manipulator.get(), &Manipulator::objectClicked, ui->cachedTilesView->selectionModel(),
+                    qOverload<const QModelIndex &, QItemSelectionModel::SelectionFlags>(&QItemSelectionModel::select));
+            connect(ui->cachedTilesView->selectionModel(), &QItemSelectionModel::selectionChanged, content, &ContentManager::setActiveGroup);
             addToRoot(database->getDatabase());
 
         }  catch (DatabaseException &ex) {
@@ -224,12 +226,14 @@ void MainWindow::pushCommand(QUndoCommand *command)
 
 void MainWindow::constructWidgets()
 {
-
+    content = new ContentManager(options, undoStack, ui->content);
+    //ui->content->
     auto widged = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
     ui->centralsplitter->addWidget(widged);
     QList<int> sizes;
     sizes << 100 << 720;
     ui->centralsplitter->setSizes(sizes);
+
 }
 
 MainWindow::~MainWindow()

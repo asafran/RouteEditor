@@ -1,5 +1,6 @@
 #include "AddDialog.h"
 #include "ui_AddDialog.h"
+#include "SceneModel.h"
 
 
 AddDialog::AddDialog(QWidget *parent) :
@@ -18,7 +19,8 @@ QUndoCommand *AddDialog::constructCommand(vsg::Group *group)
     }
     case ObjectGroup:
     {
-        return new AddObject(group, createGroup());
+        auto objectsGroup = new SceneGroup(ui->lineEdit->text().toStdString());
+        return new AddNode(group, objectsGroup);
     }
     case BinGroup:
     {

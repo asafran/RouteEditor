@@ -13,6 +13,11 @@ Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera, vsg::ref_ptr<vsg::Ell
     scenegraph->addChild(pointer);
     addPointer();
 }
+template<class T>
+bool isCompatible(const vsg::Node* node)
+{
+    return node->is_compatible(typeid (T));
+}
 
 void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
 {
@@ -24,6 +29,28 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     if (buttonPress.mask & vsg::BUTTON_MASK_1){
         _updateMode = INACTIVE;
         auto intersection = interesection(buttonPress);
+        switch (mode) {
+        case SELECT:
+        {
+            auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<SceneObject>);
+            if(find == intersection.nodePath.crend())
+                break;
+            if(auto object = (*find)->cast<SceneObject>(); object)
+                emit objectClicked(object->index, QItemSelectionModel::SelectCurrent);
+            break;
+        }
+        case ADD:
+        {
+            auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::PagedLOD>);
+            if(find == intersection.nodePath.crend())
+                break;
+            auto plod = (*find)->cast<vsg::PagedLOD>();
+            if(!plod->children.front().node || !plod->children.front().node->is_compatible(typeid (vsg::MatrixTransform)))
+                break;
+            emit addRequest(intersection.localIntersection);
+        }
+        }
+
 
     } else if (buttonPress.mask & vsg::BUTTON_MASK_2)
         _updateMode = ROTATE;
@@ -49,6 +76,7 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
 
     _previousPointerEvent = &buttonPress;
 }
+
 void Manipulator::addPointer()
 {
     pointer->children.erase(pointer->children.begin(), pointer->children.end());

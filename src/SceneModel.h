@@ -2,9 +2,43 @@
 #define SCENEOBJECT_H
 
 #include <QAbstractItemModel>
-#include "undo-redo.h"
+#include <QUndoStack>
 #include <vsg/all.h>
 #include <algorithm>
+#include <QFileInfo>
+
+class SceneObject : public vsg::Inherit<vsg::MatrixTransform, SceneObject>
+{
+public:
+    SceneObject(vsg::ref_ptr<vsg::Node> loaded, const QFileInfo &file, const vsg::dmat4& in_matrix = {}) : vsg::Inherit<vsg::MatrixTransform, SceneObject>(in_matrix)
+    {
+        addChild(loaded);
+        setValue(META_NAME, file.baseName().toStdString());
+        path = file.absoluteFilePath();
+    }
+
+    SceneObject(vsg::Allocator* allocator = nullptr) : vsg::Inherit<vsg::MatrixTransform, SceneObject>(allocator) {}
+
+    ~SceneObject() {}
+
+    QString path;
+    QModelIndex index;
+};
+
+class SceneGroup : public vsg::Inherit<vsg::MatrixTransform, SceneGroup>
+{
+public:
+    SceneGroup(const std::string& name, const vsg::dmat4& in_matrix = {}) : vsg::Inherit<vsg::MatrixTransform, SceneGroup>(in_matrix)
+    {
+        setValue(META_NAME, name);
+    }
+
+    SceneGroup(vsg::Allocator* allocator = nullptr) : vsg::Inherit<vsg::MatrixTransform, SceneGroup>(allocator) {}
+
+    ~SceneGroup() {}
+
+//    QModelIndex index;
+};
 
 class SceneModel : public QAbstractItemModel
 {
@@ -41,11 +75,15 @@ public:
 
     bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent);
 
+//    bool canFetchMore(const QModelIndex &parent) const;
+
+    void fetchMore(const QModelIndex &parent);
+
     void addNode(const QModelIndex &parent, QUndoCommand *command);
 
     int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
-    QModelIndex rootIndexForItem(const vsg::Node *parentNode) { return createIndex(0,0,parentNode); }
+    QModelIndex indexForItem(const vsg::ref_ptr<vsg::Group> parent, const vsg::ref_ptr<vsg::Node> node);
 
 //    void clear();
     bool hasChildren(const QModelIndex &parent) const;
