@@ -83,13 +83,14 @@ public:
 
     int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
-    QModelIndex indexForItem(const vsg::ref_ptr<vsg::Group> parent, const vsg::ref_ptr<vsg::Node> node);
+    QModelIndex index(vsg::ref_ptr<vsg::Node> node, int row);
 
 //    void clear();
     bool hasChildren(const QModelIndex &parent) const;
 
 signals:
     void sendCommand(QUndoCommand *command);
+    void sendMap(QMap<vsg::Group *, QModelIndex> groupMap);
 
 private:
 
@@ -101,7 +102,6 @@ private:
         };
     vsg::ref_ptr<vsg::Group> root;
     QUndoStack *undoStack;
-
 };
 
 #endif // SCENEOBJECT_H

@@ -1,13 +1,16 @@
 #include "manipulator.h"
+#include "TilesVisitor.h"
 
-Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera, vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel, vsg::ref_ptr<vsg::Builder> in_builder, vsg::ref_ptr<vsg::Group> in_scenegraph, double in_scale, vsg::ref_ptr<vsg::Options> in_options, QObject *parent) :
+Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera, vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel, vsg::ref_ptr<vsg::Builder> in_builder, vsg::ref_ptr<vsg::Group> in_scenegraph, QUndoStack *stack, vsg::ref_ptr<vsg::Options> in_options, QObject *parent) :
     QObject(parent),
     vsg::Inherit<vsg::Trackball, Manipulator>(camera, ellipsoidModel),
     builder(in_builder),
     options(in_options),
     scenegraph(in_scenegraph),
-    pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center)))
+    pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center))),
+    cachedTiles(vsg::Group::create())
 {
+    cachedTilesModel =  new SceneModel(cachedTiles, stack, this);
     rotateButtonMask = vsg::BUTTON_MASK_2;
     supportsThrow = false;
     scenegraph->addChild(pointer);
@@ -41,13 +44,9 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         }
         case ADD:
         {
-            auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::PagedLOD>);
-            if(find == intersection.nodePath.crend())
-                break;
-            auto plod = (*find)->cast<vsg::PagedLOD>();
-            if(!plod->children.front().node || !plod->children.front().node->is_compatible(typeid (vsg::MatrixTransform)))
-                break;
-            emit addRequest(intersection.localIntersection);
+            if(lowTile(intersection))
+                emit addRequest(intersection.localIntersection);
+            break;
         }
         }
 
@@ -62,7 +61,12 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         lookAt->center = isection.worldIntersection;
         pointer->matrix = vsg::translate(isection.worldIntersection);
 
-        emit tileClicked();
+        if(auto tile = lowTile(isection); tile)
+        {
+            updateTileCache();
+            emit objectClicked(cachedTilesModel->index(tile, cachedTilesModel->findRow(cachedTiles, tile)), QItemSelectionModel::Select);
+            emit expand(cachedTilesModel->index(tile, cachedTilesModel->findRow(cachedTiles, tile)));
+        }
         setViewpoint(lookAt);
 
     } else
@@ -76,6 +80,17 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
 
     _previousPointerEvent = &buttonPress;
 }
+vsg::ref_ptr<vsg::Group> Manipulator::lowTile(const vsg::LineSegmentIntersector::Intersection &intersection)
+{
+    auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::PagedLOD>);
+    if(find != intersection.nodePath.crend())
+    {
+        auto plod = (*find)->cast<vsg::PagedLOD>();
+        if(auto group = plod->children.front().node.cast<vsg::Group>(); group && group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
+            return group;
+    }
+    return vsg::ref_ptr<vsg::Group>();
+}
 
 void Manipulator::addPointer()
 {
@@ -86,6 +101,26 @@ void Manipulator::addPointer()
     info.dy.set(0.0f, 1000.0f, 0.0f);
     info.dz.set(0.0f, 0.0f, 1000.0f);
     pointer->addChild(builder->createCone(info));
+}
+
+void Manipulator::updateTileCache()
+{
+    cachedTiles->children.erase(cachedTiles->children.begin(), cachedTiles->children.end());
+    TilesVisitor visitor(cachedTiles);
+    scenegraph->accept(visitor);
+    cachedTilesModel->fetchMore(QModelIndex());
+}
+void Manipulator::selectObject(const QItemSelection &selected, const QItemSelection &)
+{
+    if(auto object = static_cast<vsg::Node*>(selected.indexes().front().internalPointer()); object)
+    {
+        vsg::ComputeBounds computeBounds;
+        object->accept(computeBounds);
+        vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
+        double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6 * 10.0;
+
+        setViewpoint(vsg::LookAt::create(centre + vsg::dvec3(0.0, -radius * 3.5, 0.0), centre, _lookAt->up));
+    }
 }
 
 void Manipulator::apply(vsg::PointerEvent& pointerEvent)

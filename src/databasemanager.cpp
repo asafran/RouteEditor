@@ -5,12 +5,10 @@
 
 
 DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, QObject *parent) : QObject(parent)
-  , cachedTiles(vsg::Group::create())
   , database(vsg::Group::create())
   , undoStack(stack)
 {
     QFileInfo directory(path);
-    cachedTilesModel =  new SceneModel(cachedTiles, undoStack, this);
     fsWatcher = new QFileSystemWatcher(QStringList(directory.absolutePath() + QDir::separator() + "Tiles"), this);
 
     QStringList filter("database_L5*");
@@ -58,24 +56,15 @@ void write(const vsg::ref_ptr<vsg::Node> node)
             throw (DatabaseException(file.c_str()));
 }
 
-void DatabaseManager::writeTiles()
+void DatabaseManager::writeTiles(vsg::ref_ptr<vsg::Group> tiles)
 {
     try {
-        QFuture<void> future = QtConcurrent::map(cachedTiles->children.begin(), cachedTiles->children.end(), write);
+        QFuture<void> future = QtConcurrent::map(tiles->children.begin(), tiles->children.end(), write);
         future.waitForFinished();
         undoStack->setClean();
     }  catch (DatabaseException &ex) {
 
     }
-}
-
-void DatabaseManager::updateTileCache()
-{
-    cachedTiles->children.erase(cachedTiles->children.begin(), cachedTiles->children.end());
-    TilesVisitor visitor(cachedTiles);
-    database->accept(visitor);
-
-    emit updateViews();
 }
 
 

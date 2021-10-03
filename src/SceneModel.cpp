@@ -53,7 +53,7 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
         return QModelIndex();
     }
 
-    if(auto childInfo = static_cast<vsg::Node*>(child.internalPointer()))
+    if(auto childInfo = static_cast<vsg::Node*>(child.internalPointer()); childInfo)
     {
         auto parentVisitor = ParentVisitor::create(childInfo);
         root->accept(*parentVisitor);
@@ -121,9 +121,9 @@ void SceneModel::addNode(const QModelIndex &parent, QUndoCommand *command)
     undoStack->push(command);
     endInsertRows();
 }
-QModelIndex SceneModel::indexForItem(const vsg::ref_ptr<vsg::Group> parent, const vsg::ref_ptr<vsg::Node> node)
+QModelIndex SceneModel::index(vsg::ref_ptr<vsg::Node> node, int row)
 {
-    return createIndex(findRow(parent, node),0,node.get());
+    return createIndex(row,0,node.get());
 }
 
 int SceneModel::columnCount ( const QModelIndex & /*parent = QModelIndex()*/ ) const
@@ -207,7 +207,7 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
 void SceneModel::fetchMore(const QModelIndex &parent)
 {
     beginInsertRows(parent, 0, rowCount(parent));
-    endRemoveRows();
+    endInsertRows();
 }
 
 
@@ -216,7 +216,7 @@ int SceneModel::rowCount(const QModelIndex &parent) const
     if (!parent.isValid()) {
         return root->children.size();
     }
-    if(auto parentNode = static_cast<vsg::Node*>(parent.internalPointer()))
+    if(auto parentNode = static_cast<vsg::Node*>(parent.internalPointer()); parentNode)
     {
         if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
             return parentGroup->children.size();

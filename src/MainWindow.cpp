@@ -114,7 +114,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
         // add trackball to enable mouse driven camera view control.
-        manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, radius * 0.1, options);
+        manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, undoStack, options);
 
         viewer->addEventHandler(manipulator);
 
@@ -166,7 +166,7 @@ void MainWindow::addObject()
         case QDialog::Accepted:
         {
             auto add = dialog.constructCommand(group);
-            database->getCahedTilesModel()->addNode(selectedIndexes.front(), add);
+            manipulator->getCachedTilesModel()->addNode(selectedIndexes.front(), add);
             break;
         }
         case QDialog::Rejected:
@@ -191,16 +191,19 @@ void MainWindow::openRoute()
     {
         try {
             database.reset(new DatabaseManager(file, undoStack));
-            ui->cachedTilesView->setModel(database->getCahedTilesModel());
-            connect(database.get(), &DatabaseManager::updateViews, ui->cachedTilesView, &QTreeView::expandAll);
-            connect(ui->updateButt, &QPushButton::pressed, database.get(), &DatabaseManager::updateTileCache);
-            connect(ui->actionSave, &QAction::triggered, database.get(), &DatabaseManager::writeTiles);
+            addToRoot(database->getDatabase());
+
+            ui->cachedTilesView->setModel(manipulator->getCachedTilesModel());
+            connect(ui->updateButt, &QPushButton::pressed, manipulator, &Manipulator::updateTileCache);
+            connect(ui->actionSave, &QAction::triggered, [&](){ database->writeTiles(manipulator->getTilesCache()); });
             connect(ui->searchButt, &QPushButton::pressed, this, &MainWindow::search);
             connect(manipulator.get(), &Manipulator::addRequest, content, &ContentManager::addObject);
             connect(manipulator.get(), &Manipulator::objectClicked, ui->cachedTilesView->selectionModel(),
                     qOverload<const QModelIndex &, QItemSelectionModel::SelectionFlags>(&QItemSelectionModel::select));
+            connect(manipulator.get(), &Manipulator::expand, ui->cachedTilesView, &QTreeView::expand);
             connect(ui->cachedTilesView->selectionModel(), &QItemSelectionModel::selectionChanged, content, &ContentManager::setActiveGroup);
-            addToRoot(database->getDatabase());
+            connect(ui->cachedTilesView->selectionModel(), &QItemSelectionModel::selectionChanged, manipulator, &Manipulator::selectObject);
+
 
         }  catch (DatabaseException &ex) {
             auto errorMessageDialog = new QErrorMessage(this);
@@ -227,7 +230,7 @@ void MainWindow::pushCommand(QUndoCommand *command)
 void MainWindow::constructWidgets()
 {
     content = new ContentManager(options, undoStack, ui->content);
-    //ui->content->
+    ui->content->layout()->addWidget(content);
     auto widged = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
     ui->centralsplitter->addWidget(widged);
     QList<int> sizes;
