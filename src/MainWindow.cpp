@@ -113,15 +113,18 @@ QWindow* MainWindow::initilizeVSGwindow()
         // add close handler to respond the close window button and pressing escape
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
+        auto commandGraph = vsg::createCommandGraphForView(window, camera, scene);
+
         // add trackball to enable mouse driven camera view control.
         manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, undoStack, options);
 
         viewer->addEventHandler(manipulator);
 
-        auto commandGraph = vsg::createCommandGraphForView(window, camera, scene);
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
         viewer->compile();
+
+        manipulator->setPager(viewer->recordAndSubmitTasks.front()->databasePager);
 
         return true;
     };
@@ -195,7 +198,7 @@ void MainWindow::openRoute()
 
             ui->cachedTilesView->setModel(manipulator->getCachedTilesModel());
             connect(ui->updateButt, &QPushButton::pressed, manipulator, &Manipulator::updateTileCache);
-            connect(ui->actionSave, &QAction::triggered, [&](){ database->writeTiles(manipulator->getTilesCache()); });
+            //connect(ui->actionSave, &QAction::triggered, [&](){ database->writeTiles(manipulator->getTilesCache()); });
             connect(ui->searchButt, &QPushButton::pressed, this, &MainWindow::search);
             connect(manipulator.get(), &Manipulator::addRequest, content, &ContentManager::addObject);
             connect(manipulator.get(), &Manipulator::objectClicked, ui->cachedTilesView->selectionModel(),

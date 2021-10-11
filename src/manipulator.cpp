@@ -1,16 +1,21 @@
 #include "manipulator.h"
 #include "TilesVisitor.h"
 
-Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera, vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel, vsg::ref_ptr<vsg::Builder> in_builder, vsg::ref_ptr<vsg::Group> in_scenegraph, QUndoStack *stack, vsg::ref_ptr<vsg::Options> in_options, QObject *parent) :
+Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera,
+                         vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel,
+                         vsg::ref_ptr<vsg::Builder> in_builder,
+                         vsg::ref_ptr<vsg::Group> in_scenegraph,
+                         QUndoStack *stack,
+                         vsg::ref_ptr<vsg::Options> in_options,
+                         QObject *parent) :
     QObject(parent),
     vsg::Inherit<vsg::Trackball, Manipulator>(camera, ellipsoidModel),
     builder(in_builder),
     options(in_options),
     scenegraph(in_scenegraph),
-    pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center))),
-    cachedTiles(vsg::Group::create())
+    pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center)))
 {
-    cachedTilesModel =  new SceneModel(cachedTiles, stack, this);
+    cachedTilesModel =  new SceneModel(vsg::Group::create(), stack, this);
     rotateButtonMask = vsg::BUTTON_MASK_2;
     supportsThrow = false;
     scenegraph->addChild(pointer);
@@ -35,11 +40,11 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         switch (mode) {
         case SELECT:
         {
-            auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<SceneObject>);
+            /*auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::SceneObject>);
             if(find == intersection.nodePath.crend())
                 break;
-            if(auto object = (*find)->cast<SceneObject>(); object)
-                emit objectClicked(object->index, QItemSelectionModel::SelectCurrent);
+            if(auto object = (*find)->cast<vsg::SceneObject>(); object)
+                emit objectClicked(object->index, QItemSelectionModel::SelectCurrent);*/
             break;
         }
         case ADD:
@@ -56,18 +61,14 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     else if (buttonPress.mask & vsg::BUTTON_MASK_3 && _ellipsoidModel){
         _updateMode = INACTIVE;
         auto isection = interesection(buttonPress);
-        auto lookAt = vsg::LookAt::create(*_lookAt);
-        lookAt->eye += (isection.worldIntersection - _lookAt->center);
-        lookAt->center = isection.worldIntersection;
-        pointer->matrix = vsg::translate(isection.worldIntersection);
-
+        setViewpoint(isection.worldIntersection);
+        updateTileCache();
         if(auto tile = lowTile(isection); tile)
         {
-            updateTileCache();
-            emit objectClicked(cachedTilesModel->index(tile, cachedTilesModel->findRow(cachedTiles, tile)), QItemSelectionModel::Select);
-            emit expand(cachedTilesModel->index(tile, cachedTilesModel->findRow(cachedTiles, tile)));
+
+            //emit objectClicked(cachedTilesModel->index(tile, cachedTilesModel->findRow(cachedTilesModel->getRoot(), tile)), QItemSelectionModel::Select);
+            //emit expand(cachedTilesModel->index(tile, cachedTilesModel->findRow(cachedTilesModel->getRoot(), tile)));
         }
-        setViewpoint(lookAt);
 
     } else
         _updateMode = INACTIVE;
@@ -91,6 +92,14 @@ vsg::ref_ptr<vsg::Group> Manipulator::lowTile(const vsg::LineSegmentIntersector:
     }
     return vsg::ref_ptr<vsg::Group>();
 }
+void Manipulator::setViewpoint(const vsg::dvec3 &pos)
+{
+    auto lookAt = vsg::LookAt::create(*_lookAt);
+    lookAt->eye += (pos - _lookAt->center);
+    lookAt->center = pos;
+    pointer->matrix = vsg::translate(pos);
+    Trackball::setViewpoint(lookAt);
+}
 
 void Manipulator::addPointer()
 {
@@ -105,9 +114,17 @@ void Manipulator::addPointer()
 
 void Manipulator::updateTileCache()
 {
-    cachedTiles->children.erase(cachedTiles->children.begin(), cachedTiles->children.end());
-    TilesVisitor visitor(cachedTiles);
-    scenegraph->accept(visitor);
+    for (auto plod : database->culledPagedLODs->highresCulled)
+    {
+        if(culledFiles.contains(plod->filename.c_str()))
+            continue;
+        if(auto group = plod->children.front().node.cast<vsg::Group>(); group && group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
+        {
+            group->setValue(META_NAME, plod->filename);
+            getCachedTilesModel()->getRoot()->addChild(group);
+            culledFiles.insert(plod->filename.c_str());
+        }
+    }
     cachedTilesModel->fetchMore(QModelIndex());
 }
 void Manipulator::selectObject(const QItemSelection &selected, const QItemSelection &)
@@ -119,7 +136,7 @@ void Manipulator::selectObject(const QItemSelection &selected, const QItemSelect
         vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
         double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6 * 10.0;
 
-        setViewpoint(vsg::LookAt::create(centre + vsg::dvec3(0.0, -radius * 3.5, 0.0), centre, _lookAt->up));
+        Trackball::setViewpoint(vsg::LookAt::create(centre + vsg::dvec3(0.0, -radius * 3.5, 0.0), centre, _lookAt->up));
     }
 }
 

@@ -11,7 +11,10 @@ public:
         , _group(group)
         , _node(node)
     {
-        setText(QObject::tr("Новый объект %1").arg(node->className()));
+        std::string name;
+        if(!node->getValue(META_NAME, name))
+            name = node->className();
+        setText(QObject::tr("Новый объект %1").arg(name.c_str()));
     }
     void undo() override
     {
@@ -21,7 +24,7 @@ public:
     }
     void redo() override
     {
-        _group->addChild(vsg::ref_ptr<vsg::Node>(_node));
+        _group->addChild(_node);
     }
 private:
     vsg::ref_ptr<vsg::Group> _group;
@@ -57,7 +60,7 @@ private:
 class AddObject : public QUndoCommand
 {
 public:
-    AddObject(vsg::Group *group, SceneObject *object, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddObject(vsg::Group *group, vsg::SceneObject *object, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _group(group)
         , _object(object)
     {
@@ -77,7 +80,7 @@ public:
     }
 private:
     vsg::ref_ptr<vsg::Group> _group;
-    vsg::ref_ptr<SceneObject> _object;
+    vsg::ref_ptr<vsg::SceneObject> _object;
 
 };
 */
@@ -114,8 +117,9 @@ public:
         , _newMat(matrix)
     {
         std::string name;
+        int i = 0;
         transform->getValue(META_NAME, name);
-        if(transform->is_compatible(typeid (SceneObject)))
+        if(transform->getValue(META_TYPE, i))
             setText(QObject::tr("Перемещен объект %1").arg(name.c_str()));
         else
             setText(QObject::tr("Изменена матрица %1").arg(name.c_str()));

@@ -19,14 +19,14 @@ QUndoCommand *AddDialog::constructCommand(vsg::Group *group)
     }
     case ObjectGroup:
     {
-        auto objectsGroup = new SceneGroup(ui->lineEdit->text().toStdString());
-        return new AddNode(group, objectsGroup);
+        /*auto objectsGroup = new vsg::SceneGroup(ui->lineEdit->text().toStdString());
+        return new AddNode(group, objectsGroup);*/
     }
-    case BinGroup:
+    case ProcedurePositionGroup:
     {
         break;
     }
-    case ShaderGroup:
+    case AutoShaderGroup:
     {
         break;
     }

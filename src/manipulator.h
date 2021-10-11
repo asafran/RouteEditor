@@ -30,11 +30,13 @@ public:
     };
 
     SceneModel *getCachedTilesModel() { return cachedTilesModel; }
-    vsg::ref_ptr<vsg::Group> getTilesCache() { return cachedTiles; }
+//    vsg::ref_ptr<vsg::Group> getTilesCache() { return cachedTiles; }
+    void setPager(vsg::ref_ptr<vsg::DatabasePager> pager) { database = pager; }
 
 public slots:
     void selectObject(const QItemSelection &selected, const QItemSelection &);
     void updateTileCache();
+    void setViewpoint(const vsg::dvec3 &pos);
 
 signals:
     void addRequest(const vsg::dvec3 &pos);
@@ -46,13 +48,14 @@ protected:
     vsg::ref_ptr<vsg::Group> lowTile(const vsg::LineSegmentIntersector::Intersection &intersection);
 
     vsg::ref_ptr<vsg::Builder> builder;
-    vsg::ref_ptr<vsg::Node> database;
+    vsg::ref_ptr<vsg::DatabasePager> database;
     vsg::ref_ptr<vsg::Options> options;
     vsg::ref_ptr<vsg::Group> scenegraph;
     vsg::ref_ptr<vsg::MatrixTransform> pointer;
 
+    QSet<QString> culledFiles;
+
     SceneModel *cachedTilesModel;
-    vsg::ref_ptr<vsg::Group> cachedTiles;
 
     double height = 0.01;
     int mode = ADD;

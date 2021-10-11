@@ -1,44 +1,12 @@
 #ifndef SCENEOBJECT_H
 #define SCENEOBJECT_H
 
-#include <QAbstractItemModel>
 #include <QUndoStack>
-#include <vsg/all.h>
 #include <algorithm>
+#include <vsg/all.h>
 #include <QFileInfo>
-
-class SceneObject : public vsg::Inherit<vsg::MatrixTransform, SceneObject>
-{
-public:
-    SceneObject(vsg::ref_ptr<vsg::Node> loaded, const QFileInfo &file, const vsg::dmat4& in_matrix = {}) : vsg::Inherit<vsg::MatrixTransform, SceneObject>(in_matrix)
-    {
-        addChild(loaded);
-        setValue(META_NAME, file.baseName().toStdString());
-        path = file.absoluteFilePath();
-    }
-
-    SceneObject(vsg::Allocator* allocator = nullptr) : vsg::Inherit<vsg::MatrixTransform, SceneObject>(allocator) {}
-
-    ~SceneObject() {}
-
-    QString path;
-    QModelIndex index;
-};
-
-class SceneGroup : public vsg::Inherit<vsg::MatrixTransform, SceneGroup>
-{
-public:
-    SceneGroup(const std::string& name, const vsg::dmat4& in_matrix = {}) : vsg::Inherit<vsg::MatrixTransform, SceneGroup>(in_matrix)
-    {
-        setValue(META_NAME, name);
-    }
-
-    SceneGroup(vsg::Allocator* allocator = nullptr) : vsg::Inherit<vsg::MatrixTransform, SceneGroup>(allocator) {}
-
-    ~SceneGroup() {}
-
-//    QModelIndex index;
-};
+#include <QAbstractItemModel>
+#include "metainf.h"
 
 class SceneModel : public QAbstractItemModel
 {
@@ -83,10 +51,12 @@ public:
 
     int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
-    QModelIndex index(vsg::ref_ptr<vsg::Node> node, int row);
+    QModelIndex index(vsg::ref_ptr<vsg::Node> node);
 
 //    void clear();
     bool hasChildren(const QModelIndex &parent) const;
+
+    vsg::ref_ptr<vsg::Group> getRoot() { return root; }
 
 signals:
     void sendCommand(QUndoCommand *command);

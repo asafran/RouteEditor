@@ -20,7 +20,7 @@ set(SOURCES
     src/sorter.h
     src/sorter.cpp
     src/metainf.h
-    src/metainf.cpp
+#    src/metainf.cpp
     src/ContentManager.h
     src/ContentManager.cpp
     src/ContentManager.ui
@@ -32,8 +32,8 @@ set(SOURCES
     src/manipulator.cpp
     src/TilesVisitor.cpp
     src/TilesVisitor.h
-#    src/sceneobject.h
-#    src/sceneobject.cpp
+#    src/sceneobjects.h
+#    src/sceneobjects.cpp
     src/tilessorter.cpp
     src/tilessorter.h
     src/LambdaVisitor.cpp
@@ -113,6 +113,6 @@ add_executable(editor ${SOURCES})
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_compile_definitions(editor PRIVATE META_NAME="MetaName" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
+target_compile_definitions(editor PRIVATE META_TYPE="MetaType" META_NAME="MetaName" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
 target_link_libraries(editor vsgQt vsg::vsg vsgXchange::vsgXchange Qt6::Concurrent)

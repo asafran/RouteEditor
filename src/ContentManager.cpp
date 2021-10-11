@@ -23,11 +23,12 @@ void ContentManager::addObject(const vsg::dvec3 &pos)
     const QFileInfo info(model->fileInfo(ui->fileView->selectionModel()->selectedIndexes().front()));
     if(auto node = vsg::read_cast<vsg::Node>(info.absoluteFilePath().toStdString(), _options); node && _active)
     {
-        auto object = SceneObject::create(node, info);
-        _stack->beginMacro(tr("Новый объект"));
-        _stack->push(new AddNode(_active, object.get()));
-        _stack->push(new MoveObject(object, vsg::translate(pos)));
-        _stack->endMacro();
+        auto matrix = vsg::MatrixTransform::create(vsg::translate(pos));
+        matrix->addChild(node);
+        //_stack->beginMacro(tr("Новый объект"));
+        _stack->push(new AddNode(_active.get(), matrix.get()));
+        //_stack->push(new MoveObject(object, vsg::translate(pos)));
+        //_stack->endMacro();
     }
 }
 void ContentManager::setActiveGroup(const QItemSelection &selected, const QItemSelection &deselected)

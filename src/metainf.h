@@ -1,15 +1,14 @@
 #ifndef METAINF_H
 #define METAINF_H
 
-#include <QString>
-#include <vsg/core/Inherit.h>
+typedef int MetaObjectType;
 
 enum ObjectType
 {
     ObjectLayer,
     ObjectGroup,
-    BinGroup,
-    ShaderGroup,
+    ProcedurePositionGroup,
+    AutoShaderGroup,
     Object,
     Trajectory,
     Track,
