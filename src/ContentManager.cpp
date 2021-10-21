@@ -1,11 +1,13 @@
 #include "ContentManager.h"
+#include "sceneobjects.h"
 #include "ui_ContentManager.h"
 #include <QSettings>
 
-ContentManager::ContentManager(vsg::ref_ptr<vsg::Options> options, QUndoStack *stack, QWidget *parent) :
+ContentManager::ContentManager(vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<vsg::Options> options, QUndoStack *stack, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::ContentManager),
     _options(options),
+    _builder(builder),
     _stack(stack)
 {
     QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
@@ -15,20 +17,18 @@ ContentManager::ContentManager(vsg::ref_ptr<vsg::Options> options, QUndoStack *s
     ui->fileView->setModel(model);
     ui->fileView->setRootIndex(model->index(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString()));
 
+
 }
 void ContentManager::addObject(const vsg::dvec3 &pos)
 {
-    if (ui->fileView->selectionModel()->selectedIndexes().isEmpty())
+    if (ui->fileView->selectionModel()->selectedIndexes().isEmpty() || !_active)
         return;
     const QFileInfo info(model->fileInfo(ui->fileView->selectionModel()->selectedIndexes().front()));
-    if(auto node = vsg::read_cast<vsg::Node>(info.absoluteFilePath().toStdString(), _options); node && _active)
+    if(auto node = vsg::read_cast<vsg::Node>(info.canonicalFilePath().toStdString(), _options); node)
     {
-        auto matrix = vsg::MatrixTransform::create(vsg::translate(pos));
-        matrix->addChild(node);
-        //_stack->beginMacro(tr("Новый объект"));
-        _stack->push(new AddNode(_active.get(), matrix.get()));
-        //_stack->push(new MoveObject(object, vsg::translate(pos)));
-        //_stack->endMacro();
+        _builder->compile(node);
+        auto obj = SceneObject::create(node, info, vsg::translate(pos));
+        _stack->push(new AddNode(_active.get(), obj));
     }
 }
 void ContentManager::setActiveGroup(const QItemSelection &selected, const QItemSelection &deselected)
@@ -36,7 +36,7 @@ void ContentManager::setActiveGroup(const QItemSelection &selected, const QItemS
     if(!selected.indexes().front().isValid())
         return;
     _active.release();
-    if(auto group = static_cast<vsg::Node*>(selected.indexes().front().internalPointer())->cast<vsg::Group>(); group)
+    if(auto group = static_cast<vsg::Node*>(selected.indexes().front().internalPointer())->cast<vsg::Group>(); group != nullptr)
         _active = group;
 }
 

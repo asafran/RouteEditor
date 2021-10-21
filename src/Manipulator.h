@@ -15,7 +15,10 @@ public:
                 vsg::ref_ptr<vsg::Builder> in_builder,
                 vsg::ref_ptr<vsg::Group> in_scenegraph,
                 QUndoStack *stack,
-                vsg::ref_ptr<vsg::Options> in_options, QObject *parent = nullptr);
+                vsg::ref_ptr<vsg::Options> in_options,
+                SceneModel *model,
+                QObject *parent = nullptr);
+    ~Manipulator();
 
     void apply(vsg::ButtonPressEvent& buttonPressEvent) override;
 
@@ -29,32 +32,27 @@ public:
         MOVE
     };
 
-    SceneModel *getCachedTilesModel() { return cachedTilesModel; }
-//    vsg::ref_ptr<vsg::Group> getTilesCache() { return cachedTiles; }
     void setPager(vsg::ref_ptr<vsg::DatabasePager> pager) { database = pager; }
 
 public slots:
     void selectObject(const QItemSelection &selected, const QItemSelection &);
-    void updateTileCache();
     void setViewpoint(const vsg::dvec3 &pos);
 
 signals:
     void addRequest(const vsg::dvec3 &pos);
     void objectClicked(const QModelIndex &index, QItemSelectionModel::SelectionFlags command);
     void expand(const QModelIndex &index);
+    void updateCache();
 
 protected:
     inline void addPointer();
-    vsg::ref_ptr<vsg::Group> lowTile(const vsg::LineSegmentIntersector::Intersection &intersection);
+    vsg::ref_ptr<vsg::Node> lowTile(const vsg::LineSegmentIntersector::Intersection &intersection);
 
     vsg::ref_ptr<vsg::Builder> builder;
     vsg::ref_ptr<vsg::DatabasePager> database;
     vsg::ref_ptr<vsg::Options> options;
     vsg::ref_ptr<vsg::Group> scenegraph;
     vsg::ref_ptr<vsg::MatrixTransform> pointer;
-
-    QSet<QString> culledFiles;
-
     SceneModel *cachedTilesModel;
 
     double height = 0.01;

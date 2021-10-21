@@ -47,11 +47,20 @@ public:
 
     void fetchMore(const QModelIndex &parent);
 
+    template<typename F1, typename... Args>
+    void fetchMore(const QModelIndex &parent, F1 function1, Args&... args)
+    {
+        int rows = rowCount(parent);
+        function1(root, args...);
+        beginInsertRows(parent, rows, rowCount(parent));
+        endInsertRows();
+    }
+
     void addNode(const QModelIndex &parent, QUndoCommand *command);
 
     int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
-    QModelIndex index(vsg::ref_ptr<vsg::Node> node);
+    QModelIndex index(vsg::Node *node) const;
 
 //    void clear();
     bool hasChildren(const QModelIndex &parent) const;

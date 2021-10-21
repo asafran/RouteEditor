@@ -2,11 +2,8 @@
 #define SCENEOBJECT_H
 
 #include <QAbstractItemModel>
-#include <vsg/nodes/PagedLOD.h>
-#include <vsg/nodes/Group.h>
-#include <vsg/traversals/Intersector.h>
 #include <algorithm>
-#include <vsg/maths/transform.h>
+#include "sceneobjects.h"
 
 class ObjectModel : public QAbstractItemModel
 {
@@ -17,10 +14,6 @@ public:
 
     virtual ~ObjectModel();
 
-
-    QModelIndex index ( int row, int column, const QModelIndex & parent = QModelIndex() ) const;
-    QModelIndex parent ( const QModelIndex & index ) const;
-
     int rowCount ( const QModelIndex & parent = QModelIndex() ) const;
     int columnCount ( const QModelIndex & parent = QModelIndex() ) const;
 
@@ -30,13 +23,6 @@ public:
     Qt::ItemFlags flags ( const QModelIndex & index ) const;
 
     QVariant headerData ( int section, Qt::Orientation orientation, int role = Qt::DisplayRole ) const;
-    QModelIndex buddy ( const QModelIndex & index ) const;
-
-    void addItem( QObject* propertyObject );
-
-    void updateItem( QObject* propertyObject, const QModelIndex& parent = QModelIndex() ) ;
-
-    int findRow(const vsg::Group *parent, const vsg::Node *nodeInfo) const;
 
     void clear();
 
@@ -50,14 +36,12 @@ private:
         NAME = 0,
         COORD_ECEF = 2,
         COORD = 3,
-        LAYER = 4,
-        ANIMATION = 5
+        PARENT = 4,
+        SHADER = 5,
+        ANIMATION = 6,
+        ROW_COUNT = 7
     };
-    vsg::ref_ptr<vsg::MatrixTransform> selectedMatrix;
-
-    vsg::Intersector::NodePath nodePath;
-    vsg::ref_ptr<vsg::Group> selectedRoot;
-    vsg::ref_ptr<vsg::Group> tileGroup;
+    vsg::ref_ptr<SceneObject> selectedObject;
 };
 
 #endif // SCENEOBJECT_H

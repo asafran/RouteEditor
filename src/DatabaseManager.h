@@ -6,7 +6,6 @@
 #include <QFileSystemWatcher>
 #include <QException>
 #include "SceneModel.h"
-#include "TilesVisitor.h"
 #include <QSettings>
 #include <vsgXchange/all.h>
 
@@ -28,21 +27,30 @@ class DatabaseManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit DatabaseManager(const QString &path, QUndoStack *stack, QObject *parent = nullptr);
+    explicit DatabaseManager(const QString &path, QUndoStack *stack, SceneModel *model, QObject *parent = nullptr);
 
     vsg::ref_ptr<vsg::Node> getDatabase() { return database; }
     SceneModel *loadTiles();
 
+    void setPager(vsg::ref_ptr<vsg::DatabasePager> in_pager) { pager = in_pager; }
 
     static vsg::Node *read(const QString &path);
 
 public slots:
-    void writeTiles(vsg::ref_ptr<vsg::Group> tiles);
+    void writeTiles();
+    void updateTileCache();
 
 private:
     vsg::ref_ptr<vsg::Node> database;
+    vsg::ref_ptr<vsg::DatabasePager> pager;
+
     QSet<QString> tileFiles;
+    QSet<QString> culledFiles;
+
     SceneModel *fileTilesModel;
+    SceneModel *cachedTilesModel;
+
+    uint32_t prevAvCount = 4000;
 
     QUndoStack *undoStack;
     QFileSystemWatcher *fsWatcher;

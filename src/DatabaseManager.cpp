@@ -1,11 +1,12 @@
-#include "databasemanager.h"
+#include "DatabaseManager.h"
 #include "LambdaVisitor.h"
 #include "vsgGIS/TileDatabase.h"
 #include <QtConcurrent/QtConcurrent>
 
 
-DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, QObject *parent) : QObject(parent)
+DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, SceneModel *model, QObject *parent) : QObject(parent)
   , database(vsg::Group::create())
+  , cachedTilesModel(model)
   , undoStack(stack)
 {
     QFileInfo directory(path);
@@ -20,7 +21,7 @@ DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, QObject
 }
 void addToGroup(vsg::ref_ptr<vsg::Group> &group, vsg::Node *node)
 {
-    group->addChild(vsg::ref_ptr<vsg::Node>(node));
+    group->children.emplace_back(node);
 }
 
 vsg::Node* DatabaseManager::read(const QString &path)
@@ -37,16 +38,62 @@ vsg::Node* DatabaseManager::read(const QString &path)
 SceneModel *DatabaseManager::loadTiles()
 {
     auto root = vsg::Group::create();
-    TilesVisitor visitor(root);
-
-    database->accept(visitor);
-    tileFiles.subtract(visitor.filenames);
+    root->children = cachedTilesModel->getRoot()->children;
+    tileFiles.subtract(culledFiles);
 
     QStringList filesToLoad(tileFiles.values());
     QFuture<vsg::ref_ptr<vsg::Group>> future = QtConcurrent::mappedReduced(filesToLoad, &DatabaseManager::read, addToGroup, root, QtConcurrent::OrderedReduce);
     future.waitForFinished();
 
     return new SceneModel(root);
+}
+void _check(vsg::ref_ptr<vsg::Group> root, vsg::ref_ptr<vsg::PagedLOD> plod, QSet<QString> &culled)
+{
+    if(!culled.contains(plod->filename.c_str()))
+        if(auto group = plod->children.front().node.cast<vsg::Group>(); group && group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
+        {
+            group->setValue(META_NAME, plod->filename);
+            root->addChild(group);
+            culled.insert(plod->filename.c_str());
+        }
+}
+
+void _updateTileCache(vsg::ref_ptr<vsg::Group> root, QSet<QString> &culled, vsg::ref_ptr<vsg::DatabasePager> database)
+{
+    for (uint32_t index = database->pagedLODContainer->activeList.head; index != 0;)
+    {
+        auto& element = database->pagedLODContainer->elements[index];
+
+        _check(root, element.plod, culled);
+
+        index = element.next;
+    }
+    for (uint32_t index = database->pagedLODContainer->inactiveList.head; index != 0;)
+    {
+        auto& element = database->pagedLODContainer->elements[index];
+
+        _check(root, element.plod, culled);
+
+        index = element.next;
+    }
+
+}
+
+void DatabaseManager::updateTileCache()
+{
+    auto avCount = pager->pagedLODContainer->availableList.count;
+    if(avCount < prevAvCount)
+    {
+        prevAvCount = avCount;
+        cachedTilesModel->fetchMore(QModelIndex(), _updateTileCache, culledFiles, pager);
+    }
+    else if(avCount > prevAvCount)
+    {
+        prevAvCount = avCount;
+        cachedTilesModel->getRoot()->children.clear();
+        culledFiles.clear();
+        cachedTilesModel->fetchMore(QModelIndex(), _updateTileCache, culledFiles, pager);
+    }
 }
 void write(const vsg::ref_ptr<vsg::Node> node)
 {
@@ -56,10 +103,10 @@ void write(const vsg::ref_ptr<vsg::Node> node)
             throw (DatabaseException(file.c_str()));
 }
 
-void DatabaseManager::writeTiles(vsg::ref_ptr<vsg::Group> tiles)
+void DatabaseManager::writeTiles()
 {
     try {
-        QFuture<void> future = QtConcurrent::map(tiles->children.begin(), tiles->children.end(), write);
+        QFuture<void> future = QtConcurrent::map(cachedTilesModel->getRoot()->children, write);
         future.waitForFinished();
         undoStack->setClean();
     }  catch (DatabaseException &ex) {

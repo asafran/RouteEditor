@@ -43,7 +43,7 @@ public:
     }
     void undo() override
     {
-        _group->addChild(vsg::ref_ptr<vsg::Node>(_node));
+        _group->addChild(_node);
     }
     void redo() override
     {

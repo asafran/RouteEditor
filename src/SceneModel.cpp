@@ -52,7 +52,7 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
     {
         auto parentVisitor = ParentVisitor::create(childInfo);
         root->accept(*parentVisitor);
-        if (parentVisitor->pathToChild.empty() || parentVisitor->pathToChild.size() < 2)
+        if (parentVisitor->pathToChild.size() < 2)
             return QModelIndex();
         auto parent = parentVisitor->pathToChild.back();
         auto grandParent = *(parentVisitor->pathToChild.end() - 2);
@@ -107,22 +107,19 @@ int SceneModel::findRow(const vsg::Node *parentNode, const vsg::Node *childNode)
 void SceneModel::addNode(const QModelIndex &parent, QUndoCommand *command)
 {
     int row = rowCount(parent);
-    beginInsertRows(parent, row, row);
+    beginInsertRows(parent, row, row + 1);
     Q_ASSERT(undoStack);
     undoStack->push(command);
     endInsertRows();
 }
-QModelIndex SceneModel::index(vsg::ref_ptr<vsg::Node> node)
+QModelIndex SceneModel::index(vsg::Node *node) const
 {
     auto parentVisitor = ParentVisitor::create(node);
     root->accept(*parentVisitor);
-    if (parentVisitor->pathToChild.empty() || parentVisitor->pathToChild.size() < 2)
+    if (parentVisitor->pathToChild.empty())
         return QModelIndex();
     auto parent = parentVisitor->pathToChild.back();
-    auto grandParent = *(parentVisitor->pathToChild.end() - 2);
-    if (parent && grandParent)
-        return createIndex(findRow(grandParent, parent), 0, node.get());
-    return QModelIndex();
+    return createIndex(findRow(parent, node), 0, node);
 }
 
 int SceneModel::columnCount ( const QModelIndex & /*parent = QModelIndex()*/ ) const
@@ -202,14 +199,7 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
     }
     return true;
 }
-/*
-template<typename P, typename F, typename C = vsg::Object>
-void visit(P& object, F function)
-{
-    LambdaVisitor<F, C> lv(function);
-    object->accept(lv);
-}
-*/
+
 void SceneModel::fetchMore(const QModelIndex &parent)
 {
     beginInsertRows(parent, 0, rowCount(parent));
@@ -237,8 +227,6 @@ QVariant SceneModel::data(const QModelIndex &index, int role) const
     if (!index.isValid()) {
         return QVariant();
     }
-
-
     if(auto nodeInfo = static_cast<vsg::Node*>(index.internalPointer()); nodeInfo)
     {
         switch (index.column()) {

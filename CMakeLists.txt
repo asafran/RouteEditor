@@ -24,22 +24,22 @@ set(SOURCES
     src/ContentManager.h
     src/ContentManager.cpp
     src/ContentManager.ui
-    src/databasemanager.cpp
-    src/databasemanager.h
+    src/DatabaseManager.cpp
+    src/DatabaseManager.h
     src/undo-redo.cpp
     src/undo-redo.h
-    src/manipulator.h
-    src/manipulator.cpp
-    src/TilesVisitor.cpp
-    src/TilesVisitor.h
-#    src/sceneobjects.h
-#    src/sceneobjects.cpp
+    src/Manipulator.h
+    src/Manipulator.cpp
+#    src/TilesVisitor.cpp
+#    src/TilesVisitor.h
+    src/sceneobjects.h
+    src/sceneobjects.cpp
     src/tilessorter.cpp
     src/tilessorter.h
     src/LambdaVisitor.cpp
     src/LambdaVisitor.h
-#    src/ObjectModel.h
-#    src/ObjectModel.cpp
+    src/ObjectModel.h
+    src/ObjectModel.cpp
     src/SceneModel.h
     src/SceneModel.cpp
     src/ParentVisitor.cpp
@@ -107,12 +107,10 @@ else()
     add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
 endif()
 
-add_subdirectory(src/vsgQt)
-
 add_executable(editor ${SOURCES})
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
 target_compile_definitions(editor PRIVATE META_TYPE="MetaType" META_NAME="MetaName" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
-target_link_libraries(editor vsgQt vsg::vsg vsgXchange::vsgXchange Qt6::Concurrent)
+target_link_libraries(editor vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange Qt6::Concurrent)
