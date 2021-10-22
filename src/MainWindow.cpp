@@ -8,6 +8,7 @@
 #include <QMessageBox>
 #include "AddDialog.h"
 #include "undo-redo.h"
+#include "ObjectModel.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -117,6 +118,10 @@ QWindow* MainWindow::initilizeVSGwindow()
             */
         }
 
+        auto objectModel = new ObjectModel(ellipsoidModel);
+
+        ui->tableView->setModel(objectModel);
+
         auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
 
         // add close handler to respond the close window button and pressing escape
@@ -137,6 +142,8 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         manipulator->setPager(viewer->recordAndSubmitTasks.front()->databasePager);
         database->setPager(viewer->recordAndSubmitTasks.front()->databasePager);
+
+        connect(manipulator, &Manipulator::objectClicked, objectModel, &ObjectModel::selectObject);
 
         connect(ui->updateButt, &QPushButton::pressed, database.get(), &DatabaseManager::updateTileCache);
         connect(manipulator, &Manipulator::updateCache, database.get(), &DatabaseManager::updateTileCache);
@@ -169,16 +176,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     };
     return viewerWindow;
 }
-/*
-void MainWindow::addToRoot(vsg::ref_ptr<vsg::Node> node)
-{
-    scene->addChild(node);
-    viewerWindow->viewer = vsg::Viewer::create();
-    viewerWindow->initializeCallback(*viewerWindow);
-    ui->sceneTreeView->expandAll();
 
-}
-*/
 void MainWindow::addObject()
 {
     const auto selectedIndexes = ui->cachedTilesView->selectionModel()->selectedIndexes();
@@ -261,7 +259,6 @@ void MainWindow::constructWidgets()
     QList<int> sizes;
     sizes << 100 << 720;
     ui->centralsplitter->setSizes(sizes);
-
 }
 
 MainWindow::~MainWindow()

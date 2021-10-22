@@ -39,7 +39,7 @@ public slots:
     void setViewpoint(const vsg::dvec3 &pos);
 
 signals:
-    void addRequest(const vsg::dvec3 &pos);
+    void addRequest(vsg::LineSegmentIntersector::Intersection isection);
     void objectClicked(const QModelIndex &index, QItemSelectionModel::SelectionFlags command);
     void expand(const QModelIndex &index);
     void updateCache();

@@ -1,7 +1,6 @@
 #ifndef CLASS_H
 #define CLASS_H
 
-#include <QUndoStack>
 #include "SceneModel.h"
 
 class AddNode : public QUndoCommand

@@ -19,7 +19,7 @@ ContentManager::ContentManager(vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<
 
 
 }
-void ContentManager::addObject(const vsg::dvec3 &pos)
+void ContentManager::addObject(vsg::LineSegmentIntersector::Intersection isection)
 {
     if (ui->fileView->selectionModel()->selectedIndexes().isEmpty() || !_active)
         return;
@@ -27,13 +27,13 @@ void ContentManager::addObject(const vsg::dvec3 &pos)
     if(auto node = vsg::read_cast<vsg::Node>(info.canonicalFilePath().toStdString(), _options); node)
     {
         _builder->compile(node);
-        auto obj = SceneObject::create(node, info, vsg::translate(pos));
+        auto obj = SceneObject::create(node, info, vsg::translate(isection.localIntersection));
         _stack->push(new AddNode(_active.get(), obj));
     }
 }
 void ContentManager::setActiveGroup(const QItemSelection &selected, const QItemSelection &deselected)
 {
-    if(!selected.indexes().front().isValid())
+    if(selected.empty() || !selected.indexes().front().isValid())
         return;
     _active.release();
     if(auto group = static_cast<vsg::Node*>(selected.indexes().front().internalPointer())->cast<vsg::Group>(); group != nullptr)

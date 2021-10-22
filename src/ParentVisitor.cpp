@@ -26,7 +26,7 @@ struct PushPopNode
     ~PushPopNode() { nodePath.pop_back(); }
 };
 
-ParentVisitor::ParentVisitor(vsg::Node* node) :
+ParentVisitor::ParentVisitor(const vsg::Node* node) :
     child(node)
 {
 

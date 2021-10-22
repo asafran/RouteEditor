@@ -10,8 +10,8 @@
 #include "Manipulator.h"
 #include <vsgQt/ViewerWindow.h>
 #include <QUndoView>
-#include <QUndoStack>
 #include <QRegularExpression>
+#include "ObjectModel.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }

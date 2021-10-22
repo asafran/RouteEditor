@@ -2,17 +2,17 @@
 #define SCENEOBJECT_H
 
 #include <QAbstractItemModel>
+#include <QItemSelectionModel>
 #include <algorithm>
 #include "sceneobjects.h"
 
-class ObjectModel : public QAbstractItemModel
+
+class ObjectModel : public QAbstractTableModel
 {
     Q_OBJECT
 public:
 
-    ObjectModel(QObject* parent = 0);
-
-    virtual ~ObjectModel();
+    ObjectModel(vsg::ref_ptr<vsg::EllipsoidModel> ellipsoid, QObject* parent = 0);
 
     int rowCount ( const QModelIndex & parent = QModelIndex() ) const;
     int columnCount ( const QModelIndex & parent = QModelIndex() ) const;
@@ -26,6 +26,9 @@ public:
 
     void clear();
 
+public slots:
+    void selectObject(const QModelIndex &index, QItemSelectionModel::SelectionFlags command);
+
 private:
 /*
     typedef QVector<NodeInfo> NodeInfoList;
@@ -34,14 +37,22 @@ private:
     enum Properties
     {
         NAME = 0,
-        COORD_ECEF = 2,
-        COORD = 3,
-        PARENT = 4,
-        SHADER = 5,
-        ANIMATION = 6,
-        ROW_COUNT = 7
+        COORD_ECEFX = 1,
+        COORD_ECEFY = 2,
+        COORD_ECEFZ = 3,
+        COORDX = 4,
+        COORDY = 5,
+        COORDZ = 6,
+        ROTATEX = 7,
+        ROTATEY = 8,
+        ROTATEZ = 9,
+        PARENT = 10,
+        //SHADER = 11,
+        //ANIMATION = 12,
+        ROW_COUNT = 11
     };
     vsg::ref_ptr<SceneObject> selectedObject;
+    vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel;
 };
 
 #endif // SCENEOBJECT_H

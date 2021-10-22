@@ -112,7 +112,7 @@ void SceneModel::addNode(const QModelIndex &parent, QUndoCommand *command)
     undoStack->push(command);
     endInsertRows();
 }
-QModelIndex SceneModel::index(vsg::Node *node) const
+QModelIndex SceneModel::index(const vsg::Node *node) const
 {
     auto parentVisitor = ParentVisitor::create(node);
     root->accept(*parentVisitor);

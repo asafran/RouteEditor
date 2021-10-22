@@ -19,7 +19,7 @@ public:
     ~ContentManager();
 
 public slots:
-    void addObject(const vsg::dvec3 &pos);
+    void addObject(vsg::LineSegmentIntersector::Intersection isection);
     void setActiveGroup(const QItemSelection &selected, const QItemSelection &deselected);
 
 signals:

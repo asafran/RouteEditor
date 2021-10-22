@@ -1,12 +1,9 @@
-#ifndef SCENEOBJECT_H
-#define SCENEOBJECT_H
+#ifndef SCENEMODEL_H
+#define SCENEMODEL_H
 
+#include "ObjectModel.h"
 #include <QUndoStack>
-#include <algorithm>
-#include <vsg/all.h>
-#include <QFileInfo>
-#include <QAbstractItemModel>
-#include "metainf.h"
+#include "sceneobjects.h"
 
 class SceneModel : public QAbstractItemModel
 {
@@ -60,7 +57,7 @@ public:
 
     int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
-    QModelIndex index(vsg::Node *node) const;
+    QModelIndex index(const vsg::Node *node) const;
 
 //    void clear();
     bool hasChildren(const QModelIndex &parent) const;
@@ -83,4 +80,4 @@ private:
     QUndoStack *undoStack;
 };
 
-#endif // SCENEOBJECT_H
+#endif // SCENEMODEL_H

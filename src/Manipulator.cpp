@@ -46,17 +46,16 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         switch (mode) {
         case SELECT:
         {
-            /*auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::SceneObject>);
-            if(find == intersection.nodePath.crend())
-                break;
-            if(auto object = (*find)->cast<vsg::SceneObject>(); object)
-                emit objectClicked(object->index, QItemSelectionModel::SelectCurrent);*/
+            if(!intersection.nodePath.empty())
+                emit objectClicked(cachedTilesModel->index(intersection.nodePath.back()), QItemSelectionModel::Select);
             break;
         }
         case ADD:
         {
-            if(lowTile(intersection))
-                emit addRequest(intersection.localIntersection);
+            if(lowTile(intersection)){
+                emit addRequest(intersection);
+                mode = SELECT;
+            }
             break;
         }
         }

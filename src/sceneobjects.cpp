@@ -8,3 +8,8 @@ SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> loaded, const QFileInfo &file, 
     setValue(META_NAME, file.baseName().toStdString());
 }
 SceneObject::~SceneObject() {}
+
+vsg::dmat4 SceneObject::world()
+{
+    return matrix * localToWord;
+}
