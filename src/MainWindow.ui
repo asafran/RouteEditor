@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1280</width>
-    <height>720</height>
+    <width>1920</width>
+    <height>1080</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -169,7 +169,7 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>1227</width>
+           <width>1867</width>
            <height>114</height>
           </rect>
          </property>
@@ -202,7 +202,7 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>1250</width>
+           <width>1890</width>
            <height>112</height>
           </rect>
          </property>
@@ -238,7 +238,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1280</width>
+     <width>1920</width>
      <height>33</height>
     </rect>
    </property>
@@ -319,11 +319,14 @@
    </property>
   </action>
   <action name="actionAdd_model">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Добавить объект</string>
    </property>
    <property name="shortcut">
-    <string>Shift+A</string>
+    <string>Ctrl+A</string>
    </property>
   </action>
   <action name="actionLoad_skybox">

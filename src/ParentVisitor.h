@@ -12,7 +12,7 @@ class ParentVisitor : public vsg::Inherit<vsg::ConstVisitor, ParentVisitor>
         using ArrayStateStack = std::vector<vsg::ArrayState>;
         NodePath pathToChild;
 
-        ParentVisitor(const vsg::Node* child);
+        explicit ParentVisitor(const vsg::Node* child);
 
         //
         // handle traverse of the scene graph

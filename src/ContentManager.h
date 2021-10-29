@@ -15,12 +15,12 @@ class ContentManager : public QWidget
     Q_OBJECT
 
 public:
-    explicit ContentManager(vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<vsg::Options> options, QUndoStack *stack, QWidget *parent = nullptr);
+    ContentManager(vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<vsg::Options> options, SceneModel *model, QWidget *parent = nullptr);
     ~ContentManager();
 
 public slots:
-    void addObject(vsg::LineSegmentIntersector::Intersection isection);
-    void setActiveGroup(const QItemSelection &selected, const QItemSelection &deselected);
+    void addObject(const vsg::LineSegmentIntersector::Intersection &isection, const QModelIndex &group);
+    void setActiveGroup(const QItemSelection &selected, const QItemSelection &);
 
 signals:
     void compile();
@@ -30,10 +30,10 @@ private:
 
     vsg::ref_ptr<vsg::Options> _options;
     vsg::ref_ptr<vsg::Builder> _builder;
-    vsg::ref_ptr<vsg::Group> _active;
+    QModelIndex _active;
     vsg::ref_ptr<vsg::Viewer> _viewer;
-    QFileSystemModel *model;
-    QUndoStack *_stack;
+    QFileSystemModel *_model;
+    SceneModel *_tilesModel;
 };
 
 #endif // CONTENTMANAGER_H

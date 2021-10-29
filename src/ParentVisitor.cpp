@@ -42,7 +42,6 @@ void ParentVisitor::apply(const Node& node)
 void ParentVisitor::apply(const Group& group)
 {
     PushPopNode ppn(_nodePath, &group);
-    auto vec = group.children;
     auto result = std::find(group.children.begin(), group.children.end(), child);
     if( result != group.children.end() )
         pathToChild = _nodePath;

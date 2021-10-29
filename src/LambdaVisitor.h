@@ -4,7 +4,7 @@
 #include <vsg/nodes/PagedLOD.h>
 
 template<typename F1, typename C1>
-class LambdaVisitor : public vsg::ConstVisitor
+class LambdaVisitor : public vsg::Visitor
 {
 public:
     LambdaVisitor(F1 func) :
@@ -12,14 +12,14 @@ public:
 
     F1 _function1;
 
-    using ConstVisitor::apply;
+    using Visitor::apply;
 
-    void apply(const Object& object)
+    void apply(Object& object)
     {
         object.traverse(*this);
     }
 
-    void apply(const C1& object) override
+    void apply(C1& object) override
     {
         _function1(object);
         object.traverse(*this);

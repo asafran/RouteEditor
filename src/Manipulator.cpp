@@ -6,13 +6,13 @@ Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera,
                          vsg::ref_ptr<vsg::Builder> in_builder,
                          vsg::ref_ptr<vsg::Group> in_scenegraph,
                          QUndoStack *stack,
-                         vsg::ref_ptr<vsg::Options> in_options,
+                         //vsg::ref_ptr<vsg::Options> in_options,
                          SceneModel *model,
                          QObject *parent) :
     QObject(parent),
     vsg::Inherit<vsg::Trackball, Manipulator>(camera, ellipsoidModel),
     builder(in_builder),
-    options(in_options),
+    //options(in_options),
     scenegraph(in_scenegraph),
     pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center))),
     cachedTilesModel(model)
@@ -42,20 +42,19 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
 
     if (buttonPress.mask & vsg::BUTTON_MASK_1){
         _updateMode = INACTIVE;
-        auto intersection = interesection(buttonPress);
+        auto isection = interesection(buttonPress);
         switch (mode) {
         case SELECT:
         {
-            if(!intersection.nodePath.empty())
-                emit objectClicked(cachedTilesModel->index(intersection.nodePath.back()), QItemSelectionModel::Select);
+            auto find = std::find_if(isection.nodePath.crbegin(), isection.nodePath.crend(), isCompatible<SceneObject>);
+            if(find != isection.nodePath.crend())
+                emit objectClicked(cachedTilesModel->index(*find), QItemSelectionModel::Select);
             break;
         }
         case ADD:
         {
-            if(lowTile(intersection)){
-                emit addRequest(intersection);
-                mode = SELECT;
-            }
+            if(auto tile = lowTile(isection); tile != isection.nodePath.crend())
+                emit addRequest(isection, cachedTilesModel->index(*tile));
             break;
         }
         }
@@ -67,15 +66,15 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         _updateMode = INACTIVE;
 
         auto isection = interesection(buttonPress);
-        if(isection.nodePath.back() == pointer)
+        if(isection.nodePath.empty() || isection.nodePath.back() == pointer)
             return;
         setViewpoint(isection.worldIntersection);
         emit updateCache();
 
-        if(auto tile = lowTile(isection); tile)
+        if(auto tile = lowTile(isection); tile != isection.nodePath.crend())
         {
             //emit objectClicked(cachedTilesModel->index(tile.get()), QItemSelectionModel::Select);
-            emit expand(cachedTilesModel->index(tile.get()));
+            emit expand(cachedTilesModel->index(*++tile));
         }
 
     } else
@@ -89,7 +88,71 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
 
     _previousPointerEvent = &buttonPress;
 }
-vsg::ref_ptr<vsg::Node> Manipulator::lowTile(const vsg::LineSegmentIntersector::Intersection &intersection)
+
+void Manipulator::rotate(double angle, const vsg::dvec3& axis)
+{
+    vsg::dmat4 rotation = vsg::rotate(angle, axis);
+    vsg::dmat4 lv = lookAt(_lookAt->eye, _lookAt->center, _lookAt->up);
+    vsg::dvec3 centerEyeSpace = (lv * _lookAt->center);
+
+    vsg::dmat4 matrix = inverse(lv) * translate(centerEyeSpace) * rotation * translate(-centerEyeSpace) * lv;
+
+    _lookAt->up = normalize(matrix * (_lookAt->eye + _lookAt->up) - matrix * _lookAt->eye);
+    _lookAt->center = matrix * _lookAt->center;
+    _lookAt->eye = matrix * _lookAt->eye;
+
+    //clampToGlobe();
+}
+
+void Manipulator::zoom(double ratio)
+{
+    vsg::dvec3 lookVector = _lookAt->center - _lookAt->eye;
+    _lookAt->eye = _lookAt->eye + lookVector * ratio;
+
+    //clampToGlobe();
+}
+
+void Manipulator::pan(const vsg::dvec2& delta)
+{
+    vsg::dvec3 lookVector = _lookAt->center - _lookAt->eye;
+    vsg::dvec3 lookNormal = vsg::normalize(lookVector);
+    vsg::dvec3 upNormal = _lookAt->up;
+    vsg::dvec3 sideNormal = vsg::cross(lookNormal, upNormal);
+
+    double distance = length(lookVector);
+    distance *= 0.25; // TODO use Camera project matrix to guide how much to scale
+
+    if (_ellipsoidModel)
+    {
+        double scale = distance;
+        double angle = (length(delta) * scale) / _ellipsoidModel->radiusEquator();
+
+        if (angle != 0.0)
+        {
+            vsg::dvec3 globeNormal = normalize(_lookAt->center);
+            vsg::dvec3 m = upNormal * (-delta.y) + sideNormal * (delta.x); // compute the position relative to the center in the eye plane
+            vsg::dvec3 v = m + lookNormal * dot(m, globeNormal);           // compensate for any tile relative to the globenormal
+            vsg::dvec3 axis = normalize(cross(globeNormal, v));            // compute the axis of rotation to map the mouse pan
+
+            vsg::dmat4 matrix = vsg::rotate(-angle, axis);
+
+            _lookAt->up = normalize(matrix * (_lookAt->eye + _lookAt->up) - matrix * _lookAt->eye);
+            _lookAt->center = matrix * _lookAt->center;
+            _lookAt->eye = matrix * _lookAt->eye;
+
+            //clampToGlobe();
+        }
+    }
+    else
+    {
+        vsg::dvec3 translation = sideNormal * (-delta.x * distance) + upNormal * (delta.y * distance);
+
+        _lookAt->eye = _lookAt->eye + translation;
+        _lookAt->center = _lookAt->center + translation;
+    }
+}
+
+vsg::Intersector::NodePath::const_reverse_iterator Manipulator::lowTile(const vsg::LineSegmentIntersector::Intersection &intersection)
 {
     auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::PagedLOD>);
     if(find != intersection.nodePath.crend())
@@ -97,11 +160,15 @@ vsg::ref_ptr<vsg::Node> Manipulator::lowTile(const vsg::LineSegmentIntersector::
         auto plod = (*find)->cast<vsg::PagedLOD>();
         if(plod->highResActive(database->frameCount))
         {
-            if(auto group = plod->children.front().node.cast<vsg::Group>(); group && group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
-                return group;
+            if(plod->children.front().node.cast<vsg::Group>()->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
+                return find - 2;
         }
     }
-    return vsg::ref_ptr<vsg::Node>();
+    return intersection.nodePath.crend();
+}
+void Manipulator::setViewpoint(const vsg::dvec4 &pos_mat)
+{
+    setViewpoint(vsg::dvec3(pos_mat.x, pos_mat.y, pos_mat.z));
 }
 void Manipulator::setViewpoint(const vsg::dvec3 &pos)
 {
@@ -117,23 +184,26 @@ void Manipulator::addPointer()
     pointer->children.erase(pointer->children.begin(), pointer->children.end());
     vsg::GeometryInfo info;
 
-    info.dx.set(1000.0f, 0.0f, 0.0f);
-    info.dy.set(0.0f, 1000.0f, 0.0f);
-    info.dz.set(0.0f, 0.0f, 1000.0f);
+    info.dx.set(10.0f, 0.0f, 0.0f);
+    info.dy.set(0.0f, 10.0f, 0.0f);
+    info.dz.set(0.0f, 0.0f, 10.0f);
     pointer->addChild(builder->createCone(info));
 }
-void Manipulator::selectObject(const QItemSelection &selected, const QItemSelection &)
-{
-    if(auto object = static_cast<vsg::Node*>(selected.indexes().front().internalPointer()); object)
-    {
-        /*
-        vsg::ComputeBounds computeBounds;
-        object->accept(computeBounds);
-        vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
-        double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
 
-        Trackball::setViewpoint(vsg::LookAt::create(centre + vsg::dvec3(0.0, -radius * 3.5, 0.0), centre, vsg::dvec3(0.0, 0.0, 1.0)));
-        */
+void Manipulator::addAction(bool checked)
+{
+    mode = checked ? Manipulator::ADD : Manipulator::SELECT;
+}
+
+void Manipulator::selectObject(const QModelIndex &index)
+{
+    if(auto object = static_cast<vsg::Node*>(index.internalPointer()); object)
+    {
+        if(auto sceneobject = object->cast<SceneObject>(); sceneobject)
+        {
+            setViewpoint(sceneobject->world()[3]);
+            return;
+        }
         vsg::ComputeBounds computeBounds;
         object->accept(computeBounds);
         vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;

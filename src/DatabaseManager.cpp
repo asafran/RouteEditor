@@ -54,7 +54,7 @@ void _check(vsg::ref_ptr<vsg::Group> root, vsg::ref_ptr<vsg::PagedLOD> plod, QSe
         {
             group->setValue(META_NAME, plod->filename);
             root->addChild(group);
-            culled.insert(plod->filename.c_str());
+            culled.insert(QFileInfo(plod->filename.c_str()).canonicalFilePath());
         }
 }
 
@@ -105,6 +105,12 @@ void write(const vsg::ref_ptr<vsg::Node> node)
 
 void DatabaseManager::writeTiles()
 {
+    auto removeBounds = [](vsg::VertexIndexDraw& object)
+    {
+        object.removeObject("bound");
+    };
+    LambdaVisitor<decltype (removeBounds), vsg::VertexIndexDraw> lv(removeBounds);
+    cachedTilesModel->getRoot()->accept(lv);
     try {
         QFuture<void> future = QtConcurrent::map(cachedTilesModel->getRoot()->children, write);
         future.waitForFinished();

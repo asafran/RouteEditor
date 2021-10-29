@@ -23,8 +23,8 @@ signals:
 private:
     Ui::Sorter *ui;
 
-    SceneModel *model;
-    TilesSorter *sorter;
+    QScopedPointer<SceneModel> model;
+    QScopedPointer<TilesSorter> sorter;
 };
 
 #endif // SORTER_H

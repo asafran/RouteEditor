@@ -27,12 +27,12 @@ class DatabaseManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit DatabaseManager(const QString &path, QUndoStack *stack, SceneModel *model, QObject *parent = nullptr);
+    DatabaseManager(const QString &path, QUndoStack *stack, SceneModel *model, QObject *parent = nullptr);
 
-    vsg::ref_ptr<vsg::Node> getDatabase() { return database; }
+    vsg::ref_ptr<vsg::Node> getDatabase() const noexcept { return database; }
     SceneModel *loadTiles();
 
-    void setPager(vsg::ref_ptr<vsg::DatabasePager> in_pager) { pager = in_pager; }
+    void setPager(vsg::ref_ptr<vsg::DatabasePager> in_pager) noexcept { pager = in_pager; }
 
     static vsg::Node *read(const QString &path);
 

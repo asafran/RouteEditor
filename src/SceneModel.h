@@ -10,10 +10,10 @@ class SceneModel : public QAbstractItemModel
     Q_OBJECT
 public:
 
-    SceneModel(vsg::ref_ptr<vsg::Group> group, QObject* parent = 0);
+    explicit SceneModel(vsg::ref_ptr<vsg::Group> group, QObject* parent = 0);
     SceneModel(vsg::ref_ptr<vsg::Group> group, QUndoStack *stack, QObject* parent = 0);
 
-    virtual ~SceneModel();
+    ~SceneModel();
 
     QModelIndex index ( int row, int column, const QModelIndex & parent = QModelIndex() ) const;
     QModelIndex parent ( const QModelIndex & index ) const;

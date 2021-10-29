@@ -107,6 +107,49 @@ private:
     const std::string _newName;
 
 };
+class RotateObject : public QUndoCommand
+{
+public:
+    RotateObject(SceneObject *object, vsg::dvec3 vec, double angle, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _object(object)
+        , _oldQ(object->quat)
+    {
+        std::string name;
+        int i = 0;
+        _object->getValue(META_NAME, name);
+        if(_object->getValue(META_TYPE, i))
+            setText(QObject::tr("Перемещен объект %1").arg(name.c_str()));
+        else
+            setText(QObject::tr("Изменена матрица %1").arg(name.c_str()));
+
+        double c = cos(angle * 0.5);
+        double s = sin(angle * 0.5);
+        vsg::dquat q(s * vec.x, s * vec.y, s * vec.z, c);
+        _object->quat = mult(_object->quat, q);
+        auto _newMat = vsg::mat4_cast(_object->quat);
+        _newMat[3][0] = _object->matrix[3][0];
+        _newMat[3][1] = _object->matrix[3][1];
+        _newMat[3][2] = _object->matrix[3][2];
+    }
+    void undo() override
+    {
+        auto oldMat = vsg::mat4_cast(_oldQ);
+        oldMat[3][0] = _newMat[3][0];
+        oldMat[3][1] = _newMat[3][1];
+        oldMat[3][2] = _newMat[3][2];
+        _object->matrix = oldMat;
+    }
+    void redo() override
+    {
+        _object->matrix = _newMat;
+    }
+private:
+    vsg::ref_ptr<SceneObject> _object;
+    const vsg::dquat _oldQ;
+    const vsg::dmat4 _newMat;
+
+};
+
 class MoveObject : public QUndoCommand
 {
 public:

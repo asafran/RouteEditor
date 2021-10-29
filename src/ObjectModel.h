@@ -5,6 +5,7 @@
 #include <QItemSelectionModel>
 #include <algorithm>
 #include "sceneobjects.h"
+#include <QUndoStack>
 
 
 class ObjectModel : public QAbstractTableModel
@@ -12,7 +13,7 @@ class ObjectModel : public QAbstractTableModel
     Q_OBJECT
 public:
 
-    ObjectModel(vsg::ref_ptr<vsg::EllipsoidModel> ellipsoid, QObject* parent = 0);
+    ObjectModel(vsg::ref_ptr<vsg::EllipsoidModel> ellipsoid, QUndoStack *stack, QObject* parent = 0);
 
     int rowCount ( const QModelIndex & parent = QModelIndex() ) const;
     int columnCount ( const QModelIndex & parent = QModelIndex() ) const;
@@ -27,13 +28,14 @@ public:
     void clear();
 
 public slots:
-    void selectObject(const QModelIndex &index, QItemSelectionModel::SelectionFlags command);
+    void selectObject(const QItemSelection &selected, const QItemSelection &deselected);
 
 private:
 /*
     typedef QVector<NodeInfo> NodeInfoList;
     NodeInfoList _nodes;
 */
+    //vsg::dmat4 rotate(double yaw, double pitch, double roll);
     enum Properties
     {
         NAME = 0,
@@ -46,13 +48,13 @@ private:
         ROTATEX = 7,
         ROTATEY = 8,
         ROTATEZ = 9,
-        PARENT = 10,
         //SHADER = 11,
         //ANIMATION = 12,
-        ROW_COUNT = 11
+        ROW_COUNT = 10
     };
     vsg::ref_ptr<SceneObject> selectedObject;
     vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel;
+    QUndoStack *undoStack;
 };
 
 #endif // SCENEOBJECT_H

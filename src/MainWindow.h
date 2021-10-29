@@ -44,8 +44,8 @@ private:
     Ui::MainWindow *ui;
     ContentManager *content;
     vsg::ref_ptr<vsg::Group> scene;
-    vsg::ref_ptr<vsg::Options> options;
-    vsg::ref_ptr<vsg::Builder> builder;
+    //vsg::ref_ptr<vsg::Options> options;
+    //vsg::ref_ptr<vsg::Builder> builder;
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;
     QScopedPointer<DatabaseManager> database;

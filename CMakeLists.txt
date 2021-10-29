@@ -30,8 +30,8 @@ set(SOURCES
     src/undo-redo.h
     src/Manipulator.h
     src/Manipulator.cpp
-#    src/TilesVisitor.cpp
-#    src/TilesVisitor.h
+    src/TilesVisitor.cpp
+    src/TilesVisitor.h
     src/sceneobjects.h
     src/sceneobjects.cpp
     src/tilessorter.cpp

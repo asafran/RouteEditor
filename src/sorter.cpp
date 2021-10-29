@@ -7,12 +7,12 @@ Sorter::Sorter(SceneModel *tilesmodel, QWidget *parent) :
   , model(tilesmodel)
 {
     ui->setupUi(this);
-    sorter = new TilesSorter(this);
-    sorter->setSourceModel(model);
+    sorter.reset(new TilesSorter());
+    sorter->setSourceModel(model.get());
     sorter->setFilterKeyColumn(1);
     sorter->setFilterWildcard("*");
-    ui->treeView->setModel(sorter);
-    connect(ui->lineEdit, &QLineEdit::textChanged, sorter, &TilesSorter::setFilterWildcard);
+    ui->treeView->setModel(sorter.get());
+    connect(ui->lineEdit, &QLineEdit::textChanged, sorter.get(), &TilesSorter::setFilterWildcard);
     connect(ui->treeView, &QTreeView::doubleClicked, this, &Sorter::selected);
     connect(ui->treeView, &QTreeView::clicked, this, &Sorter::selected);
     connect(ui->treeView, &QTreeView::doubleClicked, this, &QDialog::close);
@@ -21,6 +21,4 @@ Sorter::Sorter(SceneModel *tilesmodel, QWidget *parent) :
 Sorter::~Sorter()
 {
     delete ui;
-    delete sorter;
-    delete model;
 }

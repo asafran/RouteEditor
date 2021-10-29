@@ -9,6 +9,8 @@
 #include "AddDialog.h"
 #include "undo-redo.h"
 #include "ObjectModel.h"
+#include "LambdaVisitor.h"
+#include "TilesVisitor.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -43,15 +45,18 @@ MainWindow::MainWindow(QWidget *parent)
 }
 QWindow* MainWindow::initilizeVSGwindow()
 {
-    options = vsg::Options::create();
+    auto options = vsg::Options::create();
     //options->fileCache = vsg::getEnv("VSG_FILE_CACHE");
     options->paths = vsg::getEnvPaths("VSG_FILE_PATH");
 
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());
+    vsg::RegisterWithObjectFactoryProxy<SceneObject>();
 
-    builder = vsg::Builder::create();
+    auto builder = vsg::Builder::create();
     builder->options = options;
+
+    content = new ContentManager(builder, options, cachedTilesModel, ui->content);
 
     QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
@@ -59,7 +64,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     windowTraits->windowTitle = APPLICATION_NAME;
     if (settings.value("FULLSCREEN", false).toBool()) windowTraits->fullscreen = true;
 
-    auto horizonMountainHeight = settings.value("HMH", 0.0).toDouble();
+    auto horizonMountainHeight = settings.value("HMH", 1.0).toDouble();
 
     scene = vsg::Group::create();
 
@@ -72,7 +77,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     viewerWindow->viewer = vsg::Viewer::create();
 
     // provide the calls to set up the vsg::Viewer that will be used to render to the QWindow subclass vsgQt::ViewerWindow
-    viewerWindow->initializeCallback = [&](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
+    viewerWindow->initializeCallback = [&, builder, options](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
 
         auto& window = vw.windowAdapter;
         if (!window) return false;
@@ -101,7 +106,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         if (ellipsoidModel)
         {
             perspective = vsg::EllipsoidPerspective::create(
-                lookAt, ellipsoidModel, 30.0,
+                lookAt, ellipsoidModel, 60.0,
                 static_cast<double>(width) /
                     static_cast<double>(height),
                 nearFarRatio, horizonMountainHeight);
@@ -118,7 +123,7 @@ QWindow* MainWindow::initilizeVSGwindow()
             */
         }
 
-        auto objectModel = new ObjectModel(ellipsoidModel);
+        auto objectModel = new ObjectModel(ellipsoidModel, undoStack);
 
         ui->tableView->setModel(objectModel);
 
@@ -129,8 +134,16 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         auto commandGraph = vsg::createCommandGraphForView(window, camera, scene);
 
+        auto addBins = [&](vsg::View& view)
+        {
+            for (int bin = 0; bin < 11; ++bin)
+                view.bins.push_back(vsg::Bin::create(bin, vsg::Bin::DESCENDING));
+        };
+        LambdaVisitor<decltype(addBins), vsg::View> lv(addBins);
+        commandGraph->accept(lv);
+
         // add trackball to enable mouse driven camera view control.
-        auto manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, undoStack, options, cachedTilesModel);
+        auto manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, undoStack, cachedTilesModel);
 
         builder->setup(window, camera->viewportState);
 
@@ -143,7 +156,9 @@ QWindow* MainWindow::initilizeVSGwindow()
         manipulator->setPager(viewer->recordAndSubmitTasks.front()->databasePager);
         database->setPager(viewer->recordAndSubmitTasks.front()->databasePager);
 
-        connect(manipulator, &Manipulator::objectClicked, objectModel, &ObjectModel::selectObject);
+        connect(ui->cachedTilesView->selectionModel(), &QItemSelectionModel::selectionChanged, objectModel, &ObjectModel::selectObject);
+
+        connect(ui->actionAdd_model, &QAction::triggered, manipulator, &Manipulator::addAction);
 
         connect(ui->updateButt, &QPushButton::pressed, database.get(), &DatabaseManager::updateTileCache);
         connect(manipulator, &Manipulator::updateCache, database.get(), &DatabaseManager::updateTileCache);
@@ -153,7 +168,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         connect(manipulator.get(), &Manipulator::objectClicked, ui->cachedTilesView->selectionModel(),
                 qOverload<const QModelIndex &, QItemSelectionModel::SelectionFlags>(&QItemSelectionModel::select));
         connect(manipulator.get(), &Manipulator::expand, ui->cachedTilesView, &QTreeView::expand);
-        connect(ui->cachedTilesView->selectionModel(), &QItemSelectionModel::selectionChanged, manipulator, &Manipulator::selectObject);
+        connect(ui->cachedTilesView, &QTreeView::doubleClicked, manipulator, &Manipulator::selectObject);
 
         return true;
     };
@@ -238,6 +253,7 @@ void MainWindow::search()
 {
     try {
         auto sorter = new Sorter(database->loadTiles(), this);
+        connect(sorter, &Sorter::selected, [this](const QModelIndex &index) { ui->sceneTreeView->selectionModel()->select(index, QItemSelectionModel::Select); });
         sorter->open();
     }  catch (DatabaseException &ex) {
         auto errorMessageDialog = new QErrorMessage(this);
@@ -253,7 +269,6 @@ void MainWindow::pushCommand(QUndoCommand *command)
 void MainWindow::constructWidgets()
 {
     embedded = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
-    content = new ContentManager(builder, options, undoStack, ui->content);
     ui->content->layout()->addWidget(content);
     ui->centralsplitter->addWidget(embedded);
     QList<int> sizes;
