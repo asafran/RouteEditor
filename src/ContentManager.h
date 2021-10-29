@@ -15,8 +15,10 @@ class ContentManager : public QWidget
     Q_OBJECT
 
 public:
-    ContentManager(vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<vsg::Options> options, SceneModel *model, QWidget *parent = nullptr);
+    ContentManager(vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<vsg::Options> options, QWidget *parent = nullptr);
     ~ContentManager();
+
+    void setTilesModel(SceneModel *model) { _tilesModel = model; }
 
 public slots:
     void addObject(const vsg::LineSegmentIntersector::Intersection &isection, const QModelIndex &group);

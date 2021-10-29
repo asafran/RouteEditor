@@ -27,10 +27,11 @@ class DatabaseManager : public QObject
 {
     Q_OBJECT
 public:
-    DatabaseManager(const QString &path, QUndoStack *stack, SceneModel *model, QObject *parent = nullptr);
+    DatabaseManager(const QString &path, QUndoStack *stack, vsg::ref_ptr<vsg::Options> options, QObject *parent = nullptr);
+    virtual ~DatabaseManager();
 
     vsg::ref_ptr<vsg::Node> getDatabase() const noexcept { return database; }
-    SceneModel *loadTiles();
+    SceneModel *getTilesModel() { return tilesModel; }
 
     void setPager(vsg::ref_ptr<vsg::DatabasePager> in_pager) noexcept { pager = in_pager; }
 
@@ -38,19 +39,17 @@ public:
 
 public slots:
     void writeTiles();
-    void updateTileCache();
 
 private:
     vsg::ref_ptr<vsg::Node> database;
     vsg::ref_ptr<vsg::DatabasePager> pager;
+    vsg::ref_ptr<vsg::Options> options;
 
-    QSet<QString> tileFiles;
-    QSet<QString> culledFiles;
+    QMap<vsg::Group*, QString> tileFiles;
 
-    SceneModel *fileTilesModel;
-    SceneModel *cachedTilesModel;
+    SceneModel *tilesModel;
 
-    uint32_t prevAvCount = 4000;
+    int numTiles = 0;
 
     QUndoStack *undoStack;
     QFileSystemWatcher *fsWatcher;

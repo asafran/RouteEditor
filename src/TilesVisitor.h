@@ -15,11 +15,10 @@ public:
     void apply(vsg::Node& node) override;
     void apply(vsg::PagedLOD& plod) override;
 
-    int level = 0;
     unsigned int numTiles = 0;
     vsg::ref_ptr<vsg::Options> options;
 
-    std::vector<vsg::ref_ptr<vsg::Node>> tiles;
+    vsg::ref_ptr<vsg::Group> tiles;
 };
 
 

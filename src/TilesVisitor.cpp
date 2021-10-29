@@ -22,20 +22,21 @@ void LoadTiles::apply(vsg::PagedLOD& plod)
 {
     for (auto& child : plod.children)
     {
-        ++level;
-
         QFileInfo filepath(plod.filename.c_str());
 
         if (!child.node)
         {
             child.node = vsg::read_cast<vsg::Node>(filepath.canonicalFilePath().toStdString(), options);
-            if(child.node->is_compatible(typeid (vsg::MatrixTransform)))
+            if(child.node->is_compatible(typeid (vsg::Group)))
+                if(child.node.cast<vsg::Group>()->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
+                {
+                    child.node->setValue(META_NAME, plod.filename);
+                    tiles->addChild(child.node);
+                }
 
             ++numTiles;
         }
 
         if (child.node) child.node->accept(*this);
-
-        --level;
     }
 }

@@ -22,10 +22,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     undoStack = new QUndoStack(this);
 
-    cachedTilesModel = new SceneModel(vsg::Group::create(), undoStack);
-
-    ui->cachedTilesView->setModel(cachedTilesModel);
-
     constructWidgets();
 
     if(auto manager = openDialog(); manager != nullptr)
@@ -56,7 +52,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     auto builder = vsg::Builder::create();
     builder->options = options;
 
-    content = new ContentManager(builder, options, cachedTilesModel, ui->content);
+    content = new ContentManager(builder, options, ui->content);
 
     QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
@@ -143,7 +139,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         commandGraph->accept(lv);
 
         // add trackball to enable mouse driven camera view control.
-        auto manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, undoStack, cachedTilesModel);
+        manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, undoStack, cachedTilesModel);
 
         builder->setup(window, camera->viewportState);
 
@@ -226,7 +222,7 @@ DatabaseManager *MainWindow::openDialog()
     if (const auto file = QFileDialog::getOpenFileName(this, tr("Открыть базу данных"), settings.value("ROUTES", qApp->applicationDirPath()).toString()); !file.isEmpty())
     {
         try {
-            auto db = new DatabaseManager(file, undoStack, cachedTilesModel);
+            auto db = new DatabaseManager(file, undoStack);
             return db;
 
         }  catch (DatabaseException &ex) {
@@ -243,6 +239,7 @@ void MainWindow::openRoute()
     {
         scene->children.clear();
         database.reset(manager);
+        ui->cachedTilesView->setModel(manager.);
         scene->addChild(manager->getDatabase());
 
         viewerWindow->viewer = vsg::Viewer::create();
@@ -253,7 +250,7 @@ void MainWindow::search()
 {
     try {
         auto sorter = new Sorter(database->loadTiles(), this);
-        connect(sorter, &Sorter::selected, [this](const QModelIndex &index) { ui->sceneTreeView->selectionModel()->select(index, QItemSelectionModel::Select); });
+        connect(sorter, &Sorter::selected, manipulator, &Manipulator::selectObject);
         sorter->open();
     }  catch (DatabaseException &ex) {
         auto errorMessageDialog = new QErrorMessage(this);

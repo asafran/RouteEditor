@@ -2,28 +2,33 @@
 #include "LambdaVisitor.h"
 #include "vsgGIS/TileDatabase.h"
 #include <QtConcurrent/QtConcurrent>
+#include "TilesVisitor.h"
 
-
-DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, SceneModel *model, QObject *parent) : QObject(parent)
+DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::ref_ptr<vsg::Options> in_options, QObject *parent) : QObject(parent)
   , database(vsg::Group::create())
-  , cachedTilesModel(model)
+  , options(in_options)
   , undoStack(stack)
 {
     QFileInfo directory(path);
     fsWatcher = new QFileSystemWatcher(QStringList(directory.absolutePath() + QDir::separator() + "Tiles"), this);
-
+/*
     QStringList filter("database_L5*");
     QDirIterator it(directory.absolutePath(), filter, QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
     while (it.hasNext())
         tileFiles << it.next();
-
+*/
     database = read(path);
+    LoadTiles lt;
+    lt.options = options;
+    database->accept(lt);
+    tilesModel = new SceneModel(lt.tiles, stack, this);
 }
+/*
 void addToGroup(vsg::ref_ptr<vsg::Group> &group, vsg::Node *node)
 {
     group->children.emplace_back(node);
 }
-
+*/
 vsg::Node* DatabaseManager::read(const QString &path)
 {
     auto tile = vsg::read_cast<vsg::Node>(path.toStdString());
@@ -34,7 +39,7 @@ vsg::Node* DatabaseManager::read(const QString &path)
     } else
         throw (DatabaseException(path));
 }
-
+/*
 SceneModel *DatabaseManager::loadTiles()
 {
     auto root = vsg::Group::create();
@@ -47,7 +52,7 @@ SceneModel *DatabaseManager::loadTiles()
 
     return new SceneModel(root);
 }
-void _check(vsg::ref_ptr<vsg::Group> root, vsg::ref_ptr<vsg::PagedLOD> plod, QSet<QString> &culled)
+void _check(vsg::ref_ptr<vsg::Group> root, vsg::ref_ptr<vsg::PagedLOD> plod)
 {
     if(!culled.contains(plod->filename.c_str()))
         if(auto group = plod->children.front().node.cast<vsg::Group>(); group && group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
@@ -95,6 +100,7 @@ void DatabaseManager::updateTileCache()
         cachedTilesModel->fetchMore(QModelIndex(), _updateTileCache, culledFiles, pager);
     }
 }
+*/
 void write(const vsg::ref_ptr<vsg::Node> node)
 {
     std::string file;
@@ -110,9 +116,9 @@ void DatabaseManager::writeTiles()
         object.removeObject("bound");
     };
     LambdaVisitor<decltype (removeBounds), vsg::VertexIndexDraw> lv(removeBounds);
-    cachedTilesModel->getRoot()->accept(lv);
+    tilesModel->getRoot()->accept(lv);
     try {
-        QFuture<void> future = QtConcurrent::map(cachedTilesModel->getRoot()->children, write);
+        QFuture<void> future = QtConcurrent::map(tilesModel->getRoot()->children, write);
         future.waitForFinished();
         undoStack->setClean();
     }  catch (DatabaseException &ex) {

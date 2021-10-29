@@ -49,8 +49,7 @@ private:
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;
     QScopedPointer<DatabaseManager> database;
-    //vsg::ref_ptr<Manipulator> manipulator;
-    SceneModel *cachedTilesModel;
+    vsg::ref_ptr<Manipulator> manipulator;
 
     QUndoStack *undoStack;
     QUndoView *undoView;
