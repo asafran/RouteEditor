@@ -18,24 +18,21 @@ public:
     ContentManager(vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<vsg::Options> options, QWidget *parent = nullptr);
     ~ContentManager();
 
-    void setTilesModel(SceneModel *model) { _tilesModel = model; }
-
-public slots:
-    void addObject(const vsg::LineSegmentIntersector::Intersection &isection, const QModelIndex &group);
-    void setActiveGroup(const QItemSelection &selected, const QItemSelection &);
+    std::optional<vsg::ref_ptr<vsg::Node>> getSelectedObject();
+    //void setActiveGroup(const QItemSelection &selected, const QItemSelection &);
 
 signals:
     void compile();
 
 private:
-    Ui::ContentManager *ui;
+    void loadModels(QStringList tileFiles);
+    std::pair<QString, vsg::ref_ptr<vsg::Node>> read(const QString &path);
 
-    vsg::ref_ptr<vsg::Options> _options;
-    vsg::ref_ptr<vsg::Builder> _builder;
-    QModelIndex _active;
-    vsg::ref_ptr<vsg::Viewer> _viewer;
-    QFileSystemModel *_model;
-    SceneModel *_tilesModel;
+    Ui::ContentManager *ui;
+    QMap<QString, vsg::ref_ptr<vsg::Node>> preloaded;
+
+    QModelIndex active;
+    QFileSystemModel *model;
 };
 
 #endif // CONTENTMANAGER_H

@@ -9,9 +9,9 @@
 
 LoadTiles::LoadTiles() :
     vsg::Visitor()
+  , tiles(vsg::Group::create())
 {
 }
-
 
 void LoadTiles::apply(vsg::Node& node)
 {
@@ -33,7 +33,6 @@ void LoadTiles::apply(vsg::PagedLOD& plod)
                     child.node->setValue(META_NAME, plod.filename);
                     tiles->addChild(child.node);
                 }
-
             ++numTiles;
         }
 

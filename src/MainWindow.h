@@ -5,13 +5,12 @@
 #include <QSplitter>
 #include <QTreeView>
 #include "DatabaseManager.h"
-#include "ContentManager.h"
-#include "sorter.h"
 #include "Manipulator.h"
 #include <vsgQt/ViewerWindow.h>
 #include <QUndoView>
 #include <QRegularExpression>
 #include "ObjectModel.h"
+#include "tilessorter.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -29,7 +28,6 @@ public slots:
 //    void addToRoot(vsg::ref_ptr<vsg::Node> node);
 //    void setTilesModel(SceneModel *model);
     void openRoute();
-    void search();
     void addObject();
     void pushCommand(QUndoCommand *command);
 
@@ -42,14 +40,16 @@ private:
     DatabaseManager *openDialog();
 
     Ui::MainWindow *ui;
-    ContentManager *content;
     vsg::ref_ptr<vsg::Group> scene;
-    //vsg::ref_ptr<vsg::Options> options;
-    //vsg::ref_ptr<vsg::Builder> builder;
+    vsg::ref_ptr<vsg::Options> options;
+    vsg::ref_ptr<vsg::Builder> builder;
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;
     QScopedPointer<DatabaseManager> database;
-    vsg::ref_ptr<Manipulator> manipulator;
+    //vsg::ref_ptr<Manipulator> manipulator;
+
+    QFileSystemModel *fsmodel;
+    TilesSorter *sorter;
 
     QUndoStack *undoStack;
     QUndoView *undoView;

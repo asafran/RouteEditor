@@ -2,43 +2,51 @@
 #include "sceneobjects.h"
 #include "ui_ContentManager.h"
 #include <QSettings>
+#include <QtConcurrent/QtConcurrent>
+#include "DatabaseManager.h"
 
-ContentManager::ContentManager(vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<vsg::Options> options, SceneModel *model, QWidget *parent) :
+ContentManager::ContentManager(vsg::ref_ptr<vsg::Builder> in_builder, vsg::ref_ptr<vsg::Options> in_options, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::ContentManager),
-    _options(options),
-    _builder(builder),
-    _tilesModel(model)
+    options(in_options),
+    builder(in_builder)
 {
     QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
     ui->setupUi(this);
-    _model = new QFileSystemModel(this);
-    _model->setRootPath(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString());
-    ui->fileView->setModel(_model);
-    ui->fileView->setRootIndex(_model->index(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString()));
-
-
+    model = new QFileSystemModel(this);
+    model->setRootPath(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString());
+    ui->fileView->setModel(model);
+    ui->fileView->setRootIndex(model->index(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString()));
+    QDirIterator it(model->rootPath(), QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+    QStringList models;
+    while (it.hasNext())
+        models << it.next();
+    loadModels(models);
 }
-void ContentManager::addObject(const vsg::LineSegmentIntersector::Intersection &isection, const QModelIndex &index)
+
+void addToGroup(QMap<QString, vsg::ref_ptr<vsg::Node>> &preloaded, std::pair<QString, vsg::ref_ptr<vsg::Node>> &node)
 {
-    vsg::ref_ptr<vsg::Group> group;
-    auto readindex = index.isValid() ? index : _active;
-    if(readindex.isValid())
-        group = static_cast<vsg::Node*>(index.internalPointer())->cast<vsg::Group>();
-    if (ui->fileView->selectionModel()->selectedIndexes().isEmpty() || !group)
-        return;
-    const QFileInfo info(_model->fileInfo(ui->fileView->selectionModel()->selectedIndexes().front()));
-    if(auto node = vsg::read_cast<vsg::Node>(info.canonicalFilePath().toStdString(), _options); node)
+    preloaded.insert(node.first, node.second);
+}
+
+std::pair<QString, vsg::ref_ptr<vsg::Node>> read(const QString &path)
+{
+    auto tile = vsg::read_cast<vsg::Node>(path.toStdString());
+    if (tile)
     {
-        _builder->compile(node);
-        auto obj = SceneObject::create(node, isection.localToWord, info.fileName().toStdString(), vsg::translate(isection.localIntersection));
-        _tilesModel->addNode(readindex, new AddNode(group.get(), obj));
-    }
+        return std::make_pair(path, tile);
+    } else
+        throw (DatabaseException(path));
 }
-void ContentManager::setActiveGroup(const QItemSelection &selected, const QItemSelection &)
+
+void ContentManager::loadModels(QStringList tileFiles)
 {
-    _active = selected.indexes().front();
+    QFuture<QMap<QString, vsg::ref_ptr<vsg::Node>>> future = QtConcurrent::mappedReduced(tileFiles, &DatabaseManager::read, addToGroup, );
+    future.waitForFinished();
 }
+
+
+
 
 ContentManager::~ContentManager()
 {

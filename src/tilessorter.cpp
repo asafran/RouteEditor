@@ -13,3 +13,23 @@ bool TilesSorter::filterAcceptsRow(int source_row, const QModelIndex & source_pa
             result = result || filterAcceptsRow(i, currentIndex);
     return result;
 }
+
+void TilesSorter::select(const QModelIndex &index)
+{
+    emit viewSelectSignal(mapFromSource(index), QItemSelectionModel::Select);
+}
+
+void TilesSorter::expand(const QModelIndex &index)
+{
+    emit viewExpandSignal(mapFromSource(index));
+}
+
+void TilesSorter::viewSelectSlot(const QItemSelection &selected, const QItemSelection &)
+{
+    emit selectionChanged(mapToSource(selected.indexes().front()));
+}
+
+void TilesSorter::viewDoubleClicked(const QModelIndex &index)
+{
+    emit doubleClicked(mapToSource(index));
+}

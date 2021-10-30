@@ -5,6 +5,7 @@
 #include <vsg/all.h>
 #include "SceneModel.h"
 #include <QItemSelectionModel>
+#include <QSortFilterProxyModel>
 
 class Manipulator : public QObject, public vsg::Inherit<vsg::Trackball, Manipulator>
 {
@@ -46,9 +47,8 @@ public slots:
 
 signals:
     void addRequest(const vsg::LineSegmentIntersector::Intersection &isection, const QModelIndex &group);
-    void objectClicked(const QModelIndex &index, QItemSelectionModel::SelectionFlags command);
+    void objectClicked(const QModelIndex &index);
     void expand(const QModelIndex &index);
-    void updateCache();
 
 protected:
     inline void addPointer();
@@ -59,7 +59,7 @@ protected:
     //vsg::ref_ptr<vsg::Options> options;
     vsg::ref_ptr<vsg::Group> scenegraph;
     vsg::ref_ptr<vsg::MatrixTransform> pointer;
-    SceneModel *cachedTilesModel;
+    SceneModel *tilesModel;
 
     double height = 0.01;
     int mode = SELECT;

@@ -197,13 +197,12 @@ int ObjectModel::rowCount ( const QModelIndex & parent) const
     return ROW_COUNT;
 }
 
-void ObjectModel::selectObject(const QItemSelection &selected, const QItemSelection &deselected)
+void ObjectModel::selectObject(const QModelIndex &modelindex)
 {
-    if(auto object = static_cast<vsg::Node*>(selected.indexes().front().internalPointer())->cast<SceneObject>(); object)
+    if(auto object = static_cast<vsg::Node*>(modelindex.internalPointer())->cast<SceneObject>(); object)
     {
         selectedObject = object;
         emit dataChanged(index(0,0), index(ROW_COUNT, 1));
     }
-
 }
 

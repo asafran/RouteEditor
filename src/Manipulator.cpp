@@ -15,7 +15,7 @@ Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera,
     //options(in_options),
     scenegraph(in_scenegraph),
     pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center))),
-    cachedTilesModel(model)
+    tilesModel(model)
 {
     rotateButtonMask = vsg::BUTTON_MASK_2;
     supportsThrow = false;
@@ -48,13 +48,13 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         {
             auto find = std::find_if(isection.nodePath.crbegin(), isection.nodePath.crend(), isCompatible<SceneObject>);
             if(find != isection.nodePath.crend())
-                emit objectClicked(cachedTilesModel->index(*find), QItemSelectionModel::Select);
+                emit objectClicked(tilesModel->index(*find));
             break;
         }
         case ADD:
         {
             if(auto tile = lowTile(isection); tile != isection.nodePath.crend())
-                emit addRequest(isection, cachedTilesModel->index(*tile));
+                emit addRequest(isection, tilesModel->index(*tile));
             break;
         }
         }
@@ -69,12 +69,11 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         if(isection.nodePath.empty() || isection.nodePath.back() == pointer)
             return;
         setViewpoint(isection.worldIntersection);
-        emit updateCache();
 
         if(auto tile = lowTile(isection); tile != isection.nodePath.crend())
         {
             //emit objectClicked(cachedTilesModel->index(tile.get()), QItemSelectionModel::Select);
-            emit expand(cachedTilesModel->index(*++tile));
+            emit expand(tilesModel->index(*++tile));
         }
 
     } else
@@ -175,6 +174,7 @@ void Manipulator::setViewpoint(const vsg::dvec3 &pos)
     auto lookAt = vsg::LookAt::create(*_lookAt);
     lookAt->eye += (pos - _lookAt->center);
     lookAt->center = pos;
+    auto up = lookAt->up;
     pointer->matrix = vsg::translate(pos);
     Trackball::setViewpoint(lookAt);
 }

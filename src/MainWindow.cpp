@@ -27,7 +27,12 @@ MainWindow::MainWindow(QWidget *parent)
     if(auto manager = openDialog(); manager != nullptr)
     {
         database.reset(manager);
+        sorter->setSourceModel(manager->getTilesModel());
+        //ui->tilesView->setModel(manager->getTilesModel());
         scene->addChild(manager->getDatabase());
+
+        connect(sorter, &TilesSorter::selectionChanged, database.get(), &DatabaseManager::activeGroupChanged);
+        connect(ui->fileView->selectionModel(), &QItemSelectionModel::selectionChanged, database.get(), &DatabaseManager::activeFileChanged);
     } else
         deleteLater();
 
@@ -35,13 +40,12 @@ MainWindow::MainWindow(QWidget *parent)
     ui->tabWidget->addTab(undoView, tr("Действия"));
 
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openRoute);
-    connect(ui->cachedTilesView->selectionModel(), &QItemSelectionModel::selectionChanged, content, &ContentManager::setActiveGroup);
     connect(ui->addObjectButt, &QPushButton::pressed, this, &MainWindow::addObject);
 
 }
 QWindow* MainWindow::initilizeVSGwindow()
 {
-    auto options = vsg::Options::create();
+    options = vsg::Options::create();
     //options->fileCache = vsg::getEnv("VSG_FILE_CACHE");
     options->paths = vsg::getEnvPaths("VSG_FILE_PATH");
 
@@ -49,10 +53,8 @@ QWindow* MainWindow::initilizeVSGwindow()
     options->add(vsgXchange::all::create());
     vsg::RegisterWithObjectFactoryProxy<SceneObject>();
 
-    auto builder = vsg::Builder::create();
+    builder = vsg::Builder::create();
     builder->options = options;
-
-    content = new ContentManager(builder, options, ui->content);
 
     QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
@@ -73,7 +75,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     viewerWindow->viewer = vsg::Viewer::create();
 
     // provide the calls to set up the vsg::Viewer that will be used to render to the QWindow subclass vsgQt::ViewerWindow
-    viewerWindow->initializeCallback = [&, builder, options](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
+    viewerWindow->initializeCallback = [&](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
 
         auto& window = vw.windowAdapter;
         if (!window) return false;
@@ -88,7 +90,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         scene->accept(computeBounds);
         vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
         double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
-        double nearFarRatio = 0.001;
+        double nearFarRatio = 0.0001;
 
         // set up the camera
         auto lookAt = vsg::LookAt::create(centre + vsg::dvec3(0.0, -radius * 3.5, 0.0), centre, vsg::dvec3(0.0, 0.0, 1.0));
@@ -139,7 +141,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         commandGraph->accept(lv);
 
         // add trackball to enable mouse driven camera view control.
-        manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, undoStack, cachedTilesModel);
+        auto manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, undoStack, database->getTilesModel());
 
         builder->setup(window, camera->viewportState);
 
@@ -152,19 +154,15 @@ QWindow* MainWindow::initilizeVSGwindow()
         manipulator->setPager(viewer->recordAndSubmitTasks.front()->databasePager);
         database->setPager(viewer->recordAndSubmitTasks.front()->databasePager);
 
-        connect(ui->cachedTilesView->selectionModel(), &QItemSelectionModel::selectionChanged, objectModel, &ObjectModel::selectObject);
+        connect(sorter, &TilesSorter::selectionChanged, objectModel, &ObjectModel::selectObject);
 
         connect(ui->actionAdd_model, &QAction::triggered, manipulator, &Manipulator::addAction);
-
-        connect(ui->updateButt, &QPushButton::pressed, database.get(), &DatabaseManager::updateTileCache);
-        connect(manipulator, &Manipulator::updateCache, database.get(), &DatabaseManager::updateTileCache);
         connect(ui->actionSave, &QAction::triggered, database.get(), &DatabaseManager::writeTiles);
-        connect(ui->searchButt, &QPushButton::pressed, this, &MainWindow::search);
-        connect(manipulator.get(), &Manipulator::addRequest, content, &ContentManager::addObject);
-        connect(manipulator.get(), &Manipulator::objectClicked, ui->cachedTilesView->selectionModel(),
-                qOverload<const QModelIndex &, QItemSelectionModel::SelectionFlags>(&QItemSelectionModel::select));
-        connect(manipulator.get(), &Manipulator::expand, ui->cachedTilesView, &QTreeView::expand);
-        connect(ui->cachedTilesView, &QTreeView::doubleClicked, manipulator, &Manipulator::selectObject);
+
+        connect(manipulator.get(), &Manipulator::objectClicked, sorter, &TilesSorter::select);
+        connect(manipulator.get(), &Manipulator::expand, sorter, &TilesSorter::expand);
+        connect(manipulator.get(), &Manipulator::addRequest, database.get(), &DatabaseManager::addObject);
+        connect(sorter, &TilesSorter::doubleClicked, manipulator, &Manipulator::selectObject);
 
         return true;
     };
@@ -190,7 +188,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
 void MainWindow::addObject()
 {
-    const auto selectedIndexes = ui->cachedTilesView->selectionModel()->selectedIndexes();
+    const auto selectedIndexes = ui->tilesView->selectionModel()->selectedIndexes();
     if(selectedIndexes.isEmpty())
         return;
     auto selected = static_cast<vsg::Node*>(selectedIndexes.front().internalPointer());
@@ -201,7 +199,7 @@ void MainWindow::addObject()
         case QDialog::Accepted:
         {
             auto add = dialog.constructCommand(group);
-            cachedTilesModel->addNode(selectedIndexes.front(), add);
+            database->getTilesModel()->addNode(selectedIndexes.front(), add);
             break;
         }
         case QDialog::Rejected:
@@ -222,7 +220,7 @@ DatabaseManager *MainWindow::openDialog()
     if (const auto file = QFileDialog::getOpenFileName(this, tr("Открыть базу данных"), settings.value("ROUTES", qApp->applicationDirPath()).toString()); !file.isEmpty())
     {
         try {
-            auto db = new DatabaseManager(file, undoStack);
+            auto db = new DatabaseManager(file, undoStack, builder, options, fsmodel);
             return db;
 
         }  catch (DatabaseException &ex) {
@@ -239,24 +237,17 @@ void MainWindow::openRoute()
     {
         scene->children.clear();
         database.reset(manager);
-        ui->cachedTilesView->setModel(manager.);
+        sorter->setSourceModel(manager->getTilesModel());
         scene->addChild(manager->getDatabase());
+
+        connect(sorter, &TilesSorter::selectionChanged, database.get(), &DatabaseManager::activeGroupChanged);
+        connect(ui->fileView->selectionModel(), &QItemSelectionModel::selectionChanged, database.get(), &DatabaseManager::activeFileChanged);
 
         viewerWindow->viewer = vsg::Viewer::create();
         viewerWindow->initializeCallback(*viewerWindow, embedded->width(), embedded->height());
     }
 }
-void MainWindow::search()
-{
-    try {
-        auto sorter = new Sorter(database->loadTiles(), this);
-        connect(sorter, &Sorter::selected, manipulator, &Manipulator::selectObject);
-        sorter->open();
-    }  catch (DatabaseException &ex) {
-        auto errorMessageDialog = new QErrorMessage(this);
-        errorMessageDialog->showMessage(ex.getErrPath());
-    }
-}
+
 
 void MainWindow::pushCommand(QUndoCommand *command)
 {
@@ -265,8 +256,28 @@ void MainWindow::pushCommand(QUndoCommand *command)
 
 void MainWindow::constructWidgets()
 {
+    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+
     embedded = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
-    ui->content->layout()->addWidget(content);
+
+    auto model = new QFileSystemModel(this);
+    model->setRootPath(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString());
+    ui->fileView->setModel(model);
+    ui->fileView->setRootIndex(model->index(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString()));
+
+    sorter = new TilesSorter(this);
+    //sorter->setSourceModel();
+    sorter->setFilterKeyColumn(1);
+    sorter->setFilterWildcard("*");
+    ui->tilesView->setModel(sorter);
+
+    connect(ui->lineEdit, &QLineEdit::textChanged, sorter, &TilesSorter::setFilterWildcard);
+    connect(ui->tilesView->selectionModel(), &QItemSelectionModel::selectionChanged, sorter, &TilesSorter::viewSelectSlot);
+    connect(ui->tilesView, &QTreeView::doubleClicked, sorter, &TilesSorter::viewDoubleClicked);
+    connect(sorter, &TilesSorter::viewSelectSignal, ui->tilesView->selectionModel(),
+             qOverload<const QModelIndex &, QItemSelectionModel::SelectionFlags>(&QItemSelectionModel::select));
+    connect(sorter, &TilesSorter::viewExpandSignal, ui->tilesView, &QTreeView::expand);
+
     ui->centralsplitter->addWidget(embedded);
     QList<int> sizes;
     sizes << 100 << 720;

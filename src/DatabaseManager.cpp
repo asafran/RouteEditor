@@ -3,32 +3,29 @@
 #include "vsgGIS/TileDatabase.h"
 #include <QtConcurrent/QtConcurrent>
 #include "TilesVisitor.h"
+#include "undo-redo.h"
 
-DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::ref_ptr<vsg::Options> in_options, QObject *parent) : QObject(parent)
+DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, vsg::ref_ptr<vsg::Options> in_options, QFileSystemModel *model, QObject *parent) : QObject(parent)
   , database(vsg::Group::create())
   , options(in_options)
+  , builder(in_builder)
+  , fsmodel(model)
   , undoStack(stack)
 {
     QFileInfo directory(path);
     fsWatcher = new QFileSystemWatcher(QStringList(directory.absolutePath() + QDir::separator() + "Tiles"), this);
-/*
-    QStringList filter("database_L5*");
-    QDirIterator it(directory.absolutePath(), filter, QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
-    while (it.hasNext())
-        tileFiles << it.next();
-*/
+
     database = read(path);
     LoadTiles lt;
     lt.options = options;
     database->accept(lt);
     tilesModel = new SceneModel(lt.tiles, stack, this);
 }
-/*
-void addToGroup(vsg::ref_ptr<vsg::Group> &group, vsg::Node *node)
+DatabaseManager::~DatabaseManager()
 {
-    group->children.emplace_back(node);
+
 }
-*/
+
 vsg::Node* DatabaseManager::read(const QString &path)
 {
     auto tile = vsg::read_cast<vsg::Node>(path.toStdString());
@@ -39,68 +36,38 @@ vsg::Node* DatabaseManager::read(const QString &path)
     } else
         throw (DatabaseException(path));
 }
-/*
-SceneModel *DatabaseManager::loadTiles()
+
+void DatabaseManager::addObject(const vsg::LineSegmentIntersector::Intersection &isection, const QModelIndex &index) noexcept
 {
-    auto root = vsg::Group::create();
-    root->children = cachedTilesModel->getRoot()->children;
-    tileFiles.subtract(culledFiles);
-
-    QStringList filesToLoad(tileFiles.values());
-    QFuture<vsg::ref_ptr<vsg::Group>> future = QtConcurrent::mappedReduced(filesToLoad, &DatabaseManager::read, addToGroup, root, QtConcurrent::OrderedReduce);
-    future.waitForFinished();
-
-    return new SceneModel(root);
+    QModelIndex readindex;
+    if(!activeFile.second)
+        return;
+    if(activeGroup.isValid())
+        readindex = activeGroup;
+    else if (index.isValid())
+        readindex = index;
+    else
+        return;
+    auto group = static_cast<vsg::Node*>(readindex.internalPointer())->cast<vsg::Group>();
+    if(group == nullptr)
+        return;
+    auto obj = SceneObject::create(activeFile.second, isection.localToWord, activeFile.first, vsg::translate(isection.localIntersection));
+    tilesModel->addNode(readindex, new AddNode(group, obj));
 }
-void _check(vsg::ref_ptr<vsg::Group> root, vsg::ref_ptr<vsg::PagedLOD> plod)
+void DatabaseManager::activeGroupChanged(const QModelIndex &index)
 {
-    if(!culled.contains(plod->filename.c_str()))
-        if(auto group = plod->children.front().node.cast<vsg::Group>(); group && group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
-        {
-            group->setValue(META_NAME, plod->filename);
-            root->addChild(group);
-            culled.insert(QFileInfo(plod->filename.c_str()).canonicalFilePath());
-        }
-}
-
-void _updateTileCache(vsg::ref_ptr<vsg::Group> root, QSet<QString> &culled, vsg::ref_ptr<vsg::DatabasePager> database)
-{
-    for (uint32_t index = database->pagedLODContainer->activeList.head; index != 0;)
-    {
-        auto& element = database->pagedLODContainer->elements[index];
-
-        _check(root, element.plod, culled);
-
-        index = element.next;
-    }
-    for (uint32_t index = database->pagedLODContainer->inactiveList.head; index != 0;)
-    {
-        auto& element = database->pagedLODContainer->elements[index];
-
-        _check(root, element.plod, culled);
-
-        index = element.next;
-    }
-
+    activeGroup = index;
 }
 
-void DatabaseManager::updateTileCache()
+void DatabaseManager::activeFileChanged(const QItemSelection &selected, const QItemSelection &)
 {
-    auto avCount = pager->pagedLODContainer->availableList.count;
-    if(avCount < prevAvCount)
-    {
-        prevAvCount = avCount;
-        cachedTilesModel->fetchMore(QModelIndex(), _updateTileCache, culledFiles, pager);
-    }
-    else if(avCount > prevAvCount)
-    {
-        prevAvCount = avCount;
-        cachedTilesModel->getRoot()->children.clear();
-        culledFiles.clear();
-        cachedTilesModel->fetchMore(QModelIndex(), _updateTileCache, culledFiles, pager);
-    }
+    std::string path = fsmodel->filePath(selected.indexes().front()).toStdString();
+    auto node = vsg::read_cast<vsg::Node>(path, options);
+    if(node)
+        builder->compile(node);
+    activeFile = std::make_pair(path, node);
 }
-*/
+
 void write(const vsg::ref_ptr<vsg::Node> node)
 {
     std::string file;
@@ -109,7 +76,7 @@ void write(const vsg::ref_ptr<vsg::Node> node)
             throw (DatabaseException(file.c_str()));
 }
 
-void DatabaseManager::writeTiles()
+void DatabaseManager::writeTiles() noexcept
 {
     auto removeBounds = [](vsg::VertexIndexDraw& object)
     {

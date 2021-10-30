@@ -16,14 +16,14 @@ set(SOURCES
     src/AddDialog.ui
     src/AddDialog.cpp
     src/AddDialog.h
-    src/sorter.ui
-    src/sorter.h
-    src/sorter.cpp
+#    src/sorter.ui
+#    src/sorter.h
+#    src/sorter.cpp
     src/metainf.h
 #    src/metainf.cpp
-    src/ContentManager.h
-    src/ContentManager.cpp
-    src/ContentManager.ui
+#    src/ContentManager.h
+#    src/ContentManager.cpp
+#    src/ContentManager.ui
     src/DatabaseManager.cpp
     src/DatabaseManager.h
     src/undo-redo.cpp

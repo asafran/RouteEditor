@@ -65,13 +65,16 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
 bool SceneModel::removeRows(int row, int count, const QModelIndex &parent)
 {
     vsg::Node* parentNode = parent.isValid() ? static_cast<vsg::Node*>(parent.internalPointer()) : root.get();
-
+    Q_ASSERT(count > 0);
     if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
     {
-        Q_ASSERT(parentGroup->children.size() <= count);
+        Q_ASSERT(parentGroup->children.size() >= row + count - 1);
         beginRemoveRows(parent, row, row + count - 1);
-        auto count_iterator = parentGroup->children.cbegin() + count + 1;
-        for(auto it = parentGroup->children.cbegin(); it != count_iterator; ++it)
+
+        auto it = parentGroup->children.cbegin() + row;
+        auto count_iterator = it + count;
+
+        for( ; it != count_iterator; ++it)
             parentGroup->children.erase(it);
         endRemoveRows();
     }

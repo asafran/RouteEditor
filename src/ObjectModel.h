@@ -28,7 +28,7 @@ public:
     void clear();
 
 public slots:
-    void selectObject(const QItemSelection &selected, const QItemSelection &deselected);
+    void selectObject(const QModelIndex &modelindex);
 
 private:
 /*

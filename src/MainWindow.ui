@@ -86,8 +86,8 @@
           <string>Тайлы</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout">
-          <item row="1" column="0">
-           <widget class="QPushButton" name="updateButt">
+          <item row="3" column="1">
+           <widget class="QPushButton" name="addObjectButt">
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
               <horstretch>0</horstretch>
@@ -95,11 +95,11 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string>U</string>
+             <string>Add</string>
             </property>
            </widget>
           </item>
-          <item row="1" column="3">
+          <item row="3" column="2">
            <widget class="QPushButton" name="removeButt">
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -112,8 +112,15 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="0" colspan="4">
-           <widget class="QTreeView" name="cachedTilesView">
+          <item row="1" column="0" colspan="3">
+           <widget class="QLineEdit" name="lineEdit">
+            <property name="placeholderText">
+             <string>Поиск по объектов по маршруту</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0" colspan="3">
+           <widget class="QTreeView" name="tilesView">
             <property name="acceptDrops">
              <bool>true</bool>
             </property>
@@ -128,32 +135,6 @@
             </property>
             <property name="sortingEnabled">
              <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="2">
-           <widget class="QPushButton" name="addObjectButt">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Add</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QPushButton" name="searchButt">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Search</string>
             </property>
            </widget>
           </item>
@@ -202,8 +183,8 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>1890</width>
-           <height>112</height>
+           <width>1867</width>
+           <height>114</height>
           </rect>
          </property>
          <attribute name="label">
@@ -225,6 +206,9 @@
           <property name="bottomMargin">
            <number>0</number>
           </property>
+          <item>
+           <widget class="QTreeView" name="fileView"/>
+          </item>
          </layout>
         </widget>
        </widget>
