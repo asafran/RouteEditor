@@ -6,7 +6,7 @@
 class AddNode : public QUndoCommand
 {
 public:
-    AddNode(vsg::Group *group, vsg::Node *node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddNode(vsg::Group *group, vsg::ref_ptr<vsg::Node> node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _group(group)
         , _node(node)
     {
@@ -110,30 +110,24 @@ private:
 class RotateObject : public QUndoCommand
 {
 public:
-    RotateObject(SceneObject *object, vsg::dvec3 vec, double angle, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    RotateObject(SceneObject *object, const vsg::dvec3& vec, double angle, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _object(object)
         , _oldQ(object->quat)
     {
         std::string name;
-        int i = 0;
         _object->getValue(META_NAME, name);
-        if(_object->getValue(META_TYPE, i))
-            setText(QObject::tr("Перемещен объект %1").arg(name.c_str()));
-        else
-            setText(QObject::tr("Изменена матрица %1").arg(name.c_str()));
+        setText(QObject::tr("Повернут объект %1").arg(name.c_str()));
 
-        double c = cos(angle * 0.5);
-        double s = sin(angle * 0.5);
-        vsg::dquat q(s * vec.x, s * vec.y, s * vec.z, c);
+        vsg::dquat q(angle, vec);
         _object->quat = mult(_object->quat, q);
-        auto _newMat = vsg::mat4_cast(_object->quat);
+        _newMat = vsg::rotate(_object->quat);
         _newMat[3][0] = _object->matrix[3][0];
         _newMat[3][1] = _object->matrix[3][1];
         _newMat[3][2] = _object->matrix[3][2];
     }
     void undo() override
     {
-        auto oldMat = vsg::mat4_cast(_oldQ);
+        auto oldMat = vsg::rotate(_oldQ);
         oldMat[3][0] = _newMat[3][0];
         oldMat[3][1] = _newMat[3][1];
         oldMat[3][2] = _newMat[3][2];
@@ -146,25 +140,25 @@ public:
 private:
     vsg::ref_ptr<SceneObject> _object;
     const vsg::dquat _oldQ;
-    const vsg::dmat4 _newMat;
+    vsg::dmat4 _newMat;
 
 };
 
 class MoveObject : public QUndoCommand
 {
 public:
-    MoveObject(vsg::MatrixTransform *transform, const vsg::dmat4& matrix, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    MoveObject(vsg::MatrixTransform *transform, const vsg::dvec3& pos, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _transform(transform)
         , _oldMat(transform->matrix)
-        , _newMat(matrix)
     {
         std::string name;
-        int i = 0;
         transform->getValue(META_NAME, name);
-        if(transform->getValue(META_TYPE, i))
-            setText(QObject::tr("Перемещен объект %1").arg(name.c_str()));
-        else
-            setText(QObject::tr("Изменена матрица %1").arg(name.c_str()));
+        setText(QObject::tr("Перемещен объект %1").arg(name.c_str()));
+
+        _newMat = transform->matrix;
+        _newMat[3][0] = pos[0];
+        _newMat[3][1] = pos[1];
+        _newMat[3][2] = pos[2];
     }
     void undo() override
     {
@@ -177,7 +171,7 @@ public:
 private:
     vsg::ref_ptr<vsg::MatrixTransform> _transform;
     const vsg::dmat4 _oldMat;
-    const vsg::dmat4 _newMat;
+    vsg::dmat4 _newMat;
 
 };
 

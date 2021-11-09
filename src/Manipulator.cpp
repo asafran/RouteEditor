@@ -1,18 +1,17 @@
 #include "Manipulator.h"
 //#include "LambdaVisitor.h"
+#include <QSettings>
 
 Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera,
                          vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel,
                          vsg::ref_ptr<vsg::Builder> in_builder,
                          vsg::ref_ptr<vsg::Group> in_scenegraph,
                          QUndoStack *stack,
-                         //vsg::ref_ptr<vsg::Options> in_options,
                          SceneModel *model,
                          QObject *parent) :
     QObject(parent),
     vsg::Inherit<vsg::Trackball, Manipulator>(camera, ellipsoidModel),
     builder(in_builder),
-    //options(in_options),
     scenegraph(in_scenegraph),
     pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center))),
     tilesModel(model)
@@ -53,8 +52,8 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         }
         case ADD:
         {
-            if(auto tile = lowTile(isection); tile != isection.nodePath.crend())
-                emit addRequest(isection, tilesModel->index(*tile));
+            if(auto tile = lowTile(isection); tile)
+                emit addRequest(isection.worldIntersection, tilesModel->index(tile));
             break;
         }
         }
@@ -70,10 +69,10 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
             return;
         setViewpoint(isection.worldIntersection);
 
-        if(auto tile = lowTile(isection); tile != isection.nodePath.crend())
+        if(auto tile = lowTile(isection); tile)
         {
             //emit objectClicked(cachedTilesModel->index(tile.get()), QItemSelectionModel::Select);
-            emit expand(tilesModel->index(*++tile));
+            emit expand(tilesModel->index(tile));
         }
 
     } else
@@ -113,6 +112,7 @@ void Manipulator::zoom(double ratio)
 
 void Manipulator::pan(const vsg::dvec2& delta)
 {
+    /*
     vsg::dvec3 lookVector = _lookAt->center - _lookAt->eye;
     vsg::dvec3 lookNormal = vsg::normalize(lookVector);
     vsg::dvec3 upNormal = _lookAt->up;
@@ -149,9 +149,10 @@ void Manipulator::pan(const vsg::dvec2& delta)
         _lookAt->eye = _lookAt->eye + translation;
         _lookAt->center = _lookAt->center + translation;
     }
+    */
 }
 
-vsg::Intersector::NodePath::const_reverse_iterator Manipulator::lowTile(const vsg::LineSegmentIntersector::Intersection &intersection)
+vsg::ref_ptr<vsg::Node> Manipulator::lowTile(const vsg::LineSegmentIntersector::Intersection &intersection)
 {
     auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::PagedLOD>);
     if(find != intersection.nodePath.crend())
@@ -160,10 +161,10 @@ vsg::Intersector::NodePath::const_reverse_iterator Manipulator::lowTile(const vs
         if(plod->highResActive(database->frameCount))
         {
             if(plod->children.front().node.cast<vsg::Group>()->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
-                return find - 2;
+                return plod->children.front().node;
         }
     }
-    return intersection.nodePath.crend();
+    return vsg::ref_ptr<vsg::Node>();
 }
 void Manipulator::setViewpoint(const vsg::dvec4 &pos_mat)
 {
@@ -175,18 +176,27 @@ void Manipulator::setViewpoint(const vsg::dvec3 &pos)
     lookAt->eye += (pos - _lookAt->center);
     lookAt->center = pos;
     auto up = lookAt->up;
-    pointer->matrix = vsg::translate(pos);
+    auto translate = vsg::translate(pos);
     Trackball::setViewpoint(lookAt);
+    pointer->matrix = vsg::rotate(vsg::dquat(vsg::dvec3(0.0, 0.0, -1.0), vsg::normalize(pos)));
+    pointer->matrix[3][0] = translate[3][0];
+    pointer->matrix[3][1] = translate[3][1];
+    pointer->matrix[3][2] = translate[3][2];
+
 }
 
 void Manipulator::addPointer()
 {
     pointer->children.erase(pointer->children.begin(), pointer->children.end());
+
+    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+
     vsg::GeometryInfo info;
 
     info.dx.set(10.0f, 0.0f, 0.0f);
     info.dy.set(0.0f, 10.0f, 0.0f);
     info.dz.set(0.0f, 0.0f, 10.0f);
+    info.position = {0.0f, 0.0f, -5.0f};
     pointer->addChild(builder->createCone(info));
 }
 
@@ -201,7 +211,7 @@ void Manipulator::selectObject(const QModelIndex &index)
     {
         if(auto sceneobject = object->cast<SceneObject>(); sceneobject)
         {
-            setViewpoint(sceneobject->world()[3]);
+            setViewpoint(sceneobject->matrix[3]);
             return;
         }
         vsg::ComputeBounds computeBounds;
@@ -227,5 +237,11 @@ vsg::LineSegmentIntersector::Intersection Manipulator::interesection(vsg::Pointe
     std::sort(intersector->intersections.begin(), intersector->intersections.end(), [](auto lhs, auto rhs) { return lhs.ratio < rhs.ratio; });
 
     lastIntersection = intersector->intersections;
+    /*
+    auto vertarray = lastIntersection.front().arrays.front().cast<vsg::vec3Array>();
+    for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
+    {
+        std::cout << it->x << " " << it->y << " " << it->z << std::endl;
+    }*/
     return intersector->intersections.front();
 }

@@ -22,7 +22,7 @@ public:
 
 private:
 
-    inline vsg::Group *createGroup();
+    inline vsg::ref_ptr<vsg::Group> createGroup();
     Ui::AddDialog *ui;
 };
 

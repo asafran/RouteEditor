@@ -53,17 +53,17 @@ QVariant ObjectModel::data(const QModelIndex &index, int role) const
                     break;
                 }
                 case COORD_ECEFX:
-                    return selectedObject->world()[3].x;
+                    return selectedObject->matrix[3].x;
                 case COORD_ECEFY:
-                    return selectedObject->world()[3].y;
+                    return selectedObject->matrix[3].y;
                 case COORD_ECEFZ:
-                    return selectedObject->world()[3].z;
+                    return selectedObject->matrix[3].z;
                 case COORDX:
-                    return ellipsoidModel->convertECEFToLatLongAltitude(vsg::dvec3(selectedObject->world()[3].x, selectedObject->world()[3].y, selectedObject->world()[3].z)).x;
+                    return ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position()).x;
                 case COORDY:
-                    return ellipsoidModel->convertECEFToLatLongAltitude(vsg::dvec3(selectedObject->world()[3].x, selectedObject->world()[3].y, selectedObject->world()[3].z)).y;
+                    return ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position()).y;
                 case COORDZ:
-                    return ellipsoidModel->convertECEFToLatLongAltitude(vsg::dvec3(selectedObject->world()[3].x, selectedObject->world()[3].y, selectedObject->world()[3].z)).z;
+                    return ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position()).z;
                 case ROTATEX:
                 {
                     double sinr_cosp = 2 * (selectedObject->quat.w * selectedObject->quat.x + selectedObject->quat.y * selectedObject->quat.z);
@@ -142,7 +142,6 @@ bool ObjectModel::setData(const QModelIndex & modelindex, const QVariant & value
     Q_ASSERT(col < 2 || row < ROW_COUNT);
     if(role == Qt::EditRole && selectedObject)
     {
-        auto worldToLocal = vsg::inverse(selectedObject->localToWord);
         if(col == 1)
         {
             if(row == NAME)
@@ -152,16 +151,15 @@ bool ObjectModel::setData(const QModelIndex & modelindex, const QVariant & value
               return true;
             } else if(row >= COORD_ECEFX && row <= COORD_ECEFZ)
             {
-                auto newmat = selectedObject->world();
-                newmat[3][row-COORD_ECEFX] += (value.toDouble() - selectedObject->world()[3][row-COORD_ECEFX]);
-                undoStack->push(new MoveObject(selectedObject, newmat));
+                auto newpos = selectedObject->position();
+                newpos[row-COORD_ECEFX] = value.toDouble();
+                undoStack->push(new MoveObject(selectedObject, newpos));
                 return true;
             } else if(row >= COORDX && row <= COORDZ)
             {
-                auto lla = ellipsoidModel->convertECEFToLatLongAltitude(vsg::dvec3(selectedObject->world()[3].x, selectedObject->world()[3].y, selectedObject->world()[3].z));
+                auto lla = ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position());
                 lla[row-COORDX] = value.toDouble();
-                auto newpos = vsg::translate(ellipsoidModel->convertLatLongAltitudeToECEF(lla));
-                undoStack->push(new MoveObject(selectedObject, newpos * worldToLocal));
+                undoStack->push(new MoveObject(selectedObject, ellipsoidModel->convertLatLongAltitudeToECEF(lla)));
                 return true;
             } else
                 switch (row) {

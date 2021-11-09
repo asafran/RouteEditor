@@ -5,11 +5,11 @@
 #include "TilesVisitor.h"
 #include "undo-redo.h"
 
-DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, vsg::ref_ptr<vsg::Options> in_options, QFileSystemModel *model, QObject *parent) : QObject(parent)
+DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, QFileSystemModel *model, QObject *parent) : QObject(parent)
   , database(vsg::Group::create())
-  , options(in_options)
   , builder(in_builder)
   , fsmodel(model)
+  , modelsDir(vsg::getEnvPaths("RRS2_ROOT").begin()->c_str())
   , undoStack(stack)
 {
     QFileInfo directory(path);
@@ -17,13 +17,11 @@ DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::re
 
     database = read(path);
     LoadTiles lt;
-    lt.options = options;
     database->accept(lt);
     tilesModel = new SceneModel(lt.tiles, stack, this);
 }
 DatabaseManager::~DatabaseManager()
 {
-
 }
 
 vsg::Node* DatabaseManager::read(const QString &path)
@@ -32,12 +30,12 @@ vsg::Node* DatabaseManager::read(const QString &path)
     if (tile)
     {
         tile->setValue(META_NAME, path.toStdString());
-        return tile.release();
+        return tile.release_nodelete();
     } else
         throw (DatabaseException(path));
 }
 
-void DatabaseManager::addObject(const vsg::LineSegmentIntersector::Intersection &isection, const QModelIndex &index) noexcept
+void DatabaseManager::addObject(const vsg::dvec3& position, const QModelIndex &index) noexcept
 {
     QModelIndex readindex;
     if(!activeFile.second)
@@ -51,18 +49,30 @@ void DatabaseManager::addObject(const vsg::LineSegmentIntersector::Intersection 
     auto group = static_cast<vsg::Node*>(readindex.internalPointer())->cast<vsg::Group>();
     if(group == nullptr)
         return;
-    auto obj = SceneObject::create(activeFile.second, isection.localToWord, activeFile.first, vsg::translate(isection.localIntersection));
+    vsg::ref_ptr<SceneObject> obj;
+
+    auto norm = vsg::normalize(position);
+    vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
+    if(placeLoader)
+        obj = SingleLoader::create(activeFile.second, modelsDir.relativeFilePath(activeFile.first).toStdString(), vsg::translate(position) * vsg::rotate(quat), quat);
+    else
+        obj = SceneObject::create(activeFile.second, vsg::translate(position) * vsg::rotate(quat), quat);
     tilesModel->addNode(readindex, new AddNode(group, obj));
 }
-void DatabaseManager::activeGroupChanged(const QModelIndex &index)
+void DatabaseManager::activeGroupChanged(const QModelIndex &index) noexcept
 {
     activeGroup = index;
 }
 
-void DatabaseManager::activeFileChanged(const QItemSelection &selected, const QItemSelection &)
+void DatabaseManager::loaderAction(bool checked) noexcept
 {
-    std::string path = fsmodel->filePath(selected.indexes().front()).toStdString();
-    auto node = vsg::read_cast<vsg::Node>(path, options);
+    placeLoader = checked;
+}
+
+void DatabaseManager::activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept
+{
+    auto path = fsmodel->filePath(selected.indexes().front());
+    auto node = vsg::read_cast<vsg::Node>(path.toStdString());
     if(node)
         builder->compile(node);
     activeFile = std::make_pair(path, node);

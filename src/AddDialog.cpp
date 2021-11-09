@@ -36,11 +36,11 @@ QUndoCommand *AddDialog::constructCommand(vsg::Group *group)
     }
     return nullptr;
 }
-vsg::Group* AddDialog::createGroup()
+vsg::ref_ptr<vsg::Group> AddDialog::createGroup()
 {
     auto group = vsg::Group::create();
     group->setValue(META_NAME, ui->lineEdit->text().toStdString());
-    return group.release();
+    return group;
 }
 
 AddDialog::~AddDialog()

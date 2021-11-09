@@ -194,7 +194,7 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
         auto node = object.cast<vsg::Node>();
         if(!node)
             return false;
-        QUndoCommand *command = new AddNode(group, node.release());
+        QUndoCommand *command = new AddNode(group, node);
         beginInsertRows(parent, row, row);
         Q_ASSERT(undoStack);
         undoStack->push(command);

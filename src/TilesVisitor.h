@@ -17,8 +17,6 @@ public:
 
     unsigned int numTiles = 0;
 
-    vsg::ref_ptr<vsg::Options> options;
-
     vsg::ref_ptr<vsg::Group> tiles;
 };
 

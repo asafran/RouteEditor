@@ -16,13 +16,11 @@ public:
                 vsg::ref_ptr<vsg::Builder> in_builder,
                 vsg::ref_ptr<vsg::Group> in_scenegraph,
                 QUndoStack *stack,
-                //vsg::ref_ptr<vsg::Options> in_options,
                 SceneModel *model,
                 QObject *parent = nullptr);
     ~Manipulator();
 
     void apply(vsg::ButtonPressEvent& buttonPressEvent) override;
-
     void apply(vsg::PointerEvent& pointerEvent) override;
 
     void rotate(double angle, const vsg::dvec3& axis) override;
@@ -46,13 +44,13 @@ public slots:
     void addAction(bool checked);
 
 signals:
-    void addRequest(const vsg::LineSegmentIntersector::Intersection &isection, const QModelIndex &group);
+    void addRequest(const vsg::dvec3& position, const QModelIndex &index);
     void objectClicked(const QModelIndex &index);
     void expand(const QModelIndex &index);
 
 protected:
     inline void addPointer();
-    vsg::Intersector::NodePath::const_reverse_iterator lowTile(const vsg::LineSegmentIntersector::Intersection &intersection);
+    vsg::ref_ptr<vsg::Node> lowTile(const vsg::LineSegmentIntersector::Intersection &intersection);
 
     vsg::ref_ptr<vsg::Builder> builder;
     vsg::ref_ptr<vsg::DatabasePager> database;

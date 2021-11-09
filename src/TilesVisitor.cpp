@@ -26,7 +26,7 @@ void LoadTiles::apply(vsg::PagedLOD& plod)
 
         if (!child.node)
         {
-            child.node = vsg::read_cast<vsg::Node>(filepath.canonicalFilePath().toStdString(), options);
+            child.node = vsg::read_cast<vsg::Node>(filepath.canonicalFilePath().toStdString(), plod.options);
             if(child.node->is_compatible(typeid (vsg::Group)))
                 if(child.node.cast<vsg::Group>()->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
                 {

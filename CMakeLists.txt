@@ -21,9 +21,9 @@ set(SOURCES
 #    src/sorter.cpp
     src/metainf.h
 #    src/metainf.cpp
-#    src/ContentManager.h
-#    src/ContentManager.cpp
-#    src/ContentManager.ui
+    src/StartDialog.h
+    src/StartDialog.cpp
+    src/StartDialog.ui
     src/DatabaseManager.cpp
     src/DatabaseManager.h
     src/undo-redo.cpp
@@ -111,6 +111,6 @@ add_executable(editor ${SOURCES})
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_compile_definitions(editor PRIVATE META_TYPE="MetaType" META_NAME="MetaName" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
+target_compile_definitions(editor PRIVATE META_NAME="MetaName" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
 target_link_libraries(editor vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange Qt6::Concurrent)

@@ -28,7 +28,7 @@ class DatabaseManager : public QObject
 {
     Q_OBJECT
 public:
-    DatabaseManager(const QString &path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<vsg::Options> options, QFileSystemModel *model, QObject *parent = nullptr);
+    DatabaseManager(const QString &path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, QFileSystemModel *model, QObject *parent = nullptr);
     virtual ~DatabaseManager();
 
     vsg::ref_ptr<vsg::Node> getDatabase() const noexcept { return database; }
@@ -40,23 +40,28 @@ public:
 
 public slots:
     void writeTiles() noexcept;
-    void addObject(const vsg::LineSegmentIntersector::Intersection &isection, const QModelIndex &index) noexcept;
-    void activeGroupChanged(const QModelIndex &index);
-    void activeFileChanged(const QItemSelection &selected, const QItemSelection &);
+    void addObject(const vsg::dvec3& position, const QModelIndex &index) noexcept;
+    void activeGroupChanged(const QModelIndex &index) noexcept;
+    void activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept;
+    void loaderAction(bool checked) noexcept;
 
 private:
     vsg::ref_ptr<vsg::Node> database;
     vsg::ref_ptr<vsg::DatabasePager> pager;
 
-    vsg::ref_ptr<vsg::Options> options;
+
     vsg::ref_ptr<vsg::Builder> builder;
 
     QModelIndex activeGroup;
-    std::pair<std::string, vsg::ref_ptr<vsg::Node>> activeFile;
+    std::pair<QString, vsg::ref_ptr<vsg::Node>> activeFile;
 
     QFileSystemModel *fsmodel;
 
     SceneModel *tilesModel;
+
+    bool placeLoader = false;
+
+    QDir modelsDir;
 
     QUndoStack *undoStack;
     QFileSystemWatcher *fsWatcher;

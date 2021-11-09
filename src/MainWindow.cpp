@@ -13,7 +13,7 @@
 #include "TilesVisitor.h"
 
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
@@ -24,17 +24,13 @@ MainWindow::MainWindow(QWidget *parent)
 
     constructWidgets();
 
-    if(auto manager = openDialog(); manager != nullptr)
-    {
-        database.reset(manager);
-        sorter->setSourceModel(manager->getTilesModel());
-        //ui->tilesView->setModel(manager->getTilesModel());
-        scene->addChild(manager->getDatabase());
+    database.reset(new DatabaseManager(routePath, undoStack, builder, fsmodel));
+    sorter->setSourceModel(database->getTilesModel());
+    scene->addChild(database->getDatabase());
 
-        connect(sorter, &TilesSorter::selectionChanged, database.get(), &DatabaseManager::activeGroupChanged);
-        connect(ui->fileView->selectionModel(), &QItemSelectionModel::selectionChanged, database.get(), &DatabaseManager::activeFileChanged);
-    } else
-        deleteLater();
+    connect(sorter, &TilesSorter::selectionChanged, database.get(), &DatabaseManager::activeGroupChanged);
+    connect(ui->fileView->selectionModel(), &QItemSelectionModel::selectionChanged, database.get(), &DatabaseManager::activeFileChanged);
+
 
     undoView = new QUndoView(undoStack, ui->tabWidget);
     ui->tabWidget->addTab(undoView, tr("Действия"));
@@ -46,8 +42,8 @@ MainWindow::MainWindow(QWidget *parent)
 QWindow* MainWindow::initilizeVSGwindow()
 {
     options = vsg::Options::create();
-    //options->fileCache = vsg::getEnv("VSG_FILE_CACHE");
-    options->paths = vsg::getEnvPaths("VSG_FILE_PATH");
+    options->fileCache = vsg::getEnv("RRS2_CACHE");
+    options->paths = vsg::getEnvPaths("RRS2_ROOT");
 
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());
@@ -62,7 +58,8 @@ QWindow* MainWindow::initilizeVSGwindow()
     windowTraits->windowTitle = APPLICATION_NAME;
     if (settings.value("FULLSCREEN", false).toBool()) windowTraits->fullscreen = true;
 
-    auto horizonMountainHeight = settings.value("HMH", 1.0).toDouble();
+    auto horizonMountainHeight = settings.value("HMH", 0.0).toDouble();
+    auto nearFarRatio = settings.value("NFR", 0.0001).toDouble();
 
     scene = vsg::Group::create();
 
@@ -75,7 +72,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     viewerWindow->viewer = vsg::Viewer::create();
 
     // provide the calls to set up the vsg::Viewer that will be used to render to the QWindow subclass vsgQt::ViewerWindow
-    viewerWindow->initializeCallback = [&](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
+    viewerWindow->initializeCallback = [&, horizonMountainHeight, nearFarRatio](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
 
         auto& window = vw.windowAdapter;
         if (!window) return false;
@@ -90,7 +87,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         scene->accept(computeBounds);
         vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
         double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
-        double nearFarRatio = 0.0001;
+
 
         // set up the camera
         auto lookAt = vsg::LookAt::create(centre + vsg::dvec3(0.0, -radius * 3.5, 0.0), centre, vsg::dvec3(0.0, 0.0, 1.0));
@@ -215,12 +212,10 @@ void MainWindow::addObject()
 }
 DatabaseManager *MainWindow::openDialog()
 {
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
-
-    if (const auto file = QFileDialog::getOpenFileName(this, tr("Открыть базу данных"), settings.value("ROUTES", qApp->applicationDirPath()).toString()); !file.isEmpty())
+    if (const auto file = QFileDialog::getOpenFileName(this, tr("Открыть базу данных"), qgetenv("RRS2_ROOT") + QDir::separator().toLatin1() + "routes"); !file.isEmpty())
     {
         try {
-            auto db = new DatabaseManager(file, undoStack, builder, options, fsmodel);
+            auto db = new DatabaseManager(file, undoStack, builder, fsmodel);
             return db;
 
         }  catch (DatabaseException &ex) {
@@ -256,14 +251,11 @@ void MainWindow::pushCommand(QUndoCommand *command)
 
 void MainWindow::constructWidgets()
 {
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
-
     embedded = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
 
     auto model = new QFileSystemModel(this);
-    model->setRootPath(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString());
     ui->fileView->setModel(model);
-    ui->fileView->setRootIndex(model->index(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString()));
+    ui->fileView->setRootIndex(model->setRootPath(qgetenv("RRS2_ROOT") + QDir::separator().toLatin1() + "objects"));
 
     sorter = new TilesSorter(this);
     //sorter->setSourceModel();

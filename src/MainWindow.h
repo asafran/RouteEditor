@@ -21,7 +21,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(QString routePath, QString skybox, QWidget *parent = nullptr);
     ~MainWindow();
 
 public slots:

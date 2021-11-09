@@ -7,10 +7,26 @@
 class SceneObject : public vsg::Inherit<vsg::MatrixTransform, SceneObject>
 {
 public:
-    SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dmat4& in_localToWorld, const std::string &in_file, const vsg::dmat4& in_matrix = {}, const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0});
+    explicit SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dmat4& in_matrix = {}, const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0});
     SceneObject();
 
-    //virtual ~SceneObject();
+    virtual ~SceneObject();
+
+    void read(vsg::Input& input) override;
+    void write(vsg::Output& output) const override;
+
+    vsg::dvec3 position() const { return vsg::dvec3(matrix[3][0], matrix[3][1], matrix[3][2]);; }
+
+    vsg::dquat quat;
+};
+
+class SingleLoader : public vsg::Inherit<SceneObject, SingleLoader>
+{
+public:
+    SingleLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, const vsg::dmat4& in_matrix = {}, const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0});
+    SingleLoader();
+
+    virtual ~SingleLoader();
 
     void read(vsg::Input& input) override;
     void write(vsg::Output& output) const override;
@@ -20,7 +36,6 @@ public:
     vsg::dquat quat;
 
     std::string file;
-    vsg::dmat4 localToWord;
 };
 
 template<typename T>
