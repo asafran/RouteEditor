@@ -37,6 +37,9 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openRoute);
     connect(ui->addObjectButt, &QPushButton::pressed, this, &MainWindow::addObject);
 
+    connect(ui->actionUndo, &QAction::triggered, undoStack, &QUndoStack::undo);
+    connect(ui->actionRedo, &QAction::triggered, undoStack, &QUndoStack::redo);
+
     connect(ui->removeButt, &QPushButton::pressed, [this]()
     {
         if(ui->tilesView->selectionModel()->selectedIndexes().front().isValid())
