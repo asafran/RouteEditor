@@ -1,20 +1,26 @@
 #include "Manipulator.h"
-//#include "LambdaVisitor.h"
+#include "LambdaVisitor.h"
 #include <QSettings>
+#include "undo-redo.h"
 
 Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera,
                          vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel,
                          vsg::ref_ptr<vsg::Builder> in_builder,
                          vsg::ref_ptr<vsg::Group> in_scenegraph,
+                         vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer,
                          QUndoStack *stack,
                          SceneModel *model,
                          QObject *parent) :
     QObject(parent),
     vsg::Inherit<vsg::Trackball, Manipulator>(camera, ellipsoidModel),
+    copyBufferCmd(copyBuffer),
     builder(in_builder),
     scenegraph(in_scenegraph),
     pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center))),
-    tilesModel(model)
+    terrainPoints(vsg::Group::create()),
+    active(),
+    tilesModel(model),
+    undoStack(stack)
 {
     rotateButtonMask = vsg::BUTTON_MASK_2;
     supportsThrow = false;
@@ -39,7 +45,8 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     _hasFocus = withinRenderArea(buttonPress.x, buttonPress.y);
     _lastPointerEventWithinRenderArea = _hasFocus;
 
-    if (buttonPress.mask & vsg::BUTTON_MASK_1){
+    if (buttonPress.mask & vsg::BUTTON_MASK_1)
+    {
         _updateMode = INACTIVE;
         auto isection = interesection(buttonPress);
         switch (mode) {
@@ -53,8 +60,70 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         case ADD:
         {
             if(auto tile = lowTile(isection); tile)
-                emit addRequest(isection.worldIntersection, tilesModel->index(tile));
+                emit addRequest(isection.worldIntersection, tilesModel->index(tile->children.at(4)));
+            //check children!!!
             break;
+        }
+        case TERRAIN:
+        {
+            if(points.isEmpty())
+            {
+                if(auto vid = isection.nodePath.back()->cast<vsg::VertexIndexDraw>(); vid && lowTile(isection))
+                {
+                    auto vertarray = vid->arrays.front()->data.cast<vsg::vec3Array>();
+                    for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
+                    {
+                        auto point = addTerrainPoint(*it);
+                        points.insert(point, it);
+                        terrainPoints->addChild(point);   
+                    }
+                    active = const_cast<vsg::MatrixTransform *>((*(isection.nodePath.crbegin() + 4))->cast<vsg::MatrixTransform>());
+                    active->addChild(terrainPoints);
+                    info = isection.nodePath.back()->cast<vsg::VertexIndexDraw>()->arrays.front();
+                }
+            }
+            else if(isection.nodePath.empty())
+            {
+                if(isMovingTerrain)
+                   moving->children.pop_back();
+                isMovingTerrain = false;
+            }
+            else if(points.contains(*(isection.nodePath.rbegin() + 2)) && !isMovingTerrain)
+            {
+                isMovingTerrain = true;
+                moving = const_cast<vsg::MatrixTransform *>((*(isection.nodePath.rbegin() + 2))->cast<vsg::MatrixTransform>());
+
+                vsg::GeometryInfo info;
+                info.dx.set(4.0f, 0.0f, 0.0f);
+                info.dy.set(0.0f, 4.0f, 0.0f);
+                info.dz.set(0.0f, 0.0f, 4.0f);
+                info.color = {1.0f, 0.5f, 0.0f, 1.0f};
+
+                moving->addChild(builder->createSphere(info));
+            } else
+            {
+                if(isMovingTerrain)
+                   moving->children.pop_back();
+                isMovingTerrain = false;
+
+            }
+
+        }
+        case MOVE:
+        {
+            if(isMovingObject)
+            {
+                undoStack->endMacro();
+                isMovingObject = false;
+            } else {
+                auto find = std::find_if(isection.nodePath.crbegin(), isection.nodePath.crend(), isCompatible<SceneObject>);
+                if(find != isection.nodePath.crend())
+                {
+                    isMovingObject = true;
+                    movingObject = const_cast<SceneObject *>((*find)->cast<SceneObject>());
+                    undoStack->beginMacro("Перемещен объект");
+                }
+            }
         }
         }
 
@@ -152,19 +221,21 @@ void Manipulator::pan(const vsg::dvec2& delta)
     */
 }
 
-vsg::ref_ptr<vsg::Node> Manipulator::lowTile(const vsg::LineSegmentIntersector::Intersection &intersection)
+vsg::ref_ptr<vsg::Group> Manipulator::lowTile(const vsg::LineSegmentIntersector::Intersection &intersection)
 {
+    /*
     auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::PagedLOD>);
     if(find != intersection.nodePath.crend())
+    {*/
+    if(intersection.nodePath.size() > 6)
     {
-        auto plod = (*find)->cast<vsg::PagedLOD>();
-        if(plod->highResActive(database->frameCount))
-        {
-            if(plod->children.front().node.cast<vsg::Group>()->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
-                return plod->children.front().node;
-        }
+        auto plod = (*(intersection.nodePath.crbegin() + 6))->cast<vsg::PagedLOD>();
+        if(plod)
+            if(plod->highResActive(database->frameCount))
+                if(plod->children.front().node.cast<vsg::Group>()->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
+                    return plod->children.front().node.cast<vsg::Group>();
     }
-    return vsg::ref_ptr<vsg::Node>();
+    return vsg::ref_ptr<vsg::Group>();
 }
 void Manipulator::setViewpoint(const vsg::dvec4 &pos_mat)
 {
@@ -191,39 +262,112 @@ void Manipulator::addPointer()
 
     QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
+    auto size = static_cast<float>(settings.value("CURSORSIZE", 1).toInt());
     vsg::GeometryInfo info;
 
-    info.dx.set(10.0f, 0.0f, 0.0f);
-    info.dy.set(0.0f, 10.0f, 0.0f);
-    info.dz.set(0.0f, 0.0f, 10.0f);
-    info.position = {0.0f, 0.0f, -5.0f};
+    info.dx.set(1.0f * size, 0.0f, 0.0f);
+    info.dy.set(0.0f, 1.0f * size, 0.0f);
+    info.dz.set(0.0f, 0.0f, 1.0f * size);
+    info.position = {0.0f, 0.0f, -1.0f * size / 2};
     pointer->addChild(builder->createCone(info));
 }
 
-void Manipulator::addAction(bool checked)
+vsg::ref_ptr<vsg::MatrixTransform> Manipulator::addTerrainPoint(vsg::vec3 pos)
 {
-    mode = checked ? Manipulator::ADD : Manipulator::SELECT;
+/*
+    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+    auto size = static_cast<float>(settings.value("CURSORSIZE", 1).toInt());
+*/
+    vsg::GeometryInfo info;
+
+    info.dx.set(3.0f, 0.0f, 0.0f);
+    info.dy.set(0.0f, 3.0f, 0.0f);
+    info.dz.set(0.0f, 0.0f, 3.0f);
+
+    auto transform = vsg::MatrixTransform::create(vsg::translate(vsg::dvec3(pos)));
+    transform->addChild(builder->createSphere(info));
+    return transform;
+}
+
+void Manipulator::setMode(int index)
+{
+    if(mode == TERRAIN)
+    {
+        active->children.erase(std::find(active->children.begin(), active->children.end(), terrainPoints));
+        terrainPoints->children.clear();
+        points.clear();
+    }
+    mode = index;
 }
 
 void Manipulator::selectObject(const QModelIndex &index)
 {
     if(auto object = static_cast<vsg::Node*>(index.internalPointer()); object)
     {
-        if(auto sceneobject = object->cast<SceneObject>(); sceneobject)
+        if(mode == SELECT)
         {
-            setViewpoint(sceneobject->matrix[3]);
-            return;
+            if(auto sceneobject = object->cast<SceneObject>(); sceneobject)
+            {
+                setViewpoint(sceneobject->matrix[3]);
+                return;
+            }
+            vsg::ComputeBounds computeBounds;
+            object->accept(computeBounds);
+            vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
+            setViewpoint(centre);
         }
-        vsg::ComputeBounds computeBounds;
-        object->accept(computeBounds);
-        vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
-        setViewpoint(centre);
+        else if(mode == MOVE)
+        {
+            if(isMovingObject)
+            {
+                undoStack->endMacro();
+                isMovingObject = false;
+            } else {
+                if(auto sceneobject = object->cast<SceneObject>(); sceneobject)
+                {
+                    isMovingObject = true;
+                    movingObject = sceneobject;
+                    undoStack->beginMacro("Перемещен объект");
+                }
+            }
+        }
     }
 }
 
-void Manipulator::apply(vsg::PointerEvent& pointerEvent)
+void Manipulator::apply(vsg::MoveEvent &pointerEvent)
 {
+    Trackball::apply(pointerEvent);
+    if(isMovingTerrain)
+    {
+        auto delta = (pointerEvent.y - _previousPointerEvent->y);
+        auto fmat = vsg::mat4(active->matrix);
+        vsg::vec3 mvec;
+        mvec.x = fmat[3].x;
+        mvec.y = fmat[3].y;
+        mvec.z = fmat[3].z;
+        auto norm = vsg::normalize(mvec);
+
+        vsg::quat quat(vsg::vec3(0.0f, 0.0f, 1.0f), norm);
+        vsg::quat vec(0.0f, 0.0f, delta, 0.0f);
+        auto rotated = mult(mult(quat, vec), vsg::quat(-quat.x, -quat.y, -quat.z, quat.w));
+        auto point = points.value(moving);
+        point->x += rotated.x;
+        point->y += rotated.y;
+        point->z += rotated.z;
+        moving->matrix = vsg::translate(*point);
+
+        copyBufferCmd->copy(info->data, info);
+    }
+    else if(isMovingObject)
+    {
+        auto isection = interesection(pointerEvent);
+        auto find = std::find_if(isection.nodePath.crbegin(), isection.nodePath.crend(), isCompatible<SceneObject>);
+        if(find == isection.nodePath.crend())
+            undoStack->push(new MoveObject(movingObject, isection.worldIntersection));
+
+    }
     _previousPointerEvent = &pointerEvent;
+
 }
 
 vsg::LineSegmentIntersector::Intersection Manipulator::interesection(vsg::PointerEvent& pointerEvent)
@@ -237,11 +381,6 @@ vsg::LineSegmentIntersector::Intersection Manipulator::interesection(vsg::Pointe
     std::sort(intersector->intersections.begin(), intersector->intersections.end(), [](auto lhs, auto rhs) { return lhs.ratio < rhs.ratio; });
 
     lastIntersection = intersector->intersections;
-    /*
-    auto vertarray = lastIntersection.front().arrays.front().cast<vsg::vec3Array>();
-    for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
-    {
-        std::cout << it->x << " " << it->y << " " << it->z << std::endl;
-    }*/
+
     return intersector->intersections.front();
 }

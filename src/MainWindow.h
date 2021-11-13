@@ -30,6 +30,7 @@ public slots:
     void openRoute();
     void addObject();
     void pushCommand(QUndoCommand *command);
+    //void receiveData(vsg::ref_ptr<vsg::Data> buffer, vsg::ref_ptr<vsg::BufferInfo> info);
 
 private:
     QWindow* initilizeVSGwindow();

@@ -165,17 +165,17 @@ bool ObjectModel::setData(const QModelIndex & modelindex, const QVariant & value
                 switch (row) {
                 case ROTATEX:
                 {
-                    undoStack->push(new RotateObject(selectedObject, vsg::dvec3(1.0, 0.0, 0.0), qDegreesToRadians(value.toDouble() - data(index(ROTATEX,1)).toDouble())));
+                    undoStack->push(new RotateObject(selectedObject, vsg::dquat(qDegreesToRadians(value.toDouble() - data(index(ROTATEX,1)).toDouble()), vsg::dvec3(1.0, 0.0, 0.0))));
                     return true;
                 }
                 case ROTATEY:
                 {
-                    undoStack->push(new RotateObject(selectedObject, vsg::dvec3(0.0, 1.0, 0.0), qDegreesToRadians(value.toDouble() - data(index(ROTATEY,1)).toDouble())));
+                    undoStack->push(new RotateObject(selectedObject, vsg::dquat(qDegreesToRadians(value.toDouble() - data(index(ROTATEY,1)).toDouble()), vsg::dvec3(0.0, 1.0, 0.0))));
                     return true;
                 }
                 case ROTATEZ:
                 {
-                    undoStack->push(new RotateObject(selectedObject, vsg::dvec3(0.0, 0.0, 1.0), qDegreesToRadians(value.toDouble() - data(index(ROTATEZ,1)).toDouble())));
+                    undoStack->push(new RotateObject(selectedObject, vsg::dquat(qDegreesToRadians(value.toDouble() - data(index(ROTATEZ,1)).toDouble()), vsg::dvec3(0.0, 0.0, 1.0))));
                     return true;
                 }
                 default:
@@ -201,6 +201,18 @@ void ObjectModel::selectObject(const QModelIndex &modelindex)
     {
         selectedObject = object;
         emit dataChanged(index(0,0), index(ROW_COUNT, 1));
+    } else {
+        selectedObject = nullptr;
+        emit dataChanged(index(0,0), index(ROW_COUNT, 1));
     }
+}
+
+void ObjectModel::rotateVertical()
+{
+    undoStack->beginMacro(tr("Заданно вертикальное положение"));
+    undoStack->push(new RotateObject(selectedObject, vsg::dquat(0.0, 0.0, 0.0, 1.0)));
+    selectedObject->quat = vsg::dquat(0.0, 0.0, 0.0, 1.0);
+    undoStack->push(new RotateObject(selectedObject, vsg::dquat(vsg::dvec3(0.0, 0.0, 1.0), vsg::normalize(selectedObject->position()))));
+    undoStack->endMacro();
 }
 

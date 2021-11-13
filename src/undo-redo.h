@@ -1,32 +1,33 @@
-#ifndef CLASS_H
-#define CLASS_H
+#ifndef UNDO_H
+#define UNDO_H
 
 #include "SceneModel.h"
 
 class AddNode : public QUndoCommand
 {
 public:
-    AddNode(vsg::Group *group, vsg::ref_ptr<vsg::Node> node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddNode(SceneModel *model, const QModelIndex &group, vsg::ref_ptr<vsg::Node> node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _model(model)
         , _group(group)
         , _node(node)
     {
         std::string name;
-        if(!node->getValue(META_NAME, name))
+        node->getValue(META_NAME, name);
+        if(name.empty())
             name = node->className();
-        setText(QObject::tr("Новый объект %1").arg(name.c_str()));
+        setText(QObject::tr("Новый объект %1").arg(name.c_str()).arg(reinterpret_cast<quint64>(node.get()), 0, 16));
     }
     void undo() override
     {
-        auto position = std::find(_group->children.cbegin(), _group->children.cend(), _node);
-        Q_ASSERT(position != _group->children.end());
-        _group->children.erase(position);
+        _model->removeNode(_group, _node);
     }
     void redo() override
     {
-        _group->addChild(_node);
+        _model->addNode(_group, _node);
     }
 private:
-    vsg::ref_ptr<vsg::Group> _group;
+    SceneModel *_model;
+    const QModelIndex _group;
     vsg::ref_ptr<vsg::Node> _node;
 
 };
@@ -34,24 +35,28 @@ private:
 class RemoveNode : public QUndoCommand
 {
 public:
-    RemoveNode(vsg::Group *group, vsg::Node *node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    RemoveNode(SceneModel *model, const QModelIndex &group, vsg::Node *node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _model(model)
         , _group(group)
         , _node(node)
     {
-        setText(QObject::tr("Удалена нода %1").arg(node->className()));
+        std::string name;
+        node->getValue(META_NAME, name);
+        if(name.empty())
+            name = node->className();
+        setText(QObject::tr("Удален объект %1").arg(name.c_str()).arg(reinterpret_cast<quint64>(node), 0, 16));
     }
     void undo() override
     {
-        _group->addChild(_node);
+        _model->addNode(_group, _node);
     }
     void redo() override
     {
-        auto position = std::find(_group->children.cbegin(), _group->children.cend(), _node);
-        Q_ASSERT(position != _group->children.end());
-        _group->children.erase(position);
+        _model->removeNode(_group, _node);
     }
 private:
-    vsg::ref_ptr<vsg::Group> _group;
+    SceneModel *_model;
+    const QModelIndex _group;
     vsg::ref_ptr<vsg::Node> _node;
 
 };
@@ -91,7 +96,7 @@ public:
         , _newName(name.toStdString())
     {
         obj->getValue(META_NAME, _oldName);
-        setText(QObject::tr("Oбъект %1, новое имя ").arg(_oldName.c_str()));
+        setText(QObject::tr("Oбъект %1, новое имя %2").arg(_oldName.c_str()).arg(name));
     }
     void undo() override
     {
@@ -110,44 +115,65 @@ private:
 class RotateObject : public QUndoCommand
 {
 public:
-    RotateObject(SceneObject *object, const vsg::dvec3& vec, double angle, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    RotateObject(SceneObject *object, vsg::dquat q, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _object(object)
         , _oldQ(object->quat)
+        , _newQ(mult(_object->quat, q))
     {
         std::string name;
         _object->getValue(META_NAME, name);
         setText(QObject::tr("Повернут объект %1").arg(name.c_str()));
-
-        vsg::dquat q(angle, vec);
-        _object->quat = mult(_object->quat, q);
-        _newMat = vsg::rotate(_object->quat);
-        _newMat[3][0] = _object->matrix[3][0];
-        _newMat[3][1] = _object->matrix[3][1];
-        _newMat[3][2] = _object->matrix[3][2];
     }
     void undo() override
     {
-        auto oldMat = vsg::rotate(_oldQ);
-        oldMat[3][0] = _newMat[3][0];
-        oldMat[3][1] = _newMat[3][1];
-        oldMat[3][2] = _newMat[3][2];
-        _object->matrix = oldMat;
+        _object->setRotation(_oldQ);
     }
     void redo() override
     {
-        _object->matrix = _newMat;
+        _object->setRotation(_newQ);
     }
 private:
     vsg::ref_ptr<SceneObject> _object;
     const vsg::dquat _oldQ;
-    vsg::dmat4 _newMat;
-
+    const vsg::dquat _newQ;
 };
 
 class MoveObject : public QUndoCommand
 {
 public:
     MoveObject(vsg::MatrixTransform *transform, const vsg::dvec3& pos, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _transform(transform)
+        , _oldMat(transform->matrix)
+    {
+        std::string name;
+        transform->getValue(META_NAME, name);
+        setText(QObject::tr("Перемещен объект %1, ECEF %2").arg(name.c_str())
+                .arg("X=" + QString::number(pos.x) + " Y=" + QString::number(pos.x) + " Z=" + QString::number(pos.x)));
+
+        _newMat = transform->matrix;
+        _newMat[3][0] = pos[0];
+        _newMat[3][1] = pos[1];
+        _newMat[3][2] = pos[2];
+    }
+    void undo() override
+    {
+        _transform->matrix = _oldMat;
+    }
+    void redo() override
+    {
+        _transform->matrix = _newMat;
+    }
+private:
+    vsg::ref_ptr<vsg::MatrixTransform> _transform;
+    const vsg::dmat4 _oldMat;
+    vsg::dmat4 _newMat;
+
+};
+/*
+class MoveTilePoint : public QUndoCommand
+{
+public:
+    MoveTilePoint(const vsg::dvec3& oldpos, const vsg::dvec3& newpos, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _transform(transform)
         , _oldMat(transform->matrix)
     {
@@ -169,10 +195,9 @@ public:
         _transform->matrix = _newMat;
     }
 private:
-    vsg::ref_ptr<vsg::MatrixTransform> _transform;
-    const vsg::dmat4 _oldMat;
-    vsg::dmat4 _newMat;
+    vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBufferCmd;
+    vsg::MatrixTransform *moving;
 
 };
-
-#endif // CLASS_H
+*/
+#endif // UNDO_H

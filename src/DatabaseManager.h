@@ -34,21 +34,19 @@ public:
     vsg::ref_ptr<vsg::Node> getDatabase() const noexcept { return database; }
     SceneModel *getTilesModel() noexcept { return tilesModel; }
 
-    void setPager(vsg::ref_ptr<vsg::DatabasePager> in_pager) noexcept { pager = in_pager; }
-
-    static vsg::Node *read(const QString &path);
+    vsg::ref_ptr<vsg::Node> read(const QString &path) const;
 
 public slots:
     void writeTiles() noexcept;
-    void addObject(const vsg::dvec3& position, const QModelIndex &index) noexcept;
+    void addObject(vsg::dvec3 position, const QModelIndex &index) noexcept;
     void activeGroupChanged(const QModelIndex &index) noexcept;
     void activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept;
-    void loaderAction(bool checked) noexcept;
+    void loaderButton(bool checked) noexcept;
 
 private:
-    vsg::ref_ptr<vsg::Node> database;
-    vsg::ref_ptr<vsg::DatabasePager> pager;
+    QPair<QString, vsg::ref_ptr<vsg::Node>> concurrentRead(const QString &path);
 
+    vsg::ref_ptr<vsg::Node> database;
 
     vsg::ref_ptr<vsg::Builder> builder;
 
@@ -64,7 +62,6 @@ private:
     QDir modelsDir;
 
     QUndoStack *undoStack;
-    QFileSystemWatcher *fsWatcher;
 };
 
 #endif // DATABASEMANAGER_H

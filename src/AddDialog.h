@@ -18,7 +18,7 @@ public:
     explicit AddDialog(QWidget *parent = nullptr);
     ~AddDialog();
 
-    QUndoCommand *constructCommand(vsg::Group *group);
+    vsg::ref_ptr<vsg::Node> constructNode();
 
 private:
 

@@ -4,13 +4,14 @@
 #include <vsg/core/Visitor.h>
 #include <vsg/maths/transform.h>
 #include <vsg/viewer/Camera.h>
+#include <QMap>
 
 #include <stack>
 
 class LoadTiles : public vsg::Visitor
 {
 public:
-    LoadTiles();
+    LoadTiles(QMap<QString, vsg::ref_ptr<vsg::Node>> in_loaded);
 
     void apply(vsg::Node& node) override;
     void apply(vsg::PagedLOD& plod) override;
@@ -18,6 +19,8 @@ public:
     unsigned int numTiles = 0;
 
     vsg::ref_ptr<vsg::Group> tiles;
+
+    QMap<QString, vsg::ref_ptr<vsg::Node>> loaded;
 };
 
 

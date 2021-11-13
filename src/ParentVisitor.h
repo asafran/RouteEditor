@@ -18,9 +18,8 @@ class ParentVisitor : public vsg::Inherit<vsg::ConstVisitor, ParentVisitor>
         // handle traverse of the scene graph
         //
         void apply(const vsg::Node& node) override;
+        void apply(const vsg::Switch& sw) override;
         void apply(const vsg::Group& group) override;
-        void apply(const vsg::StateGroup& stategroup) override;
-        void apply(const vsg::MatrixTransform& transform) override;
         void apply(const vsg::LOD& lod) override;
         void apply(const vsg::PagedLOD& plod) override;
         void apply(const vsg::CullNode& cn) override;

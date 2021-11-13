@@ -10,17 +10,20 @@ AddDialog::AddDialog(QWidget *parent) :
     ui->setupUi(this);
 }
 
-QUndoCommand *AddDialog::constructCommand(vsg::Group *group)
+vsg::ref_ptr<vsg::Node> AddDialog::constructNode()
 {
     switch (ui->comboBox->currentIndex()) {
     case ObjectLayer:
     {
-        return new AddNode(group, createGroup());
+        auto layer = vsg::Group::create();
+        layer->setValue(META_NAME, ui->lineEdit->text().toStdString());
+        return layer;
     }
     case ObjectGroup:
     {
-        /*auto objectsGroup = new vsg::SceneGroup(ui->lineEdit->text().toStdString());
-        return new AddNode(group, objectsGroup);*/
+        auto group = SceneObject::create();
+        group->setValue(META_NAME, ui->lineEdit->text().toStdString());
+        return group;
     }
     case ProcedurePositionGroup:
     {
@@ -34,13 +37,7 @@ QUndoCommand *AddDialog::constructCommand(vsg::Group *group)
         break;
 
     }
-    return nullptr;
-}
-vsg::ref_ptr<vsg::Group> AddDialog::createGroup()
-{
-    auto group = vsg::Group::create();
-    group->setValue(META_NAME, ui->lineEdit->text().toStdString());
-    return group;
+    return vsg::ref_ptr<vsg::Node>();
 }
 
 AddDialog::~AddDialog()

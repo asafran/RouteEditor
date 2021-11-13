@@ -29,6 +29,7 @@ public:
 
 public slots:
     void selectObject(const QModelIndex &modelindex);
+    void rotateVertical();
 
 private:
 /*

@@ -31,12 +31,20 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
     connect(sorter, &TilesSorter::selectionChanged, database.get(), &DatabaseManager::activeGroupChanged);
     connect(ui->fileView->selectionModel(), &QItemSelectionModel::selectionChanged, database.get(), &DatabaseManager::activeFileChanged);
 
-
     undoView = new QUndoView(undoStack, ui->tabWidget);
     ui->tabWidget->addTab(undoView, tr("Действия"));
 
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openRoute);
     connect(ui->addObjectButt, &QPushButton::pressed, this, &MainWindow::addObject);
+
+    connect(ui->removeButt, &QPushButton::pressed, [this]()
+    {
+        if(ui->tilesView->selectionModel()->selectedIndexes().front().isValid())
+        {
+            auto selected = sorter->mapToSource(ui->tilesView->selectionModel()->selectedIndexes().front());
+            undoStack->push(new RemoveNode(database->getTilesModel(), database->getTilesModel()->parent(selected), static_cast<vsg::Node*>(selected.internalPointer())));
+        }
+    });
 
 }
 QWindow* MainWindow::initilizeVSGwindow()
@@ -47,23 +55,19 @@ QWindow* MainWindow::initilizeVSGwindow()
 
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());
+
     vsg::RegisterWithObjectFactoryProxy<SceneObject>();
+    vsg::RegisterWithObjectFactoryProxy<SingleLoader>();
 
     builder = vsg::Builder::create();
     builder->options = options;
 
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
-
     auto windowTraits = vsg::WindowTraits::create();
     windowTraits->windowTitle = APPLICATION_NAME;
-    if (settings.value("FULLSCREEN", false).toBool()) windowTraits->fullscreen = true;
-
-    auto horizonMountainHeight = settings.value("HMH", 0.0).toDouble();
-    auto nearFarRatio = settings.value("NFR", 0.0001).toDouble();
 
     scene = vsg::Group::create();
 
-    SceneModel *scenemodel = new SceneModel(scene, undoStack, this);
+    SceneModel *scenemodel = new SceneModel(scene, this);
     ui->sceneTreeView->setModel(scenemodel);
     ui->sceneTreeView->expandAll();
 
@@ -72,7 +76,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     viewerWindow->viewer = vsg::Viewer::create();
 
     // provide the calls to set up the vsg::Viewer that will be used to render to the QWindow subclass vsgQt::ViewerWindow
-    viewerWindow->initializeCallback = [&, horizonMountainHeight, nearFarRatio](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
+    viewerWindow->initializeCallback = [&, this](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
 
         auto& window = vw.windowAdapter;
         if (!window) return false;
@@ -88,6 +92,9 @@ QWindow* MainWindow::initilizeVSGwindow()
         vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
         double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
 
+        QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+        auto horizonMountainHeight = settings.value("HMH", 0.0).toDouble();
+        auto nearFarRatio = settings.value("NFR", 0.0001).toDouble();
 
         // set up the camera
         auto lookAt = vsg::LookAt::create(centre + vsg::dvec3(0.0, -radius * 3.5, 0.0), centre, vsg::dvec3(0.0, 0.0, 1.0));
@@ -107,27 +114,24 @@ QWindow* MainWindow::initilizeVSGwindow()
                 nearFarRatio, horizonMountainHeight);
         }
         else
-        {
             return false;
-            /*
-            perspective = vsg::Perspective::create(
-                30.0,
-                static_cast<double>(width) /
-                    static_cast<double>(height),
-                nearFarRatio * radius, radius * 4.5);
-            */
-        }
 
         auto objectModel = new ObjectModel(ellipsoidModel, undoStack);
 
-        ui->tableView->setModel(objectModel);
+        ui->objectView->setModel(objectModel);
 
         auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
 
         // add close handler to respond the close window button and pressing escape
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
-        auto commandGraph = vsg::createCommandGraphForView(window, camera, scene);
+        auto memoryBufferPools = vsg::MemoryBufferPools::create("Staging_MemoryBufferPool", vsg::ref_ptr<vsg::Device>(window->getOrCreateDevice()));
+        auto copyBufferCmd = vsg::CopyAndReleaseBuffer::create(memoryBufferPools);
+
+        // setup command graph to copy the image data each frame then rendering the scene graph
+        auto grahics_commandGraph = vsg::CommandGraph::create(window);
+        //grahics_commandGraph->addChild(copyBufferCmd);
+        grahics_commandGraph->addChild(vsg::createRenderGraphForView(window, camera, scene));
 
         auto addBins = [&](vsg::View& view)
         {
@@ -135,29 +139,32 @@ QWindow* MainWindow::initilizeVSGwindow()
                 view.bins.push_back(vsg::Bin::create(bin, vsg::Bin::DESCENDING));
         };
         LambdaVisitor<decltype(addBins), vsg::View> lv(addBins);
-        commandGraph->accept(lv);
+
+        grahics_commandGraph->accept(lv);
 
         // add trackball to enable mouse driven camera view control.
-        auto manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, undoStack, database->getTilesModel());
+        auto manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, copyBufferCmd, undoStack, database->getTilesModel());
 
         builder->setup(window, camera->viewportState);
 
         viewer->addEventHandler(manipulator);
 
-        viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
+        viewer->assignRecordAndSubmitTaskAndPresentation({grahics_commandGraph});
 
         viewer->compile();
 
         manipulator->setPager(viewer->recordAndSubmitTasks.front()->databasePager);
-        database->setPager(viewer->recordAndSubmitTasks.front()->databasePager);
+
+        connect(ui->loaderButton, &QPushButton::toggled, database.get(), &DatabaseManager::loaderButton);
 
         connect(sorter, &TilesSorter::selectionChanged, objectModel, &ObjectModel::selectObject);
 
-        connect(ui->actionAdd_model, &QAction::triggered, manipulator, &Manipulator::addAction);
+        connect(ui->modeBox, &QComboBox::currentIndexChanged, manipulator, &Manipulator::setMode);
         connect(ui->actionSave, &QAction::triggered, database.get(), &DatabaseManager::writeTiles);
 
         connect(manipulator.get(), &Manipulator::objectClicked, sorter, &TilesSorter::select);
         connect(manipulator.get(), &Manipulator::expand, sorter, &TilesSorter::expand);
+
         connect(manipulator.get(), &Manipulator::addRequest, database.get(), &DatabaseManager::addObject);
         connect(sorter, &TilesSorter::doubleClicked, manipulator, &Manipulator::selectObject);
 
@@ -165,7 +172,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     };
 
     // provide the calls to invokve the vsg::Viewer to render a frame.
-    viewerWindow->frameCallback = [](vsgQt::ViewerWindow& vw) {
+    viewerWindow->frameCallback = [this](vsgQt::ViewerWindow& vw) {
 
         if (!vw.viewer || !vw.viewer->advanceToNextFrame()) return false;
 
@@ -186,17 +193,17 @@ QWindow* MainWindow::initilizeVSGwindow()
 void MainWindow::addObject()
 {
     const auto selectedIndexes = ui->tilesView->selectionModel()->selectedIndexes();
-    if(selectedIndexes.isEmpty())
+    if(selectedIndexes.isEmpty() || !selectedIndexes.front().isValid())
         return;
-    auto selected = static_cast<vsg::Node*>(selectedIndexes.front().internalPointer());
-    if(auto group = selected->cast<vsg::Group>(); group)
+    auto selected = static_cast<vsg::Node*>(sorter->mapToSource(selectedIndexes.front()).internalPointer());
+    if(selected->is_compatible(typeid (vsg::Group)) || selected->is_compatible(typeid (vsg::Switch)))
     {
         AddDialog dialog(this);
         switch( dialog.exec() ) {
         case QDialog::Accepted:
         {
-            auto add = dialog.constructCommand(group);
-            database->getTilesModel()->addNode(selectedIndexes.front(), add);
+            if(auto add = dialog.constructNode(); add)
+                undoStack->push(new AddNode(database->getTilesModel(), sorter->mapToSource(selectedIndexes.front()), add));
             break;
         }
         case QDialog::Rejected:
@@ -242,8 +249,12 @@ void MainWindow::openRoute()
         viewerWindow->initializeCallback(*viewerWindow, embedded->width(), embedded->height());
     }
 }
-
-
+/*
+void MainWindow::receiveData(vsg::ref_ptr<vsg::Data> buffer, vsg::ref_ptr<vsg::BufferInfo> info)
+{
+    copyBufferCmd->copy(buffer, info);
+}
+*/
 void MainWindow::pushCommand(QUndoCommand *command)
 {
     undoStack->push(command);

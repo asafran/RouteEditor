@@ -11,7 +11,7 @@ class SceneModel : public QAbstractItemModel
 public:
 
     explicit SceneModel(vsg::ref_ptr<vsg::Group> group, QObject* parent = 0);
-    SceneModel(vsg::ref_ptr<vsg::Group> group, QUndoStack *stack, QObject* parent = 0);
+    SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QUndoStack *stack, QObject* parent = 0);
 
     ~SceneModel();
 
@@ -53,7 +53,8 @@ public:
         endInsertRows();
     }
 
-    void addNode(const QModelIndex &parent, QUndoCommand *command);
+    void addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> node);
+    void removeNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> node);
 
     int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
@@ -64,9 +65,11 @@ public:
 
     vsg::ref_ptr<vsg::Group> getRoot() { return root; }
 
+/*
 signals:
     void sendCommand(QUndoCommand *command);
     void sendMap(QMap<vsg::Group *, QModelIndex> groupMap);
+*/
 
 private:
 
@@ -77,6 +80,7 @@ private:
             ColumnCount
         };
     vsg::ref_ptr<vsg::Group> root;
+     vsg::ref_ptr<vsg::Builder> compiler;
     QUndoStack *undoStack;
 };
 

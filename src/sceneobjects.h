@@ -7,8 +7,8 @@
 class SceneObject : public vsg::Inherit<vsg::MatrixTransform, SceneObject>
 {
 public:
+    explicit SceneObject(const vsg::dmat4& in_matrix = {}, const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0});
     explicit SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dmat4& in_matrix = {}, const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0});
-    SceneObject();
 
     virtual ~SceneObject();
 
@@ -17,7 +17,12 @@ public:
 
     vsg::dvec3 position() const { return vsg::dvec3(matrix[3][0], matrix[3][1], matrix[3][2]);; }
 
+    void setRotation(const vsg::dquat &q);
+
     vsg::dquat quat;
+
+protected:
+    vsg::dquat world_quat;
 };
 
 class SingleLoader : public vsg::Inherit<SceneObject, SingleLoader>
@@ -30,10 +35,6 @@ public:
 
     void read(vsg::Input& input) override;
     void write(vsg::Output& output) const override;
-
-    vsg::dmat4 world() const;
-
-    vsg::dquat quat;
 
     std::string file;
 };
