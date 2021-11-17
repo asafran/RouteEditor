@@ -118,7 +118,7 @@ public:
     RotateObject(SceneObject *object, vsg::dquat q, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _object(object)
         , _oldQ(object->quat)
-        , _newQ(mult(_object->quat, q))
+        , _newQ(mult(object->quat, q))
     {
         std::string name;
         _object->getValue(META_NAME, name);
@@ -126,11 +126,11 @@ public:
     }
     void undo() override
     {
-        _object->setRotation(_oldQ);
+        _object->quat = _oldQ;
     }
     void redo() override
     {
-        _object->setRotation(_newQ);
+        _object->quat = _newQ;
     }
 private:
     vsg::ref_ptr<SceneObject> _object;
@@ -141,32 +141,29 @@ private:
 class MoveObject : public QUndoCommand
 {
 public:
-    MoveObject(vsg::MatrixTransform *transform, const vsg::dvec3& pos, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
-        , _transform(transform)
-        , _oldMat(transform->matrix)
+    MoveObject(SceneObject *object, const vsg::dvec3& pos, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _object(object)
+        , _oldPos(object->position)
+        , _newPos(pos)
     {
         std::string name;
-        transform->getValue(META_NAME, name);
+        object->getValue(META_NAME, name);
         setText(QObject::tr("Перемещен объект %1, ECEF %2").arg(name.c_str())
                 .arg("X=" + QString::number(pos.x) + " Y=" + QString::number(pos.x) + " Z=" + QString::number(pos.x)));
 
-        _newMat = transform->matrix;
-        _newMat[3][0] = pos[0];
-        _newMat[3][1] = pos[1];
-        _newMat[3][2] = pos[2];
     }
     void undo() override
     {
-        _transform->matrix = _oldMat;
+        _object->position = _oldPos;
     }
     void redo() override
     {
-        _transform->matrix = _newMat;
+        _object->position = _newPos;
     }
 private:
-    vsg::ref_ptr<vsg::MatrixTransform> _transform;
-    const vsg::dmat4 _oldMat;
-    vsg::dmat4 _newMat;
+    vsg::ref_ptr<SceneObject> _object;
+    const vsg::dvec3 _oldPos;
+    const vsg::dvec3 _newPos;
 
 };
 /*

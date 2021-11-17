@@ -53,17 +53,17 @@ QVariant ObjectModel::data(const QModelIndex &index, int role) const
                     break;
                 }
                 case COORD_ECEFX:
-                    return selectedObject->matrix[3].x;
+                    return selectedObject->position.x;
                 case COORD_ECEFY:
-                    return selectedObject->matrix[3].y;
+                    return selectedObject->position.y;
                 case COORD_ECEFZ:
-                    return selectedObject->matrix[3].z;
+                    return selectedObject->position.z;
                 case COORDX:
-                    return ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position()).x;
+                    return ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position).x;
                 case COORDY:
-                    return ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position()).y;
+                    return ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position).y;
                 case COORDZ:
-                    return ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position()).z;
+                    return ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position).z;
                 case ROTATEX:
                 {
                     double sinr_cosp = 2 * (selectedObject->quat.w * selectedObject->quat.x + selectedObject->quat.y * selectedObject->quat.z);
@@ -151,13 +151,13 @@ bool ObjectModel::setData(const QModelIndex & modelindex, const QVariant & value
               return true;
             } else if(row >= COORD_ECEFX && row <= COORD_ECEFZ)
             {
-                auto newpos = selectedObject->position();
+                auto newpos = selectedObject->position;
                 newpos[row-COORD_ECEFX] = value.toDouble();
                 undoStack->push(new MoveObject(selectedObject, newpos));
                 return true;
             } else if(row >= COORDX && row <= COORDZ)
             {
-                auto lla = ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position());
+                auto lla = ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position);
                 lla[row-COORDX] = value.toDouble();
                 undoStack->push(new MoveObject(selectedObject, ellipsoidModel->convertLatLongAltitudeToECEF(lla)));
                 return true;
@@ -206,7 +206,7 @@ void ObjectModel::selectObject(const QModelIndex &modelindex)
         emit dataChanged(index(0,0), index(ROW_COUNT, 1));
     }
 }
-
+/*
 void ObjectModel::rotateVertical()
 {
     undoStack->beginMacro(tr("Заданно вертикальное положение"));
@@ -215,4 +215,4 @@ void ObjectModel::rotateVertical()
     undoStack->push(new RotateObject(selectedObject, vsg::dquat(vsg::dvec3(0.0, 0.0, 1.0), vsg::normalize(selectedObject->position()))));
     undoStack->endMacro();
 }
-
+*/

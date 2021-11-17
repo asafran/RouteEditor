@@ -99,3 +99,111 @@ void SingleLoader::write(vsg::Output& output) const
 
     output.write("coord", pos);
 }
+
+Track::Track()
+    : vsg::Inherit<vsg::Object, Track>()
+{
+}
+Track::~Track() {}
+
+void Track::read(vsg::Input& input)
+{
+    Object::read(input);
+
+    input.read("lenght", lenght);
+    input.read("next", next);
+}
+
+void Track::write(vsg::Output& output) const
+{
+    Object::write(output);
+
+    output.write("lenght", lenght);
+    output.write("next", next);
+}
+
+StraitTrack::StraitTrack()
+    : vsg::Inherit<Track, StraitTrack>()
+{
+}
+StraitTrack::~StraitTrack() {}
+
+vsg::dvec3 StraitTrack::position(double coord) const
+{
+    return vsg::dvec3(coord, 0.0, 0.0);
+}
+
+CurvedTrack::CurvedTrack()
+    : vsg::Inherit<Track, CurvedTrack>()
+{
+}
+CurvedTrack::~CurvedTrack() {}
+
+void CurvedTrack::read(vsg::Input& input)
+{
+    Track::read(input);
+
+    input.read("radius", radius);
+}
+
+void CurvedTrack::write(vsg::Output& output) const
+{
+    Track::write(output);
+
+    output.write("radius", radius);
+}
+
+vsg::dvec3 CurvedTrack::position(double coord) const
+{
+    auto angle = coord / radius;
+    return vsg::dvec3(radius * (cos(angle) + 1), radius * (sin(angle) + 1), 0.0);
+}
+
+Trajectory::Trajectory(vsg::ref_ptr<vsg::Node> loaded, const vsg::dmat4& in_matrix, const vsg::dquat &in_quat)
+    : vsg::Inherit<SceneObject, Trajectory>(loaded, in_matrix, in_quat)
+{
+}
+
+Trajectory::~Trajectory() {}
+
+void Trajectory::read(vsg::Input& input)
+{
+    Node::read(input);
+
+    vsg::dvec3 pos;
+
+    input.read("quat", quat);
+    input.read("world_quat", world_quat);
+    input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
+    input.read("coord", pos);
+
+    matrix = vsg::translate(pos);
+    setRotation(quat);
+
+    input.read("files", names);
+
+    for(const auto &name : names)
+    {
+        vsg::Paths searchPaths = vsg::getEnvPaths("RRS2_ROOT");
+        vsg::Path filename = vsg::findFile(name, searchPaths);
+        auto track = vsg::read_cast<vsg::Node>(filename);
+        auto trajectory = track->getObject<Track>("Trk");
+        trajectory->ltw = tracks.back()->next * vsg::MatrixStack;
+        tracks.emplace_back();
+        addChild(track);
+    }
+}
+
+void Trajectory::write(vsg::Output& output) const
+{
+    Node::write(output);
+
+    output.write("quat", quat);
+    output.write("world_quat", world_quat);
+    output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
+
+    vsg::dvec3 pos = position();
+
+    output.write("coord", pos);
+}
+
