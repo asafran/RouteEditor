@@ -38,19 +38,21 @@ public:
     };
 
     void setPager(vsg::ref_ptr<vsg::DatabasePager> pager) { database = pager; }
-    void setViewpoint(const vsg::dvec3 &pos);
-    void setViewpoint(const vsg::dvec4 &pos_mat);
 
 public slots:
     void selectObject(const QModelIndex &index);
     void setMode(int index);
+    void setViewpoint(const vsg::dvec3 &pos);
+    void setLatLongAlt(const vsg::dvec3 &pos);
+    void setViewpoint(const vsg::dvec4 &pos_mat);
 
 signals:
     void addRequest(const vsg::dvec3& position, const QModelIndex &index);
     void objectClicked(const QModelIndex &index);
     void expand(const QModelIndex &index);
     void sendData(vsg::ref_ptr<vsg::Data> buffer, vsg::ref_ptr<vsg::BufferInfo> info);
-
+    void sendPos(const vsg::dvec3 &pos);
+    void sendStatusText(const QString &message, int timeout);
 protected:
     inline void addPointer();
     vsg::ref_ptr<vsg::MatrixTransform> addTerrainPoint(vsg::vec3 pos);
@@ -66,7 +68,7 @@ protected:
     vsg::ref_ptr<vsg::BufferInfo> info;
     vsg::ref_ptr<vsg::Group> terrainPoints;
     vsg::ref_ptr<vsg::MatrixTransform> active;
-    vsg::MatrixTransform *moving;
+    vsg::MatrixTransform *movingPoint;
     vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBufferCmd;
     QMap<const vsg::Node*, vsg::stride_iterator<vsg::vec3>> points;
     //-------------------------------------------------

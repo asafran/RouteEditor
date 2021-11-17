@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
         try {
             MainWindow w(dialog.routePath, dialog.skyboxPath);
             w.show();
+            w.showMaximized();
             return a.exec();
         }  catch (DatabaseException &ex) {
             QErrorMessage errorMessageDialog;

@@ -66,6 +66,13 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         }
         case TERRAIN:
         {
+            if(isection.nodePath.empty())
+            {
+                if(isMovingTerrain)
+                   movingPoint->children.pop_back();
+                isMovingTerrain = false;
+                break;
+            }
             if(points.isEmpty())
             {
                 if(auto vid = isection.nodePath.back()->cast<vsg::VertexIndexDraw>(); vid && lowTile(isection))
@@ -82,16 +89,10 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
                     info = isection.nodePath.back()->cast<vsg::VertexIndexDraw>()->arrays.front();
                 }
             }
-            else if(isection.nodePath.empty())
-            {
-                if(isMovingTerrain)
-                   moving->children.pop_back();
-                isMovingTerrain = false;
-            }
             else if(points.contains(*(isection.nodePath.rbegin() + 2)) && !isMovingTerrain)
             {
                 isMovingTerrain = true;
-                moving = const_cast<vsg::MatrixTransform *>((*(isection.nodePath.rbegin() + 2))->cast<vsg::MatrixTransform>());
+                movingPoint = const_cast<vsg::MatrixTransform *>((*(isection.nodePath.rbegin() + 2))->cast<vsg::MatrixTransform>());
 
                 vsg::GeometryInfo info;
                 info.dx.set(4.0f, 0.0f, 0.0f);
@@ -99,15 +100,15 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
                 info.dz.set(0.0f, 0.0f, 4.0f);
                 info.color = {1.0f, 0.5f, 0.0f, 1.0f};
 
-                moving->addChild(builder->createSphere(info));
+                movingPoint->addChild(builder->createSphere(info));
             } else
             {
                 if(isMovingTerrain)
-                   moving->children.pop_back();
+                   movingPoint->children.pop_back();
                 isMovingTerrain = false;
 
             }
-
+            break;
         }
         case MOVE:
         {
@@ -237,6 +238,10 @@ vsg::ref_ptr<vsg::Group> Manipulator::lowTile(const vsg::LineSegmentIntersector:
     }
     return vsg::ref_ptr<vsg::Group>();
 }
+void Manipulator::setLatLongAlt(const vsg::dvec3 &pos)
+{
+    setViewpoint(_ellipsoidModel->convertLatLongAltitudeToECEF(pos));
+}
 void Manipulator::setViewpoint(const vsg::dvec4 &pos_mat)
 {
     setViewpoint(vsg::dvec3(pos_mat.x, pos_mat.y, pos_mat.z));
@@ -253,6 +258,7 @@ void Manipulator::setViewpoint(const vsg::dvec3 &pos)
     pointer->matrix[3][0] = translate[3][0];
     pointer->matrix[3][1] = translate[3][1];
     pointer->matrix[3][2] = translate[3][2];
+    emit sendPos(_ellipsoidModel->convertECEFToLatLongAltitude(pos));
 
 }
 
@@ -291,11 +297,19 @@ vsg::ref_ptr<vsg::MatrixTransform> Manipulator::addTerrainPoint(vsg::vec3 pos)
 
 void Manipulator::setMode(int index)
 {
+    if(index == mode)
+        return;
     if(mode == TERRAIN)
     {
+        if(isMovingTerrain)
+            movingPoint->children.pop_back();
+        isMovingTerrain = false;
         active->children.erase(std::find(active->children.begin(), active->children.end(), terrainPoints));
         terrainPoints->children.clear();
         points.clear();
+    } else if(mode == MOVE)
+    {
+        isMovingObject = false;
     }
     mode = index;
 }
@@ -350,11 +364,11 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
         vsg::quat quat(vsg::vec3(0.0f, 0.0f, 1.0f), norm);
         vsg::quat vec(0.0f, 0.0f, delta, 0.0f);
         auto rotated = mult(mult(quat, vec), vsg::quat(-quat.x, -quat.y, -quat.z, quat.w));
-        auto point = points.value(moving);
+        auto point = points.value(movingPoint);
         point->x += rotated.x;
         point->y += rotated.y;
         point->z += rotated.z;
-        moving->matrix = vsg::translate(*point);
+        movingPoint->matrix = vsg::translate(*point);
 
         copyBufferCmd->copy(info->data, info);
     }

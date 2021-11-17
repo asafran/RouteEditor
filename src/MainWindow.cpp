@@ -133,7 +133,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         // setup command graph to copy the image data each frame then rendering the scene graph
         auto grahics_commandGraph = vsg::CommandGraph::create(window);
-        //grahics_commandGraph->addChild(copyBufferCmd);
+        grahics_commandGraph->addChild(copyBufferCmd);
         grahics_commandGraph->addChild(vsg::createRenderGraphForView(window, camera, scene));
 
         auto addBins = [&](vsg::View& view)
@@ -167,6 +167,26 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         connect(manipulator.get(), &Manipulator::objectClicked, sorter, &TilesSorter::select);
         connect(manipulator.get(), &Manipulator::expand, sorter, &TilesSorter::expand);
+
+        connect(manipulator.get(), &Manipulator::sendPos, [this](const vsg::dvec3 &pos)
+        {
+            ui->cursorLat->setValue(pos.x);
+            ui->cursorLon->setValue(pos.y);
+            ui->cursorAlt->setValue(pos.z);
+        });
+
+        connect(ui->cursorLat, &QDoubleSpinBox::valueChanged, [this, manipulator](double value)
+        {
+            manipulator->setLatLongAlt(vsg::dvec3(value, ui->cursorLon->value(), ui->cursorAlt->value()));
+        });
+        connect(ui->cursorLon, &QDoubleSpinBox::valueChanged, [this, manipulator](double value)
+        {
+            manipulator->setLatLongAlt(vsg::dvec3(ui->cursorLat->value(), value, ui->cursorAlt->value()));
+        });
+        connect(ui->cursorAlt, &QDoubleSpinBox::valueChanged, [this, manipulator](double value)
+        {
+            manipulator->setLatLongAlt(vsg::dvec3(ui->cursorLat->value(), ui->cursorLon->value(), value));
+        });
 
         connect(manipulator.get(), &Manipulator::addRequest, database.get(), &DatabaseManager::addObject);
         connect(sorter, &TilesSorter::doubleClicked, manipulator, &Manipulator::selectObject);
