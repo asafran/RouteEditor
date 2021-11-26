@@ -3,7 +3,6 @@
 
 #include <QDialog>
 #include <vsg/nodes/MatrixTransform.h>
-#include "metainf.h"
 #include "undo-redo.h"
 
 namespace Ui {

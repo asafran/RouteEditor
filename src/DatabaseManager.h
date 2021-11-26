@@ -39,11 +39,31 @@ public:
 public slots:
     void writeTiles() noexcept;
     void addObject(vsg::dvec3 position, const QModelIndex &index) noexcept;
+    void addTrack(vsg::dvec3 position, Trajectory *traj) noexcept;
     void activeGroupChanged(const QModelIndex &index) noexcept;
     void activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept;
     void loaderButton(bool checked) noexcept;
+signals:
+    void sendStatusText(const QString &message, int timeout);
+
 
 private:
+
+    enum ObjectType
+    {
+        Obj,
+        Trk,
+        TrkObj
+    };
+
+    struct Loaded
+    {
+        QString path = "";
+        ObjectType type = Obj;
+        vsg::ref_ptr<vsg::Node> node;
+        explicit operator bool() { return node.valid(); }
+    };
+
     QPair<QString, vsg::ref_ptr<vsg::Node>> concurrentRead(const QString &path);
 
     vsg::ref_ptr<vsg::Node> database;
@@ -51,11 +71,14 @@ private:
     vsg::ref_ptr<vsg::Builder> builder;
 
     QModelIndex activeGroup;
-    std::pair<QString, vsg::ref_ptr<vsg::Node>> activeFile;
+
+    Loaded loaded;
 
     QFileSystemModel *fsmodel;
 
     SceneModel *tilesModel;
+
+    bool loadToSelected = false;
 
     bool placeLoader = false;
 

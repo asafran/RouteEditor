@@ -59,7 +59,11 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         }
         case ADD:
         {
-            if(auto tile = lowTile(isection); tile)
+            if(auto traj = std::find_if(isection.nodePath.begin(), isection.nodePath.end(), isCompatible<Trajectory>); traj != isection.nodePath.end())
+            {
+                emit addRequest(isection.worldIntersection, tilesModel->index(*traj));
+            }
+            else if(auto tile = lowTile(isection); tile)
                 emit addRequest(isection.worldIntersection, tilesModel->index(tile->children.at(4)));
             //check children!!!
             break;
@@ -117,14 +121,23 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
                 undoStack->endMacro();
                 isMovingObject = false;
             } else {
-                auto find = std::find_if(isection.nodePath.crbegin(), isection.nodePath.crend(), isCompatible<SceneObject>);
-                if(find != isection.nodePath.crend())
+                auto find = std::find_if(isection.nodePath.cbegin(), isection.nodePath.cend(), isCompatible<SceneObject>);
+                if(find != isection.nodePath.cend())
                 {
                     isMovingObject = true;
                     movingObject = const_cast<SceneObject *>((*find)->cast<SceneObject>());
                     undoStack->beginMacro("Перемещен объект");
                 }
             }
+            break;
+        }
+        case ADDTRACK:
+        {
+            if(auto traj = std::find_if(isection.nodePath.begin(), isection.nodePath.end(), isCompatible<Trajectory>); traj != isection.nodePath.end())
+                emit addTrackRequest(isection.worldIntersection, const_cast<Trajectory*>((*traj)->cast<Trajectory>()));
+            else if(auto tile = lowTile(isection); tile)
+                emit addRequest(isection.worldIntersection, tilesModel->index(tile->children.at(5)));
+            break;
         }
         }
 
@@ -304,7 +317,8 @@ void Manipulator::setMode(int index)
         if(isMovingTerrain)
             movingPoint->children.pop_back();
         isMovingTerrain = false;
-        active->children.erase(std::find(active->children.begin(), active->children.end(), terrainPoints));
+        if(active)
+            active->children.erase(std::find(active->children.begin(), active->children.end(), terrainPoints));
         terrainPoints->children.clear();
         points.clear();
     } else if(mode == MOVE)
@@ -322,7 +336,7 @@ void Manipulator::selectObject(const QModelIndex &index)
         {
             if(auto sceneobject = object->cast<SceneObject>(); sceneobject)
             {
-                setViewpoint(sceneobject->matrix[3]);
+                setViewpoint(sceneobject->position);
                 return;
             }
             vsg::ComputeBounds computeBounds;

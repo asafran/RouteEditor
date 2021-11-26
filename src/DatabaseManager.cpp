@@ -13,7 +13,7 @@ DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::re
   , undoStack(stack)
 {
     QFileInfo directory(path);
-    QStringList filter("*subtile.vsgt");
+    QStringList filter("*subtile.vsg*");
     QStringList tileFiles;
     QDirIterator it(directory.absolutePath(), filter, QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
     while (it.hasNext())
@@ -52,28 +52,46 @@ vsg::ref_ptr<vsg::Node> DatabaseManager::read(const QString &path) const
 
 void DatabaseManager::addObject(vsg::dvec3 position, const QModelIndex &index) noexcept
 {
-    QModelIndex readindex;
-    if(!activeFile.second)
+
+    if(!loaded || (loadToSelected && !activeGroup.isValid()) || (!loadToSelected && !index.isValid()) || loaded.type == TrkObj)
         return;
-    if(activeGroup.isValid())
-        readindex = activeGroup;
-    else if (index.isValid())
-        readindex = index;
-    else
-        return;
+
+    QModelIndex readindex = loadToSelected ? activeGroup : index;
+
     vsg::ref_ptr<SceneObject> obj;
     auto norm = vsg::normalize(position);
     vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
 
     if(static_cast<vsg::Node*>(readindex.internalPointer())->is_compatible(typeid (SceneObject)))
         position = vsg::dvec3();
-
-    if(placeLoader)
-        obj = SingleLoader::create(activeFile.second, modelsDir.relativeFilePath(activeFile.first).toStdString(), vsg::translate(position), quat);
+    if (loaded.type == Trk)
+        obj = Trajectory::create(loaded.node, loaded.path.toStdString(), position, quat);
+    else if(placeLoader)
+        obj = SingleLoader::create(loaded.node, modelsDir.relativeFilePath(loaded.path).toStdString(), position, quat);
     else
-        obj = SceneObject::create(activeFile.second, vsg::translate(position), quat);
+        obj = SceneObject::create(loaded.node, position, quat);
     undoStack->push(new AddNode(tilesModel, readindex, obj));
 }
+
+void DatabaseManager::addTrack(vsg::dvec3 position, Trajectory *traj) noexcept
+{
+    switch (loaded.type) {
+    case Obj:
+    {
+        return;
+    }
+    case Trk:
+    {
+        undoStack->push(new AddTrack(traj, loaded.node, loaded.path));
+        break;
+    }
+    case TrkObj:
+    {
+        break;
+    }
+    }
+}
+
 void DatabaseManager::activeGroupChanged(const QModelIndex &index) noexcept
 {
     activeGroup = index;
@@ -86,11 +104,21 @@ void DatabaseManager::loaderButton(bool checked) noexcept
 
 void DatabaseManager::activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept
 {
-    auto path = fsmodel->fileInfo(selected.indexes().front());
-    auto node = vsg::read_cast<vsg::Node>(path.canonicalFilePath().toStdString(), builder->options);
-    if(node)
-        builder->compile(node);
-    activeFile = std::make_pair(path.canonicalFilePath(), node);
+    auto path = fsmodel->filePath(selected.indexes().front());
+    auto node = vsg::read_cast<vsg::Node>(path.toStdString(), builder->options);
+    if(!node)
+    {
+        emit sendStatusText(tr("Ошибка при загрузке модели %1").arg(path), 5);
+        loaded.node = nullptr;
+        return;
+    }
+    builder->compile(node);
+    loaded.type = Obj;
+    if(node->getObject(META_TRACK))
+        loaded.type = Trk;
+    QDir dir(qgetenv("RRS2_ROOT"));
+    loaded.path = dir.relativeFilePath(path);
+    loaded.node = node;
 }
 
 void write(const vsg::ref_ptr<vsg::Node> node)

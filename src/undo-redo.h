@@ -166,6 +166,32 @@ private:
     const vsg::dvec3 _newPos;
 
 };
+
+class AddTrack : public QUndoCommand
+{
+public:
+    AddTrack(Trajectory *traj, vsg::ref_ptr<vsg::Node> node, QString name, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _traj(traj)
+        , _name(name)
+        , _node(node)
+    {
+        setText(QObject::tr("Добавлен участок пути %1").arg(name));
+    }
+    void undo() override
+    {
+        _traj->removeTrack();
+    }
+    void redo() override
+    {
+        _traj->addTrack(_node, _name.toStdString());
+    }
+private:
+    Trajectory *_traj;
+    QString _name;
+    vsg::ref_ptr<vsg::Node> _node;
+
+
+};
 /*
 class MoveTilePoint : public QUndoCommand
 {

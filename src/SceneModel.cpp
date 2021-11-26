@@ -282,7 +282,7 @@ QVariant SceneModel::data(const QModelIndex &index, int role) const
                     }
                 }
             case Name:
-                if (role == Qt::DisplayRole) {
+                if (role == Qt::DisplayRole || role == Qt::EditRole) {
                     std::string name;
                     if(nodeInfo->getValue(META_NAME, name))
                         return name.c_str();

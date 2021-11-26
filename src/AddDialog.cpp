@@ -13,23 +13,23 @@ AddDialog::AddDialog(QWidget *parent) :
 vsg::ref_ptr<vsg::Node> AddDialog::constructNode()
 {
     switch (ui->comboBox->currentIndex()) {
-    case ObjectLayer:
+    case 0:
     {
         auto layer = vsg::Group::create();
         layer->setValue(META_NAME, ui->lineEdit->text().toStdString());
         return layer;
     }
-    case ObjectGroup:
+    case 1:
     {
         auto group = SceneObject::create();
         group->setValue(META_NAME, ui->lineEdit->text().toStdString());
         return group;
     }
-    case ProcedurePositionGroup:
+    case 2:
     {
         break;
     }
-    case AutoShaderGroup:
+    case 3:
     {
         break;
     }

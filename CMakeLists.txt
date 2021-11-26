@@ -19,7 +19,7 @@ set(SOURCES
 #    src/sorter.ui
 #    src/sorter.h
 #    src/sorter.cpp
-    src/metainf.h
+#    src/metainf.h
 #    src/metainf.cpp
     src/StartDialog.h
     src/StartDialog.cpp
@@ -30,23 +30,28 @@ set(SOURCES
     src/undo-redo.h
     src/Manipulator.h
     src/Manipulator.cpp
-    src/TilesVisitor.cpp
-    src/TilesVisitor.h
-    src/sceneobjects.h
-    src/sceneobjects.cpp
     src/tilessorter.cpp
     src/tilessorter.h
-    src/LambdaVisitor.cpp
-    src/LambdaVisitor.h
+    src/TilesVisitor.cpp
+    src/TilesVisitor.h
     src/ObjectModel.h
     src/ObjectModel.cpp
     src/SceneModel.h
     src/SceneModel.cpp
-    src/ParentVisitor.cpp
-    src/ParentVisitor.h
     src/main.cpp
-
 )
+
+set(TOOLS
+    tools/sceneobjects.h
+    tools/sceneobjects.cpp
+    tools/trackobjects.h
+    tools/trackobjects.cpp
+    tools/LambdaVisitor.cpp
+    tools/LambdaVisitor.h
+    tools/ParentVisitor.cpp
+    tools/ParentVisitor.h
+)
+
 
 # Change the default build type to Release
 if(NOT CMAKE_BUILD_TYPE)
@@ -107,10 +112,20 @@ else()
     add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
 endif()
 
+add_subdirectory(RRSConv)
+
 add_executable(editor ${SOURCES})
+
+target_include_directories(editor PRIVATE tools)
+
+add_library(tools ${TOOLS})
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_compile_definitions(editor PRIVATE META_NAME="MetaName" TILE_PATH="Path" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
+target_compile_definitions(editor PRIVATE META_NAME="MetaName" META_TRACK="TrackInfo" TILE_PATH="Path" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
-target_link_libraries(editor vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange Qt6::Concurrent)
+target_compile_definitions(tools PRIVATE META_NAME="MetaName" META_TRACK="TrackInfo")
+
+target_link_libraries(tools Qt6::Core)
+
+target_link_libraries(editor tools vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange Qt6::Concurrent)

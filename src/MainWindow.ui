@@ -141,6 +141,11 @@
               <string>Редактирование рельефа</string>
              </property>
             </item>
+            <item>
+             <property name="text">
+              <string>Добавление путевых объектов</string>
+             </property>
+            </item>
            </widget>
           </item>
           <item row="2" column="0" colspan="4">

@@ -34,7 +34,8 @@ public:
         SELECT,
         MOVE,
         ADD,
-        TERRAIN
+        TERRAIN,
+        ADDTRACK
     };
 
     void setPager(vsg::ref_ptr<vsg::DatabasePager> pager) { database = pager; }
@@ -53,6 +54,8 @@ signals:
     void sendData(vsg::ref_ptr<vsg::Data> buffer, vsg::ref_ptr<vsg::BufferInfo> info);
     void sendPos(const vsg::dvec3 &pos);
     void sendStatusText(const QString &message, int timeout);
+    void addTrackRequest(const vsg::dvec3 &position, Trajectory *traj);
+
 protected:
     inline void addPointer();
     vsg::ref_ptr<vsg::MatrixTransform> addTerrainPoint(vsg::vec3 pos);

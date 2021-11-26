@@ -61,6 +61,9 @@ QWindow* MainWindow::initilizeVSGwindow()
 
     vsg::RegisterWithObjectFactoryProxy<SceneObject>();
     vsg::RegisterWithObjectFactoryProxy<SingleLoader>();
+    vsg::RegisterWithObjectFactoryProxy<StraitTrack>();
+    vsg::RegisterWithObjectFactoryProxy<CurvedTrack>();
+    vsg::RegisterWithObjectFactoryProxy<Trajectory>();
 
     builder = vsg::Builder::create();
     builder->options = options;
@@ -189,6 +192,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         });
 
         connect(manipulator.get(), &Manipulator::addRequest, database.get(), &DatabaseManager::addObject);
+        connect(manipulator.get(), &Manipulator::addTrackRequest, database.get(), &DatabaseManager::addTrack);
         connect(sorter, &TilesSorter::doubleClicked, manipulator, &Manipulator::selectObject);
 
         return true;
