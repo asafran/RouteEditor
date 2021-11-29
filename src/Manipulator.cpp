@@ -2,6 +2,7 @@
 #include "LambdaVisitor.h"
 #include <QSettings>
 #include "undo-redo.h"
+#include <QInputDialog>
 
 Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera,
                          vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel,
@@ -11,16 +12,10 @@ Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera,
                          QUndoStack *stack,
                          SceneModel *model,
                          QObject *parent) :
-    QObject(parent),
+    MouseHandler(in_builder, copyBuffer, stack, model, parent),
     vsg::Inherit<vsg::Trackball, Manipulator>(camera, ellipsoidModel),
-    copyBufferCmd(copyBuffer),
-    builder(in_builder),
     scenegraph(in_scenegraph),
-    pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center))),
-    terrainPoints(vsg::Group::create()),
-    active(),
-    tilesModel(model),
-    undoStack(stack)
+    pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center)))
 {
     rotateButtonMask = vsg::BUTTON_MASK_2;
     supportsThrow = false;
@@ -49,97 +44,7 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     {
         _updateMode = INACTIVE;
         auto isection = interesection(buttonPress);
-        switch (mode) {
-        case SELECT:
-        {
-            auto find = std::find_if(isection.nodePath.crbegin(), isection.nodePath.crend(), isCompatible<SceneObject>);
-            if(find != isection.nodePath.crend())
-                emit objectClicked(tilesModel->index(*find));
-            break;
-        }
-        case ADD:
-        {
-            if(auto traj = std::find_if(isection.nodePath.begin(), isection.nodePath.end(), isCompatible<Trajectory>); traj != isection.nodePath.end())
-            {
-                emit addRequest(isection.worldIntersection, tilesModel->index(*traj));
-            }
-            else if(auto tile = lowTile(isection); tile)
-                emit addRequest(isection.worldIntersection, tilesModel->index(tile->children.at(4)));
-            //check children!!!
-            break;
-        }
-        case TERRAIN:
-        {
-            if(isection.nodePath.empty())
-            {
-                if(isMovingTerrain)
-                   movingPoint->children.pop_back();
-                isMovingTerrain = false;
-                break;
-            }
-            if(points.isEmpty())
-            {
-                if(auto vid = isection.nodePath.back()->cast<vsg::VertexIndexDraw>(); vid && lowTile(isection))
-                {
-                    auto vertarray = vid->arrays.front()->data.cast<vsg::vec3Array>();
-                    for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
-                    {
-                        auto point = addTerrainPoint(*it);
-                        points.insert(point, it);
-                        terrainPoints->addChild(point);   
-                    }
-                    active = const_cast<vsg::MatrixTransform *>((*(isection.nodePath.crbegin() + 4))->cast<vsg::MatrixTransform>());
-                    active->addChild(terrainPoints);
-                    info = isection.nodePath.back()->cast<vsg::VertexIndexDraw>()->arrays.front();
-                }
-            }
-            else if(points.contains(*(isection.nodePath.rbegin() + 2)) && !isMovingTerrain)
-            {
-                isMovingTerrain = true;
-                movingPoint = const_cast<vsg::MatrixTransform *>((*(isection.nodePath.rbegin() + 2))->cast<vsg::MatrixTransform>());
-
-                vsg::GeometryInfo info;
-                info.dx.set(4.0f, 0.0f, 0.0f);
-                info.dy.set(0.0f, 4.0f, 0.0f);
-                info.dz.set(0.0f, 0.0f, 4.0f);
-                info.color = {1.0f, 0.5f, 0.0f, 1.0f};
-
-                movingPoint->addChild(builder->createSphere(info));
-            } else
-            {
-                if(isMovingTerrain)
-                   movingPoint->children.pop_back();
-                isMovingTerrain = false;
-
-            }
-            break;
-        }
-        case MOVE:
-        {
-            if(isMovingObject)
-            {
-                undoStack->endMacro();
-                isMovingObject = false;
-            } else {
-                auto find = std::find_if(isection.nodePath.cbegin(), isection.nodePath.cend(), isCompatible<SceneObject>);
-                if(find != isection.nodePath.cend())
-                {
-                    isMovingObject = true;
-                    movingObject = const_cast<SceneObject *>((*find)->cast<SceneObject>());
-                    undoStack->beginMacro("Перемещен объект");
-                }
-            }
-            break;
-        }
-        case ADDTRACK:
-        {
-            if(auto traj = std::find_if(isection.nodePath.begin(), isection.nodePath.end(), isCompatible<Trajectory>); traj != isection.nodePath.end())
-                emit addTrackRequest(isection.worldIntersection, const_cast<Trajectory*>((*traj)->cast<Trajectory>()));
-            else if(auto tile = lowTile(isection); tile)
-                emit addRequest(isection.worldIntersection, tilesModel->index(tile->children.at(5)));
-            break;
-        }
-        }
+        handleIntersection(isection);
 
 
     } else if (buttonPress.mask & vsg::BUTTON_MASK_2)
@@ -147,12 +52,12 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     else if (buttonPress.mask & vsg::BUTTON_MASK_3 && _ellipsoidModel){
         _updateMode = INACTIVE;
 
-        auto isection = interesection(buttonPress);
+        auto isection = interesection(buttonPress).front();
         if(isection.nodePath.empty() || isection.nodePath.back() == pointer)
             return;
         setViewpoint(isection.worldIntersection);
 
-        if(auto tile = lowTile(isection); tile)
+        if(auto tile = lowTile(isection, database->frameCount); tile)
         {
             //emit objectClicked(cachedTilesModel->index(tile.get()), QItemSelectionModel::Select);
             emit expand(tilesModel->index(tile));
@@ -235,22 +140,7 @@ void Manipulator::pan(const vsg::dvec2& delta)
     */
 }
 
-vsg::ref_ptr<vsg::Group> Manipulator::lowTile(const vsg::LineSegmentIntersector::Intersection &intersection)
-{
-    /*
-    auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::PagedLOD>);
-    if(find != intersection.nodePath.crend())
-    {*/
-    if(intersection.nodePath.size() > 6)
-    {
-        auto plod = (*(intersection.nodePath.crbegin() + 6))->cast<vsg::PagedLOD>();
-        if(plod)
-            if(plod->highResActive(database->frameCount))
-                if(plod->children.front().node.cast<vsg::Group>()->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
-                    return plod->children.front().node.cast<vsg::Group>();
-    }
-    return vsg::ref_ptr<vsg::Group>();
-}
+
 void Manipulator::setLatLongAlt(const vsg::dvec3 &pos)
 {
     setViewpoint(_ellipsoidModel->convertLatLongAltitudeToECEF(pos));
@@ -289,43 +179,6 @@ void Manipulator::addPointer()
     info.dz.set(0.0f, 0.0f, 1.0f * size);
     info.position = {0.0f, 0.0f, -1.0f * size / 2};
     pointer->addChild(builder->createCone(info));
-}
-
-vsg::ref_ptr<vsg::MatrixTransform> Manipulator::addTerrainPoint(vsg::vec3 pos)
-{
-/*
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
-    auto size = static_cast<float>(settings.value("CURSORSIZE", 1).toInt());
-*/
-    vsg::GeometryInfo info;
-
-    info.dx.set(3.0f, 0.0f, 0.0f);
-    info.dy.set(0.0f, 3.0f, 0.0f);
-    info.dz.set(0.0f, 0.0f, 3.0f);
-
-    auto transform = vsg::MatrixTransform::create(vsg::translate(vsg::dvec3(pos)));
-    transform->addChild(builder->createSphere(info));
-    return transform;
-}
-
-void Manipulator::setMode(int index)
-{
-    if(index == mode)
-        return;
-    if(mode == TERRAIN)
-    {
-        if(isMovingTerrain)
-            movingPoint->children.pop_back();
-        isMovingTerrain = false;
-        if(active)
-            active->children.erase(std::find(active->children.begin(), active->children.end(), terrainPoints));
-        terrainPoints->children.clear();
-        points.clear();
-    } else if(mode == MOVE)
-    {
-        isMovingObject = false;
-    }
-    mode = index;
 }
 
 void Manipulator::selectObject(const QModelIndex &index)
@@ -388,7 +241,7 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
     }
     else if(isMovingObject)
     {
-        auto isection = interesection(pointerEvent);
+        auto isection = interesection(pointerEvent).front();
         auto find = std::find_if(isection.nodePath.crbegin(), isection.nodePath.crend(), isCompatible<SceneObject>);
         if(find == isection.nodePath.crend())
             undoStack->push(new MoveObject(movingObject, isection.worldIntersection));
@@ -398,17 +251,17 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
 
 }
 
-vsg::LineSegmentIntersector::Intersection Manipulator::interesection(vsg::PointerEvent& pointerEvent)
+vsg::LineSegmentIntersector::Intersections Manipulator::interesection(vsg::PointerEvent& pointerEvent)
 {
     auto intersector = vsg::LineSegmentIntersector::create(*_camera, pointerEvent.x, pointerEvent.y);
     scenegraph->accept(*intersector);
 
-    if (intersector->intersections.empty()) return vsg::LineSegmentIntersector::Intersection();
+    if (intersector->intersections.empty()) return vsg::LineSegmentIntersector::Intersections();
 
     // sort the intersectors front to back
     std::sort(intersector->intersections.begin(), intersector->intersections.end(), [](auto lhs, auto rhs) { return lhs.ratio < rhs.ratio; });
 
     lastIntersection = intersector->intersections;
 
-    return intersector->intersections.front();
+    return intersector->intersections;
 }

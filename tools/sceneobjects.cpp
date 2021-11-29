@@ -1,4 +1,5 @@
 #include "sceneobjects.h"
+#include "LambdaVisitor.h"
 #include <vsg/maths/quat.h>
 #include <QDir>
 
@@ -106,18 +107,18 @@ void SingleLoader::write(vsg::Output& output) const
     output.write("coord", position);
 }
 
-MatrixLoader::MatrixLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, const vsg::dmat4 in_matrix)
-    : vsg::Inherit<vsg::MatrixTransform, MatrixLoader>(in_matrix)
+RailLoader::RailLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, const vsg::dmat4 in_matrix)
+    : vsg::Inherit<vsg::MatrixTransform, RailLoader>(in_matrix)
     , file(in_file)
 {
     addChild(loaded);
 }
-MatrixLoader::MatrixLoader()
+RailLoader::RailLoader()
 {
 }
-MatrixLoader::~MatrixLoader() {}
+RailLoader::~RailLoader() {}
 
-void MatrixLoader::read(vsg::Input& input)
+void RailLoader::read(vsg::Input& input)
 {
     Node::read(input);
 
@@ -130,7 +131,7 @@ void MatrixLoader::read(vsg::Input& input)
     input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
 }
 
-void MatrixLoader::write(vsg::Output& output) const
+void RailLoader::write(vsg::Output& output) const
 {
     Node::write(output);
 
@@ -198,12 +199,14 @@ void Trajectory::write(vsg::Output& output) const
 void Trajectory::addTrack(vsg::ref_ptr<vsg::Node> node, const std::string &name)
 {
     auto track = node->getObject<Track>(META_TRACK);
-    auto loader = MatrixLoader::create(node, name, matrixStack.back());
+    auto tracks = children.front().cast<vsg::Group>();
+    auto loader = RailLoader::create(node, name, matrixStack.back());
+
     matrixStack.emplace_back(matrixStack.back() * track->transform(track->lenght));
     lenght += track->lenght;
 
     //track->ltw = vsg::inverse(vsg::translate(position)) * vsg::inverse(next);
-    children.front().cast<vsg::Group>()->children.push_back(loader);
+    tracks->children.push_back(loader);
 }
 
 void Trajectory::removeTrack()
@@ -212,17 +215,33 @@ void Trajectory::removeTrack()
     matrixStack.pop_back();
     children.front().cast<vsg::Group>()->children.pop_back();
 }
-/*
+
 void Trajectory::recalculatePositions()
 {
-    vsg::dmat4 matrix;
-    auto trk = tracks.begin();
-    auto node = children.begin();
-    for(; trk == tracks.end(); ++trk, ++node)
+    auto group = children.front().cast<vsg::Group>()->children;
+
+    auto matrix = matrixStack.begin();
+    auto it = group.begin();
+
+    //auto loader = it->cast<RailLoader>();
+    //auto inclination = vsg::rotate(atan(loader->inclination / 1000), vsg::dvec3(1.0, 0.0, 0.0));
+
+    //loader->matrix = inclination;
+    //matrix++;
+    //it++;
+
+    //*matrix = *matrix * inclination;
+    vsg::dmat4 next;
+    for(; it != group.end(); ++it)
     {
-        (*node)->matrix = matrix;
-        trk->track->ltw = vsg::inverse(matrix);
-        matrix = vsg::translate(trk->track->position(trk->track->lenght)) * matrix;
-    }
+        //auto track = loader->children.front()->getObject<Track>(META_TRACK); INCREMENT!!!!!
+        auto loader = it->cast<RailLoader>();
+        auto inclination = vsg::rotate(atan(loader->inclination / 1000), vsg::dvec3(1.0, 0.0, 0.0));
+
+        loader->matrix = *matrix * next * inclination;
+        matrix++;
+        next = next * inclination * (*matrix * vsg::inverse(*(matrix - 1))) * vsg::inverse(inclination) * vsg::inverse(*matrix * vsg::inverse(*(matrix - 1)));
+        //next[3] = 1.0;
+     }
 }
-*/
+

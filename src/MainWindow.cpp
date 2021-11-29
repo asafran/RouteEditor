@@ -149,7 +149,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         grahics_commandGraph->accept(lv);
 
         // add trackball to enable mouse driven camera view control.
-        auto manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, copyBufferCmd, undoStack, database->getTilesModel());
+        auto manipulator = Manipulator::create(camera, ellipsoidModel, builder, scene, copyBufferCmd, undoStack, database->getTilesModel(), this);
 
         builder->setup(window, camera->viewportState);
 

@@ -82,6 +82,23 @@ void DatabaseManager::addTrack(vsg::dvec3 position, Trajectory *traj) noexcept
     }
     case Trk:
     {
+        /*
+        auto layout = vsg::StandardLayout::create();
+                    layout->glyphLayout = vsg::StandardLayout::RIGHT_TO_LEFT_LAYOUT;
+                    layout->position = vsg::vec3(13.0, 0.0, 2.0);
+                    layout->horizontal = vsg::vec3(0.5, 0.0, 0.0);
+                    layout->vertical = vsg::vec3(0.0, 0.0, 0.5);
+                    layout->color = vsg::vec4(0.0, 0.0, 1.0, 1.0);
+
+                    auto text = vsg::Text::create();
+                    text->text = vsg::stringValue::create("RIGHT_TO_LEFT_LAYOUT");
+                    text->font = vsg::read_cast<vsg::Font>("/home/asafr/Development/vsg/vsgExamples/data/fonts/times.vsgb", builder->options);
+                    text->font->options = builder->options;
+                    text->layout = layout;
+                    text->setup();
+                    builder->compile(text);
+                    traj->addChild(text);
+                    */
         undoStack->push(new AddTrack(traj, loaded.node, loaded.path));
         break;
     }

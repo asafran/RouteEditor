@@ -19,8 +19,10 @@ set(SOURCES
 #    src/sorter.ui
 #    src/sorter.h
 #    src/sorter.cpp
-#    src/metainf.h
-#    src/metainf.cpp
+    src/connector.h
+    src/connector.cpp
+    src/MouseHandler.h
+    src/MouseHandler.cpp
     src/StartDialog.h
     src/StartDialog.cpp
     src/StartDialog.ui
@@ -46,7 +48,7 @@ set(TOOLS
     tools/sceneobjects.cpp
     tools/trackobjects.h
     tools/trackobjects.cpp
-    tools/LambdaVisitor.cpp
+    #tools/LambdaVisitor.cpp
     tools/LambdaVisitor.h
     tools/ParentVisitor.cpp
     tools/ParentVisitor.h
@@ -74,24 +76,6 @@ find_package(Qt6 COMPONENTS Concurrent REQUIRED)
 find_package(vsg REQUIRED)
 find_package(vsgXchange REQUIRED)
 find_package(vsgQt REQUIRED)
-
-if(TARGET assimp::assimp)
-  get_property(assimp_INTERFACE_INCLUDE_DIRECTORIES
-               TARGET assimp::assimp
-               PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-  if(assimp_INTERFACE_INCLUDE_DIRECTORIES MATCHES "/usr/lib/include")
-    string(REPLACE "/usr/lib/include" "/usr/include" assimp_INTERFACE_INCLUDE_DIRECTORIES "${assimp_INTERFACE_INCLUDE_DIRECTORIES}")
-    set_property(TARGET assimp::assimp
-                 PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                 "${assimp_INTERFACE_INCLUDE_DIRECTORIES}")
-    get_property(assimp_LOCATION_RELEASE
-                 TARGET assimp::assimp
-                 PROPERTY LOCATION_RELEASE)
-    set_property(TARGET assimp::assimp
-                 PROPERTY IMPORTED_LOCATION
-                 "${assimp_LOCATION_RELEASE}")
-  endif()
-endif()
 
 # set the use of C++17 globally as all examples require it
 set(CMAKE_CXX_STANDARD 17)

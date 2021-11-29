@@ -26,7 +26,10 @@ void TilesSorter::expand(const QModelIndex &index)
 
 void TilesSorter::viewSelectSlot(const QItemSelection &selected, const QItemSelection &)
 {
-    emit selectionChanged(mapToSource(selected.indexes().front()));
+    if(selected.indexes().empty())
+        emit selectionChanged(QModelIndex());
+    else
+        emit selectionChanged(mapToSource(selected.indexes().front()));
 }
 
 void TilesSorter::viewDoubleClicked(const QModelIndex &index)

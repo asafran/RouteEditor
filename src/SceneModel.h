@@ -77,6 +77,7 @@ private:
         {
             Type,
             Name,
+            Option,
             ColumnCount
         };
     vsg::ref_ptr<vsg::Group> root;

@@ -51,17 +51,20 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
         return QModelIndex();
     }
 
-    if(auto childInfo = static_cast<vsg::Node*>(child.internalPointer()); childInfo)
-    {
-        auto parentVisitor = ParentVisitor::create(childInfo);
-        root->accept(*parentVisitor);
-        if (parentVisitor->pathToChild.size() < 2)
-            return QModelIndex();
-        auto parent = parentVisitor->pathToChild.back();
-        auto grandParent = *(parentVisitor->pathToChild.end() - 2);
-        if (parent && grandParent)
-            return createIndex(findRow(grandParent, parent), 0, const_cast<vsg::Node*>(parent));
-    }
+    auto childInfo = static_cast<vsg::Node*>(child.internalPointer());
+
+    Q_ASSERT(childInfo != nullptr);
+
+    auto parentVisitor = ParentVisitor::create(childInfo);
+    root->accept(*parentVisitor);
+    if (parentVisitor->pathToChild.size() < 2)
+        return QModelIndex();
+    auto parent = parentVisitor->pathToChild.back();
+    auto grandParent = *(parentVisitor->pathToChild.end() - 2);
+    if (parent && grandParent)
+        return createIndex(findRow(grandParent, parent), 0, const_cast<vsg::Node*>(parent));
+
+
     return QModelIndex();
 }
 
@@ -250,16 +253,16 @@ int SceneModel::rowCount(const QModelIndex &parent) const
     if (!parent.isValid()) {
         return root->children.size();
     }
-    if(auto parentNode = static_cast<vsg::Node*>(parent.internalPointer()); parentNode)
-    {
-        if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
-            return parentGroup->children.size();
-        else if (auto plod = parentNode->cast<vsg::PagedLOD>(); plod)
-            return plod->children.size();
-        else if (auto sw = parentNode->cast<vsg::Switch>(); sw)
-            return sw->children.size();
-    }
-    return 0;
+    auto parentNode = static_cast<vsg::Node*>(parent.internalPointer());
+
+    if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
+        return parentGroup->children.size();
+    else if (auto plod = parentNode->cast<vsg::PagedLOD>(); plod)
+        return plod->children.size();
+    else if (auto sw = parentNode->cast<vsg::Switch>(); sw)
+        return sw->children.size();
+    else
+        return 0;
 
 }
 QVariant SceneModel::data(const QModelIndex &index, int role) const
@@ -267,31 +270,43 @@ QVariant SceneModel::data(const QModelIndex &index, int role) const
     if (!index.isValid()) {
         return QVariant();
     }
-    if(auto nodeInfo = static_cast<vsg::Node*>(index.internalPointer()); nodeInfo)
+    auto nodeInfo = static_cast<vsg::Node*>(index.internalPointer());
+
+    //Q_ASSERT(nodeInfo != nullptr);
+
+    switch (index.column()) {
+    case Type:
     {
-        switch (index.column()) {
-            case Type:
-                if (role == Qt::DisplayRole) {
-                    return nodeInfo->className();
-                }
-                else if(role == Qt::CheckStateRole && index.parent().isValid())
-                {
-                    if(auto sw = static_cast<vsg::Node*>(index.parent().internalPointer())->cast<vsg::Switch>(); sw)
-                    {
-                        return sw->children.at(findRow(sw, nodeInfo)).enabled ? Qt::Checked : Qt::Unchecked;
-                    }
-                }
-            case Name:
-                if (role == Qt::DisplayRole || role == Qt::EditRole) {
-                    std::string name;
-                    if(nodeInfo->getValue(META_NAME, name))
-                        return name.c_str();
-                }
-                break;
-            default:
-                break;
-            }
-            return QVariant();
+        if (role == Qt::DisplayRole)
+            return nodeInfo->className();
+        else if(role == Qt::CheckStateRole && index.parent().isValid())
+        {
+            if(auto sw = static_cast<vsg::Node*>(index.parent().internalPointer())->cast<vsg::Switch>(); sw)
+                return sw->children.at(findRow(sw, nodeInfo)).enabled ? Qt::Checked : Qt::Unchecked;
+        }
+        break;
+    }
+    case Name:
+    {
+        if (role == Qt::DisplayRole || role == Qt::EditRole)
+        {
+            std::string name;
+            if(nodeInfo->getValue(META_NAME, name))
+                return name.c_str();
+        }
+        break;
+    }
+    case Option:
+    {
+        if (role == Qt::DisplayRole || role == Qt::EditRole)
+        {
+            if(auto rail = nodeInfo->cast<RailLoader>(); rail != nullptr)
+                return rail->inclination;
+        }
+        break;
+    }
+    default:
+        break;
     }
     return QVariant();
 }
@@ -300,15 +315,18 @@ bool SceneModel::hasChildren(const QModelIndex &parent) const
 {
     if (parent.isValid()) {
 
-        if (auto parentNode = static_cast<vsg::Node*>(parent.internalPointer()); parentNode)
-        {
-            if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
-                return !parentGroup->children.empty();
-            else if (auto plod = parentNode->cast<vsg::PagedLOD>(); plod)
-                return !plod->children.empty();
-            else if (auto sw = parentNode->cast<vsg::Switch>(); sw)
-                return !sw->children.empty();
-        }
+        auto parentNode = static_cast<vsg::Node*>(parent.internalPointer());
+
+        Q_ASSERT(parentNode != nullptr);
+
+        if(auto parentGroup = parentNode->cast<vsg::Group>(); parentGroup)
+            return !parentGroup->children.empty();
+        else if (auto plod = parentNode->cast<vsg::PagedLOD>(); plod)
+            return !plod->children.empty();
+        else if (auto sw = parentNode->cast<vsg::Switch>(); sw)
+            return !sw->children.empty();
+
+
     }
     return QAbstractItemModel::hasChildren(parent);
 }
@@ -318,27 +336,41 @@ bool SceneModel::setData(const QModelIndex &index, const QVariant &value, int ro
     if (!index.isValid())
         return false;
 
+    auto nodeInfo = static_cast<vsg::Node*>(index.internalPointer());
+
     if(role == Qt::CheckStateRole && index.parent().isValid())
     {
-        if(auto sw = static_cast<vsg::Node*>(index.parent().internalPointer())->cast<vsg::Switch>(); sw)
+        if(auto sw = nodeInfo->cast<vsg::Switch>(); sw)
         {
             auto row = findRow(sw, static_cast<vsg::Node*>(index.internalPointer()));
             sw->children.at(row).enabled = value.toBool();
             return true;
         }
     }
-    if (index.column() != Name || role != Qt::EditRole)
+    if (role != Qt::EditRole)
         return false;
+    if (index.column() == Name)
+    {
+        QString newName = value.toString();
+        QUndoCommand *command = new RenameObject(nodeInfo, newName);
 
-    QString newName = value.toString();
-    auto object = static_cast<vsg::Object*>(index.internalPointer());
-    QUndoCommand *command = new RenameObject(object, newName);
+        Q_ASSERT(undoStack != Q_NULLPTR);
+        undoStack->push(command);
 
-    Q_ASSERT(undoStack != Q_NULLPTR);
-    undoStack->push(command);
-
-    emit dataChanged(index, index.sibling(index.row(), ColumnCount));
-    return true;
+        emit dataChanged(index, index.sibling(index.row(), ColumnCount));
+        return true;
+    }
+    else if (index.column() == Option)
+    {
+            if(auto rail = nodeInfo->cast<RailLoader>(); rail != nullptr)
+            {
+                Q_ASSERT(undoStack != Q_NULLPTR);
+                auto parent = static_cast<vsg::Node*>(index.parent().parent().internalPointer());
+                undoStack->push(new ChangeIncl(parent->cast<Trajectory>(), rail, value.toDouble()));
+                return true;
+            }
+    }
+    return false;
 }
 
 QVariant SceneModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -369,6 +401,12 @@ Qt::ItemFlags SceneModel::flags(const QModelIndex &index) const
             if(index.parent().isValid() && static_cast<vsg::Node*>(index.parent().internalPointer())->is_compatible(typeid (vsg::Switch)))
                 flags |= Qt::ItemIsUserCheckable;
             flags |= Qt::ItemIsDragEnabled|Qt::ItemIsDropEnabled;
+            break;
+        }
+        case Option:
+        {
+            if(static_cast<vsg::Node*>(index.internalPointer())->is_compatible(typeid (RailLoader)))
+                flags |= Qt::ItemIsEditable;
             break;
         }
         }

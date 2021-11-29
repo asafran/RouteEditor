@@ -41,18 +41,20 @@ public:
     std::string file;
 };
 
-class MatrixLoader : public vsg::Inherit<vsg::MatrixTransform, MatrixLoader>
+class RailLoader : public vsg::Inherit<vsg::MatrixTransform, RailLoader>
 {
 public:
-    MatrixLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, const vsg::dmat4 in_matrix);
-    MatrixLoader();
+    RailLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, const vsg::dmat4 in_matrix);
+    RailLoader();
 
-    virtual ~MatrixLoader();
+    virtual ~RailLoader();
 
     void read(vsg::Input& input) override;
     void write(vsg::Output& output) const override;
 
     std::string file;
+
+    double inclination = 0.0;
 };
 /*
 class SimpleSingleLoader : public vsg::Inherit<vsg::Node, SimpleSingleLoader>
@@ -117,6 +119,23 @@ constexpr vsg::t_quat<T> inv(const vsg::t_quat<T>& v)
     vsg::t_quat<T> c = conjugate(v);
     T inverse_len = static_cast<T>(1.0) / length(v);
     return vsg::t_quat<T>(c[0] * inverse_len, c[1] * inverse_len, c[2] * inverse_len, c[3] * inverse_len);
+}
+
+inline vsg::ref_ptr<vsg::Group> lowTile(const vsg::LineSegmentIntersector::Intersection &intersection, uint64_t frameCount)
+{
+    /*
+    auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::PagedLOD>);
+    if(find != intersection.nodePath.crend())
+    {*/
+    if(intersection.nodePath.size() > 6)
+    {
+        auto plod = (*(intersection.nodePath.crbegin() + 6))->cast<vsg::PagedLOD>();
+        if(plod)
+            if(plod->highResActive(frameCount))
+                if(plod->children.front().node.cast<vsg::Group>()->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
+                    return plod->children.front().node.cast<vsg::Group>();
+    }
+    return vsg::ref_ptr<vsg::Group>();
 }
 
 

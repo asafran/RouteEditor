@@ -112,6 +112,36 @@ private:
     const std::string _newName;
 
 };
+
+class ChangeIncl : public QUndoCommand
+{
+public:
+    ChangeIncl(Trajectory *traj, RailLoader *rail, double incl, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _rail(rail)
+        , _traj(traj)
+        , _oldIncl(rail->inclination)
+        , _newIncl(incl)
+    {
+        setText(QObject::tr("Изменен уклон %1 на %2").arg(QString::number(_oldIncl)).arg(QString::number(_newIncl)));
+    }
+    void undo() override
+    {
+        _rail->inclination = _oldIncl;
+        _traj->recalculatePositions();
+    }
+    void redo() override
+    {
+        _rail->inclination = _newIncl;
+        _traj->recalculatePositions();
+    }
+private:
+    vsg::ref_ptr<RailLoader> _rail;
+    vsg::ref_ptr<Trajectory> _traj;
+    const double _oldIncl;
+    const double _newIncl;
+
+};
+
 class RotateObject : public QUndoCommand
 {
 public:
