@@ -79,7 +79,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         vsg::RegisterWithObjectFactoryProxy<SingleLoader>();
         vsg::RegisterWithObjectFactoryProxy<StraitTrack>();
         vsg::RegisterWithObjectFactoryProxy<CurvedTrack>();
-        vsg::RegisterWithObjectFactoryProxy<Trajectory>();
+        vsg::RegisterWithObjectFactoryProxy<SceneTrajectory>();
 
         viewer->addWindow(window);
 

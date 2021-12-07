@@ -48,4 +48,20 @@ public:
     double radius;
 };
 
+class LinearInterpolation : public vsg::Inherit<Track, LinearInterpolation>
+{
+public:
+    explicit LinearInterpolation();
+    LinearInterpolation(vsg::dvec2 first, vsg::dvec2 second);
+
+    ~LinearInterpolation();
+
+    vsg::dmat4 transform(double coord) const override;
+
+    vsg::dvec3 begin = {};
+    vsg::dvec3 orth = {};
+    vsg::dmat4 matrix = {};
+
+};
+
 #endif

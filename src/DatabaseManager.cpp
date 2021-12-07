@@ -65,7 +65,7 @@ void DatabaseManager::addObject(vsg::dvec3 position, const QModelIndex &index) n
     if(static_cast<vsg::Node*>(readindex.internalPointer())->is_compatible(typeid (SceneObject)))
         position = vsg::dvec3();
     if (loaded.type == Trk)
-        obj = Trajectory::create(loaded.node, loaded.path.toStdString(), position, quat);
+        ;//obj = SceneTrajectory::create(loaded.node, loaded.path.toStdString(), position, quat);
     else if(placeLoader)
         obj = SingleLoader::create(loaded.node, modelsDir.relativeFilePath(loaded.path).toStdString(), position, quat);
     else
@@ -73,7 +73,7 @@ void DatabaseManager::addObject(vsg::dvec3 position, const QModelIndex &index) n
     undoStack->push(new AddNode(tilesModel, readindex, obj));
 }
 
-void DatabaseManager::addTrack(vsg::dvec3 position, Trajectory *traj) noexcept
+void DatabaseManager::addTrack(vsg::dvec3 position, SceneTrajectory *traj) noexcept
 {
     switch (loaded.type) {
     case Obj:

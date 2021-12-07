@@ -53,10 +53,13 @@ public:
         endInsertRows();
     }
 
-    void addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> node);
-    void removeNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> node);
+    int addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> node);
+    QModelIndex removeNode(const QModelIndex &index);
+    void removeNode(const QModelIndex &parent, const QModelIndex &index);
+    //void removeNode(vsg::ref_ptr<vsg::Node> node);
+    //void removeNode(const QModelIndex &parent, int row, vsg::ref_ptr<vsg::Node> node);
 
-    int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
+    //int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
     QModelIndex index(const vsg::Node *node) const;
 

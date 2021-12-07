@@ -19,14 +19,15 @@ public:
     }
     void undo() override
     {
-        _model->removeNode(_group, _node);
+        _model->removeRows(row, 1, _group);
     }
     void redo() override
     {
-        _model->addNode(_group, _node);
+        row = _model->addNode(_group, _node);
     }
 private:
     SceneModel *_model;
+    int row;
     const QModelIndex _group;
     vsg::ref_ptr<vsg::Node> _node;
 
@@ -35,29 +36,31 @@ private:
 class RemoveNode : public QUndoCommand
 {
 public:
-    RemoveNode(SceneModel *model, const QModelIndex &group, vsg::Node *node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    RemoveNode(SceneModel *model, const QModelIndex &index, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _model(model)
-        , _group(group)
-        , _node(node)
+        , _node(static_cast<vsg::Node*>(index.internalPointer()))
+        , _group(index.parent())
+        , _index(index)
     {
         std::string name;
-        node->getValue(META_NAME, name);
+        _node->getValue(META_NAME, name);
         if(name.empty())
-            name = node->className();
-        setText(QObject::tr("Удален объект %1").arg(name.c_str()).arg(reinterpret_cast<quint64>(node), 0, 16));
+            name = _node->className();
+        setText(QObject::tr("Удален объект %1").arg(name.c_str()).arg(reinterpret_cast<quint64>(_node.get()), 0, 16));
     }
     void undo() override
     {
-        _model->addNode(_group, _node);
+        _index = _model->index(_model->addNode(_group, _node), 0, _group);
     }
     void redo() override
     {
-        _model->removeNode(_group, _node);
+        _model->removeNode(_index);
     }
 private:
     SceneModel *_model;
-    const QModelIndex _group;
     vsg::ref_ptr<vsg::Node> _node;
+    const QModelIndex _group;
+    QModelIndex _index;
 
 };
 /*
@@ -112,11 +115,11 @@ private:
     const std::string _newName;
 
 };
-
+/*
 class ChangeIncl : public QUndoCommand
 {
 public:
-    ChangeIncl(Trajectory *traj, RailLoader *rail, double incl, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    ChangeIncl(SceneTrajectory *traj, RailLoader *rail, double incl, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _rail(rail)
         , _traj(traj)
         , _oldIncl(rail->inclination)
@@ -136,12 +139,12 @@ public:
     }
 private:
     vsg::ref_ptr<RailLoader> _rail;
-    vsg::ref_ptr<Trajectory> _traj;
+    vsg::ref_ptr<SceneTrajectory> _traj;
     const double _oldIncl;
     const double _newIncl;
 
 };
-
+*/
 class RotateObject : public QUndoCommand
 {
 public:
@@ -200,7 +203,7 @@ private:
 class AddTrack : public QUndoCommand
 {
 public:
-    AddTrack(Trajectory *traj, vsg::ref_ptr<vsg::Node> node, QString name, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddTrack(SceneTrajectory *traj, vsg::ref_ptr<vsg::Node> node, QString name, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _traj(traj)
         , _name(name)
         , _node(node)
@@ -209,19 +212,20 @@ public:
     }
     void undo() override
     {
-        _traj->removeTrack();
+        //_traj->removeTrack();
     }
     void redo() override
     {
-        _traj->addTrack(_node, _name.toStdString());
+        //_traj->addTrack(_node, _name.toStdString());
     }
 private:
-    Trajectory *_traj;
+    SceneTrajectory *_traj;
     QString _name;
     vsg::ref_ptr<vsg::Node> _node;
 
 
 };
+
 /*
 class MoveTilePoint : public QUndoCommand
 {

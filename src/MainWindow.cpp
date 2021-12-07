@@ -45,7 +45,7 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
         if(ui->tilesView->selectionModel()->selectedIndexes().front().isValid())
         {
             auto selected = sorter->mapToSource(ui->tilesView->selectionModel()->selectedIndexes().front());
-            undoStack->push(new RemoveNode(database->getTilesModel(), database->getTilesModel()->parent(selected), static_cast<vsg::Node*>(selected.internalPointer())));
+            undoStack->push(new RemoveNode(database->getTilesModel(), selected));
         }
     });
 
@@ -63,7 +63,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     vsg::RegisterWithObjectFactoryProxy<SingleLoader>();
     vsg::RegisterWithObjectFactoryProxy<StraitTrack>();
     vsg::RegisterWithObjectFactoryProxy<CurvedTrack>();
-    vsg::RegisterWithObjectFactoryProxy<Trajectory>();
+    vsg::RegisterWithObjectFactoryProxy<SceneTrajectory>();
 
     builder = vsg::Builder::create();
     builder->options = options;

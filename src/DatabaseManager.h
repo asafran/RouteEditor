@@ -39,7 +39,7 @@ public:
 public slots:
     void writeTiles() noexcept;
     void addObject(vsg::dvec3 position, const QModelIndex &index) noexcept;
-    void addTrack(vsg::dvec3 position, Trajectory *traj) noexcept;
+    void addTrack(vsg::dvec3 position, SceneTrajectory *traj) noexcept;
     void activeGroupChanged(const QModelIndex &index) noexcept;
     void activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept;
     void loaderButton(bool checked) noexcept;

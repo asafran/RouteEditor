@@ -13,91 +13,70 @@
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/nodes/VertexIndexDraw.h>
 #include <vsg/state/GraphicsPipeline.h>
-#include <QDebug>
+#include "sceneobjects.h"
 
-using namespace vsg;
 
 struct PushPopNode
 {
     ParentVisitor::NodePath& nodePath;
 
-    PushPopNode(ParentVisitor::NodePath& np, const Node* node) :
+    PushPopNode(ParentVisitor::NodePath& np, const vsg::Node* node) :
         nodePath(np) { nodePath.push_back(node); }
     ~PushPopNode() { nodePath.pop_back(); }
 };
 
-ParentVisitor::ParentVisitor(const vsg::Node* node) :
-    child(node)
+ParentVisitor::ParentVisitor(const vsg::Node* node) : vsg::ConstVisitor()
+    , child(node)
 {
-
 }
 
-void ParentVisitor::apply(const Node& node)
+void ParentVisitor::apply(const vsg::Node& node)
 {
     PushPopNode ppn(_nodePath, &node);
-
-    node.traverse(*this);
-}
-
-void ParentVisitor::apply(const Group& group)
-{
-    PushPopNode ppn(_nodePath, &group);
-    auto result = std::find(group.children.begin(), group.children.end(), child);
-    if( result != group.children.end() )
+    if(&node == child)
         pathToChild = _nodePath;
-    group.traverse(*this);
+    else
+        node.traverse(*this);
 }
 
-void ParentVisitor::apply(const LOD& lod)
+FindPositionVisitor::FindPositionVisitor(const vsg::Node* node) : ConstSceneObjectsVisitor()
+    , child(node)
 {
-    PushPopNode ppn(_nodePath, &lod);
 
-    for (auto& child : lod.children)
-    {
-        if (child.node)
-        {
-            if (this->child == child.node)
-                pathToChild = _nodePath;
-            child.node->accept(*this);
-        }        
-    }
 }
 
-void ParentVisitor::apply(const PagedLOD& plod)
+void FindPositionVisitor::apply(const SceneTrajectory& traj)
 {
-    PushPopNode ppn(_nodePath, &plod);
-
-    for (auto it = plod.children.begin(); it != plod.children.end(); ++it)
-    {
-        if (it->node)
-        {
-            if (child == it->node)
-                pathToChild = _nodePath;
-           it->node->accept(*this);
-        }
-    }
+    auto it = std::find(traj.traj->getBegin(), traj.traj->getEnd(), child);
+    Q_ASSERT(it != traj.traj->getEnd());
+    position = std::distance(traj.traj->getBegin(), it);
 }
 
-void ParentVisitor::apply(const Switch& sw)
+void FindPositionVisitor::apply(const vsg::Group& group)
 {
-    PushPopNode ppn(_nodePath, &sw);
-
-    for (auto it = sw.children.begin(); it != sw.children.end(); ++it)
-    {
-        if (it->node)
-        {
-            if (child == it->node)
-                pathToChild = _nodePath;
-           it->node->accept(*this);
-        }
-    }
+    auto it = std::find(group.children.cbegin(), group.children.cend(), child);
+    Q_ASSERT(it != group.children.end());
+    position = std::distance(group.children.cbegin(), it);
 }
 
-void ParentVisitor::apply(const CullNode& cn)
+void FindPositionVisitor::apply(const vsg::LOD& lod)
 {
-    PushPopNode ppn(_nodePath, &cn);
-    if( child == cn.child )
-        pathToChild = _nodePath;
-
-    cn.traverse(*this);
+    position = findPosInStruct(lod, child);
 }
+
+void FindPositionVisitor::apply(const vsg::PagedLOD& plod)
+{
+    position = findPosInStruct(plod, child);
+}
+
+void FindPositionVisitor::apply(const vsg::Switch& sw)
+{
+    position = findPosInStruct(sw, child);
+}
+
+void FindPositionVisitor::apply(const vsg::CullNode& cn)
+{
+    position = 0;
+}
+
+

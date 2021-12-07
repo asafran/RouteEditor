@@ -19,8 +19,9 @@ set(SOURCES
 #    src/sorter.ui
 #    src/sorter.h
 #    src/sorter.cpp
-    src/connector.h
-    src/connector.cpp
+#    src/metainf.h
+#    src/metainf.cpp
+    src/typecase.h
     src/MouseHandler.h
     src/MouseHandler.cpp
     src/StartDialog.h
@@ -48,7 +49,15 @@ set(TOOLS
     tools/sceneobjects.cpp
     tools/trackobjects.h
     tools/trackobjects.cpp
+    #tools/connector.h
+    #tools/connector.cpp
+    tools/topology.h
+    tools/topology.cpp
+    tools/trajectory.h
+    tools/trajectory.cpp
     #tools/LambdaVisitor.cpp
+    tools/vehicle-controller.h
+    tools/vehicle-controller.cpp
     tools/LambdaVisitor.h
     tools/ParentVisitor.cpp
     tools/ParentVisitor.h

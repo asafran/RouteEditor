@@ -3,6 +3,8 @@
 
 #include <QFileInfo>
 #include "trackobjects.h"
+#include "trajectory.h"
+#include "LambdaVisitor.h"
 #include <vsg/all.h>
 
 class SceneObject : public vsg::Inherit<vsg::Transform, SceneObject>
@@ -40,8 +42,8 @@ public:
 
     std::string file;
 };
-
-class RailLoader : public vsg::Inherit<vsg::MatrixTransform, RailLoader>
+/*
+class RailLoader : public vsg::Inherit<vsg::Transform, RailLoader>, public TrackSection
 {
 public:
     RailLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, const vsg::dmat4 in_matrix);
@@ -52,9 +54,9 @@ public:
     void read(vsg::Input& input) override;
     void write(vsg::Output& output) const override;
 
-    std::string file;
+    vsg::dmat4 transform(const vsg::dmat4& m) const override { return m * matrix; }
 
-    double inclination = 0.0;
+    std::string file;
 };
 /*
 class SimpleSingleLoader : public vsg::Inherit<vsg::Node, SimpleSingleLoader>
@@ -71,31 +73,68 @@ public:
     std::string file;
 };
 */
-class Trajectory : public vsg::Inherit<SceneObject, Trajectory>
+class SceneTrajectory : public vsg::Inherit<SceneObject, SceneTrajectory>
 {
 public:
-    explicit Trajectory(vsg::ref_ptr<vsg::Node> node, const std::string &name, const vsg::dvec3 &pos = {}, const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
-    explicit Trajectory(const vsg::dvec3 &pos = {}, const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
+    explicit SceneTrajectory(const std::string &name, const vsg::dvec3 &pos = {}, const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
+    explicit SceneTrajectory(const vsg::dvec3 &pos = {}, const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
 
-    virtual ~Trajectory();
+    virtual ~SceneTrajectory();
 
-    void recalculatePositions();
-
-    void addTrack(vsg::ref_ptr<vsg::Node> node, const std::string &name);
-    void removeTrack();
+    //vsg::dmat4 getNextWorldTransform() const { return transform(vsg::dmat4()) * rails.back()->matrix; }
 
     void read(vsg::Input& input) override;
     void write(vsg::Output& output) const override;
+
+    template<class N, class V>
+    static void t_traverse(N& node, V& visitor)
+    {
+        for (auto it = node.traj->getBegin(); it != node.traj->getEnd(); ++it)
+            (*it)->accept(visitor);
+    }
+
+    void accept(vsg::Visitor& visitor) override
+    {
+        if(visitor.is_compatible(typeid (SceneObjectsVisitor)))
+            static_cast<SceneObjectsVisitor&>(visitor).apply(*this);
+        else
+            visitor.apply(*this);
+    }
+    void accept(vsg::ConstVisitor& visitor) const override
+    {
+        if(visitor.is_compatible(typeid (ConstSceneObjectsVisitor)))
+            static_cast<ConstSceneObjectsVisitor&>(visitor).apply(*this);
+        else
+            visitor.apply(*this);
+    }
+
+    void traverse(vsg::Visitor& visitor) override { t_traverse(*this, visitor); }
+    void traverse(vsg::ConstVisitor& visitor) const override { t_traverse(*this, visitor); }
+    void traverse(vsg::RecordTraversal& visitor) const override { t_traverse(*this, visitor); }
 /*
     std::vector<std::string> files;
 
     std::vector<vsg::ref_ptr<vsg::MatrixTransform>> tracks;
 */
-    std::vector<vsg::dmat4> matrixStack; //using vector for easy I/O
-
-    double lenght;
+    Trajectory *traj;
 };
+/*
+class Junction : public vsg::Inherit<SceneObject, Junction>, public Trajectory
+{
+public:
+    explicit Junction(vsg::ref_ptr<vsg::Node> node, const std::string &name, const vsg::dvec3 &pos = {}, const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
+    explicit Junction(const vsg::dvec3 &pos = {}, const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
 
+    virtual ~Junction();
+
+    void read(vsg::Input& input) override;
+    void write(vsg::Output& output) const override;
+
+
+protected:
+
+};
+*/
 template<typename T>
 vsg::t_quat<T> mult(const vsg::t_quat<T>& lhs, const vsg::t_quat<T>& rhs)
 {

@@ -65,3 +65,21 @@ vsg::dmat4 CurvedTrack::transform(double coord) const
     matrix[3][1] = radius * sin(angle);
     return matrix;
 }
+
+LinearInterpolation::LinearInterpolation(vsg::dvec2 first, vsg::dvec2 second)
+{
+    auto t = second - first;
+    lenght = vsg::length(t);
+    orth = vsg::dvec3(t * (1 / lenght), 0.0);
+    begin = vsg::dvec3(first, 0.0);
+    matrix = vsg::rotate(vsg::dquat(vsg::dvec3(0.0, 1.0, 0.0), orth));
+}
+
+LinearInterpolation::LinearInterpolation() {}
+
+LinearInterpolation::~LinearInterpolation() {}
+
+vsg::dmat4 LinearInterpolation::transform(double coord) const
+{
+    return vsg::translate(begin + orth * coord) * matrix;
+}

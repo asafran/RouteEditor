@@ -37,7 +37,7 @@ signals:
     void addRequest(const vsg::dvec3& position, const QModelIndex &index);
     void objectClicked(const QModelIndex &index);
     void sendStatusText(const QString &message, int timeout);
-    void addTrackRequest(const vsg::dvec3 &position, Trajectory *traj);
+    void addTrackRequest(const vsg::dvec3 &position, SceneTrajectory *traj);
 
 protected:
     vsg::ref_ptr<vsg::MatrixTransform> addTerrainPoint(vsg::vec3 pos);
