@@ -3,15 +3,21 @@
 
 #include <QFileInfo>
 #include "trackobjects.h"
-#include "trajectory.h"
+//#include "trajectory.h"
 #include "LambdaVisitor.h"
 #include <vsg/all.h>
+
+class Trajectory;
 
 class SceneObject : public vsg::Inherit<vsg::Transform, SceneObject>
 {
 public:
-    explicit SceneObject(const vsg::dvec3 &pos = {}, const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0});
-    explicit SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos = {}, const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0});
+    SceneObject();
+    SceneObject(const vsg::dvec3 &pos, const vsg::dquat &w_quat);
+    SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos, const vsg::dquat &w_quat);
+    SceneObject(vsg::ref_ptr<vsg::Node> loaded, Trajectory *traj, double coord);
+    SceneObject(Trajectory *traj, double coord);
+
 
     virtual ~SceneObject();
 
@@ -22,11 +28,14 @@ public:
 
     //void setRotation(const vsg::dquat &q);
 
-    vsg::dquat quat;
-    vsg::dvec3 position;
+    vsg::dquat quat = {0.0, 0.0, 0.0, 1.0};
+    vsg::dvec3 position = {};
+
+    Trajectory *trajectory;
+    double trajCoord = 0.0;
 
 protected:
-    vsg::dquat world_quat;
+    vsg::dquat world_quat = {0.0, 0.0, 0.0, 1.0};
 };
 
 class SingleLoader : public vsg::Inherit<SceneObject, SingleLoader>
@@ -72,53 +81,7 @@ public:
 
     std::string file;
 };
-*/
-class SceneTrajectory : public vsg::Inherit<SceneObject, SceneTrajectory>
-{
-public:
-    explicit SceneTrajectory(const std::string &name, const vsg::dvec3 &pos = {}, const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
-    explicit SceneTrajectory(const vsg::dvec3 &pos = {}, const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
 
-    virtual ~SceneTrajectory();
-
-    //vsg::dmat4 getNextWorldTransform() const { return transform(vsg::dmat4()) * rails.back()->matrix; }
-
-    void read(vsg::Input& input) override;
-    void write(vsg::Output& output) const override;
-
-    template<class N, class V>
-    static void t_traverse(N& node, V& visitor)
-    {
-        for (auto it = node.traj->getBegin(); it != node.traj->getEnd(); ++it)
-            (*it)->accept(visitor);
-    }
-
-    void accept(vsg::Visitor& visitor) override
-    {
-        if(visitor.is_compatible(typeid (SceneObjectsVisitor)))
-            static_cast<SceneObjectsVisitor&>(visitor).apply(*this);
-        else
-            visitor.apply(*this);
-    }
-    void accept(vsg::ConstVisitor& visitor) const override
-    {
-        if(visitor.is_compatible(typeid (ConstSceneObjectsVisitor)))
-            static_cast<ConstSceneObjectsVisitor&>(visitor).apply(*this);
-        else
-            visitor.apply(*this);
-    }
-
-    void traverse(vsg::Visitor& visitor) override { t_traverse(*this, visitor); }
-    void traverse(vsg::ConstVisitor& visitor) const override { t_traverse(*this, visitor); }
-    void traverse(vsg::RecordTraversal& visitor) const override { t_traverse(*this, visitor); }
-/*
-    std::vector<std::string> files;
-
-    std::vector<vsg::ref_ptr<vsg::MatrixTransform>> tracks;
-*/
-    Trajectory *traj;
-};
-/*
 class Junction : public vsg::Inherit<SceneObject, Junction>, public Trajectory
 {
 public:

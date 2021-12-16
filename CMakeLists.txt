@@ -21,7 +21,10 @@ set(SOURCES
 #    src/sorter.cpp
 #    src/metainf.h
 #    src/metainf.cpp
-    src/typecase.h
+    src/ObjectPropertiesEditor.h
+    src/ObjectPropertiesEditor.cpp
+    src/ObjectPropertiesEditor.ui
+#    src/typecase.h
     src/MouseHandler.h
     src/MouseHandler.cpp
     src/StartDialog.h
@@ -37,8 +40,8 @@ set(SOURCES
     src/tilessorter.h
     src/TilesVisitor.cpp
     src/TilesVisitor.h
-    src/ObjectModel.h
-    src/ObjectModel.cpp
+    src/TrajectoryModel.h
+    src/TrajectoryModel.cpp
     src/SceneModel.h
     src/SceneModel.cpp
     src/main.cpp
@@ -115,9 +118,9 @@ add_library(tools ${TOOLS})
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_compile_definitions(editor PRIVATE META_NAME="MetaName" META_TRACK="TrackInfo" TILE_PATH="Path" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
+target_compile_definitions(editor PRIVATE META_NAME="MetaName" META_TRACK="TrackInfo" TILE_PATH="Path" TOPOLOGY_KEY="topology" TOPOLOGY_CHILD=1 ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
-target_compile_definitions(tools PRIVATE META_NAME="MetaName" META_TRACK="TrackInfo")
+target_compile_definitions(tools PRIVATE META_NAME="MetaName" META_TRACK="TrackInfo" TOPOLOGY_KEY="topology")
 
 target_link_libraries(tools Qt6::Core)
 

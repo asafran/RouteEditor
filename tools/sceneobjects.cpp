@@ -4,22 +4,37 @@
 #include <QDir>
 #include "topology.h"
 
-SceneObject::SceneObject(const vsg::dvec3& pos, const vsg::dquat& in_quat)
+SceneObject::SceneObject()
     : vsg::Inherit<vsg::Transform, SceneObject>()
-    , quat(0.0, 0.0, 0.0, 1.0)
-    , position(pos)
-    , world_quat(in_quat)
 {
-
 }
-SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos, const vsg::dquat& in_quat)
+
+SceneObject::SceneObject(const vsg::dvec3& pos, const vsg::dquat& w_quat)
     : vsg::Inherit<vsg::Transform, SceneObject>()
-    , quat(0.0, 0.0, 0.0, 1.0)
     , position(pos)
-    , world_quat(in_quat)
+    , world_quat(w_quat)
+{
+}
+
+SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos, const vsg::dquat& w_quat)
+    : SceneObject(pos, w_quat)
 {
     addChild(loaded);
 }
+
+SceneObject::SceneObject(Trajectory *traj, double coord)
+    : vsg::Inherit<vsg::Transform, SceneObject>()
+    , trajectory(traj)
+    , trajCoord(coord)
+{
+}
+
+SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> loaded, Trajectory *traj, double coord)
+    : SceneObject(traj, coord)
+{
+    addChild(loaded);
+}
+
 
 SceneObject::~SceneObject() {}
 
@@ -31,6 +46,10 @@ void SceneObject::read(vsg::Input& input)
     input.read("world_quat", world_quat);
     input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
     input.read("coord", position);
+
+    std::string name;
+    input.read("trajName", name);
+    trajectory = input.options->objectCache->get(TOPOLOGY_KEY).cast<Topology>()->trajectories.at(name);
 /*
     matrix = vsg::translate(pos);
     setRotation(quat);
@@ -48,6 +67,10 @@ void SceneObject::write(vsg::Output& output) const
     //vsg::dvec3 pos = position();
 
     output.write("coord", position);
+
+    std::string name;
+    trajectory->getValue(META_NAME, name);
+    output.write("trajName", name);
 }
 /*
 void SceneObject::setRotation(const vsg::dquat& q)
@@ -66,6 +89,8 @@ vsg::dmat4 SceneObject::transform(const vsg::dmat4& m) const
     matrix[3][0] = position[0];
     matrix[3][1] = position[1];
     matrix[3][2] = position[2];
+    if(trajectory != nullptr)
+        return m * trajectory->transform(trajectory->getPosition(trajectory->getLength())) * matrix;
     return m * matrix;
 }
 
@@ -146,7 +171,7 @@ void RailLoader::write(vsg::Output& output) const
     output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
     output.write("incl", inclination);
 }
-*/
+
 SceneTrajectory::SceneTrajectory(const vsg::dvec3 &pos, const vsg::dquat &quat)
     : vsg::Inherit<SceneObject, SceneTrajectory>(pos, quat)
 {
@@ -154,19 +179,24 @@ SceneTrajectory::SceneTrajectory(const vsg::dvec3 &pos, const vsg::dquat &quat)
     group->setValue(META_NAME, "Пути");
     addChild(group);
 }
-SceneTrajectory::SceneTrajectory(const std::string &name, const vsg::dvec3 &pos, const vsg::dquat &quat)
+SceneTrajectory::SceneTrajectory(Trajectory *trajectory, const vsg::dvec3 &pos, const vsg::dquat &quat)
     : SceneTrajectory(pos, quat)
 {
-    traj = Topology::s_Topology->trajectories.at(name);
+    traj = trajectory;
 }
 
 SceneTrajectory::~SceneTrajectory() {}
 
 void SceneTrajectory::read(vsg::Input& input)
 {
-    SceneObject::read(input);
+    Node::read(input);
 
-    /*
+    std::string name;
+    input.read("trajName", name);
+
+    traj = input.options->objectCache->get(TOPOLOGY_KEY).cast<Topology>()->trajectories.at(name);
+
+
     //input.read("files", files);
 
     vsg::dmat4 matrix;
@@ -183,17 +213,20 @@ void SceneTrajectory::read(vsg::Input& input)
         track->ltw = vsg::inverse(vsg::translate(position)) * vsg::inverse(matrix);
         matrix = vsg::translate(track->position(track->lenght)) * matrix;
     }
-    */
+
 }
 
 void SceneTrajectory::write(vsg::Output& output) const
 {
-    SceneObject::write(output);
+    Node::write(output);
 
+    std::string name;
+    traj->getValue(META_NAME, name);
+    output.write("trajName", name);
 
     //output.write("files", files);
 }
-/*
+
 Junction::Junction(const vsg::dvec3 &pos, const vsg::dquat &quat)
     : vsg::Inherit<SceneObject, Junction>(pos, quat)
     , matrixStack(1)

@@ -24,17 +24,20 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
 
     constructWidgets();
 
-    database.reset(new DatabaseManager(routePath, undoStack, builder, fsmodel));
+    auto fsmodel = new QFileSystemModel(this);
+    ui->fileView->setModel(fsmodel);
+    ui->fileView->setRootIndex(fsmodel->setRootPath(qgetenv("RRS2_ROOT") + QDir::separator().toLatin1() + "objects"));
+
+    database = new DatabaseManager(routePath, undoStack, builder, fsmodel, this);
     sorter->setSourceModel(database->getTilesModel());
     scene->addChild(database->getDatabase());
 
-    connect(sorter, &TilesSorter::selectionChanged, database.get(), &DatabaseManager::activeGroupChanged);
-    connect(ui->fileView->selectionModel(), &QItemSelectionModel::selectionChanged, database.get(), &DatabaseManager::activeFileChanged);
+    connect(sorter, &TilesSorter::selectionChanged, database, &DatabaseManager::activeGroupChanged);
+    connect(ui->fileView->selectionModel(), &QItemSelectionModel::selectionChanged, database, &DatabaseManager::activeFileChanged);
 
     undoView = new QUndoView(undoStack, ui->tabWidget);
     ui->tabWidget->addTab(undoView, tr("Действия"));
 
-    connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openRoute);
     connect(ui->addObjectButt, &QPushButton::pressed, this, &MainWindow::addObject);
 
     connect(ui->actionUndo, &QAction::triggered, undoStack, &QUndoStack::undo);
@@ -52,18 +55,23 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
 }
 QWindow* MainWindow::initilizeVSGwindow()
 {
-    options = vsg::Options::create();
+    auto options = vsg::Options::create();
     options->fileCache = vsg::getEnv("RRS2_CACHE");
     options->paths = vsg::getEnvPaths("RRS2_ROOT");
 
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());
+    options->objectCache = vsg::ObjectCache::create();
 
     vsg::RegisterWithObjectFactoryProxy<SceneObject>();
     vsg::RegisterWithObjectFactoryProxy<SingleLoader>();
     vsg::RegisterWithObjectFactoryProxy<StraitTrack>();
     vsg::RegisterWithObjectFactoryProxy<CurvedTrack>();
     vsg::RegisterWithObjectFactoryProxy<SceneTrajectory>();
+    vsg::RegisterWithObjectFactoryProxy<TrackSection>();
+    vsg::RegisterWithObjectFactoryProxy<Topology>();
+    vsg::RegisterWithObjectFactoryProxy<Trajectory>();
+    //vsg::RegisterWithObjectFactoryProxy<>();
 
     builder = vsg::Builder::create();
     builder->options = options;
@@ -82,7 +90,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     viewerWindow->viewer = vsg::Viewer::create();
 
     // provide the calls to set up the vsg::Viewer that will be used to render to the QWindow subclass vsgQt::ViewerWindow
-    viewerWindow->initializeCallback = [&, this](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
+    viewerWindow->initializeCallback = [&, this, options](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
 
         auto& window = vw.windowAdapter;
         if (!window) return false;
@@ -161,12 +169,12 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         manipulator->setPager(viewer->recordAndSubmitTasks.front()->databasePager);
 
-        connect(ui->loaderButton, &QPushButton::toggled, database.get(), &DatabaseManager::loaderButton);
+        connect(ui->loaderButton, &QPushButton::toggled, database, &DatabaseManager::loaderButton);
 
         connect(sorter, &TilesSorter::selectionChanged, objectModel, &ObjectModel::selectObject);
 
         connect(ui->modeBox, &QComboBox::currentIndexChanged, manipulator, &Manipulator::setMode);
-        connect(ui->actionSave, &QAction::triggered, database.get(), &DatabaseManager::writeTiles);
+        connect(ui->actionSave, &QAction::triggered, database, &DatabaseManager::writeTiles);
 
         connect(manipulator.get(), &Manipulator::objectClicked, sorter, &TilesSorter::select);
         connect(manipulator.get(), &Manipulator::expand, sorter, &TilesSorter::expand);
@@ -191,8 +199,8 @@ QWindow* MainWindow::initilizeVSGwindow()
             manipulator->setLatLongAlt(vsg::dvec3(ui->cursorLat->value(), ui->cursorLon->value(), value));
         });
 
-        connect(manipulator.get(), &Manipulator::addRequest, database.get(), &DatabaseManager::addObject);
-        connect(manipulator.get(), &Manipulator::addTrackRequest, database.get(), &DatabaseManager::addTrack);
+        connect(manipulator.get(), &Manipulator::addRequest, database, &DatabaseManager::addObject);
+        connect(manipulator.get(), &Manipulator::addTrackRequest, database, &DatabaseManager::addTrack);
         connect(sorter, &TilesSorter::doubleClicked, manipulator, &Manipulator::selectObject);
 
         return true;
@@ -244,6 +252,7 @@ void MainWindow::addObject()
         msgBox.exec();
     }
 }
+/*
 DatabaseManager *MainWindow::openDialog()
 {
     if (const auto file = QFileDialog::getOpenFileName(this, tr("Открыть базу данных"), qgetenv("RRS2_ROOT") + QDir::separator().toLatin1() + "routes"); !file.isEmpty())
@@ -276,7 +285,7 @@ void MainWindow::openRoute()
         viewerWindow->initializeCallback(*viewerWindow, embedded->width(), embedded->height());
     }
 }
-/*
+
 void MainWindow::receiveData(vsg::ref_ptr<vsg::Data> buffer, vsg::ref_ptr<vsg::BufferInfo> info)
 {
     copyBufferCmd->copy(buffer, info);
@@ -290,10 +299,6 @@ void MainWindow::pushCommand(QUndoCommand *command)
 void MainWindow::constructWidgets()
 {
     embedded = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
-
-    auto model = new QFileSystemModel(this);
-    ui->fileView->setModel(model);
-    ui->fileView->setRootIndex(model->setRootPath(qgetenv("RRS2_ROOT") + QDir::separator().toLatin1() + "objects"));
 
     sorter = new TilesSorter(this);
     //sorter->setSourceModel();

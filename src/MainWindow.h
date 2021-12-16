@@ -27,7 +27,7 @@ public:
 public slots:
 //    void addToRoot(vsg::ref_ptr<vsg::Node> node);
 //    void setTilesModel(SceneModel *model);
-    void openRoute();
+//    void openRoute();
     void addObject();
     void pushCommand(QUndoCommand *command);
     //void receiveData(vsg::ref_ptr<vsg::Data> buffer, vsg::ref_ptr<vsg::BufferInfo> info);
@@ -38,18 +38,18 @@ private:
 
     void constructWidgets();
 
-    DatabaseManager *openDialog();
+    //DatabaseManager *openDialog();
 
     Ui::MainWindow *ui;
     vsg::ref_ptr<vsg::Group> scene;
-    vsg::ref_ptr<vsg::Options> options;
+    //vsg::ref_ptr<vsg::Options> options;
     vsg::ref_ptr<vsg::Builder> builder;
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;
-    QScopedPointer<DatabaseManager> database;
+    DatabaseManager *database;
     //vsg::ref_ptr<Manipulator> manipulator;
 
-    QFileSystemModel *fsmodel;
+    //QFileSystemModel *fsmodel;
     TilesSorter *sorter;
 
     QUndoStack *undoStack;

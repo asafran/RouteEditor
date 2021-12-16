@@ -1,7 +1,7 @@
 #ifndef SCENEMODEL_H
 #define SCENEMODEL_H
 
-#include "ObjectModel.h"
+#include "TrajectoryModel.h"
 #include <QUndoStack>
 #include "sceneobjects.h"
 
@@ -53,7 +53,7 @@ public:
         endInsertRows();
     }
 
-    int addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> node);
+    int addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loaded);
     QModelIndex removeNode(const QModelIndex &index);
     void removeNode(const QModelIndex &parent, const QModelIndex &index);
     //void removeNode(vsg::ref_ptr<vsg::Node> node);

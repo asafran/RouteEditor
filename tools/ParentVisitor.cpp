@@ -39,19 +39,19 @@ void ParentVisitor::apply(const vsg::Node& node)
         node.traverse(*this);
 }
 
-FindPositionVisitor::FindPositionVisitor(const vsg::Node* node) : ConstSceneObjectsVisitor()
+FindPositionVisitor::FindPositionVisitor(const vsg::Node* node) : vsg::ConstVisitor()//ConstSceneObjectsVisitor()
     , child(node)
 {
 
 }
-
-void FindPositionVisitor::apply(const SceneTrajectory& traj)
+/*
+void FindPositionVisitor::apply(const SectionTrajectory &traj)
 {
     auto it = std::find(traj.traj->getBegin(), traj.traj->getEnd(), child);
     Q_ASSERT(it != traj.traj->getEnd());
     position = std::distance(traj.traj->getBegin(), it);
 }
-
+*/
 void FindPositionVisitor::apply(const vsg::Group& group)
 {
     auto it = std::find(group.children.cbegin(), group.children.cend(), child);

@@ -60,7 +60,7 @@ public:
     }
 };
 */
-class FindPositionVisitor : public ConstSceneObjectsVisitor
+class FindPositionVisitor : public vsg::ConstVisitor//ConstSceneObjectsVisitor
 {
 public:
     int position = 0;
@@ -69,7 +69,7 @@ public:
 
 
     //void apply(const vsg::Node& node) override;
-    void apply(const SceneTrajectory& traj) override;
+    //void apply(const SectionTrajectory& traj) override;
     void apply(const vsg::Switch& sw) override;
     void apply(const vsg::Group& group) override;
     void apply(const vsg::LOD& lod) override;

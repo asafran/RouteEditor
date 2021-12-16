@@ -129,7 +129,7 @@ void MouseHandler::handleIntersection(vsg::LineSegmentIntersector::Intersections
     case ADDTRACK:
     {
         if(auto traj = std::find_if(front.nodePath.begin(), front.nodePath.end(), isCompatible<SceneTrajectory>); traj != front.nodePath.end())
-            emit addTrackRequest(front.worldIntersection, const_cast<SceneTrajectory*>((*traj)->cast<SceneTrajectory>()));
+            emit addTrackRequest(const_cast<SceneTrajectory*>((*traj)->cast<SceneTrajectory>()), 0.0);
         else if(auto tile = lowTile(front, database->frameCount); tile)
             emit addRequest(front.worldIntersection, tilesModel->index(tile->children.at(5)));
         break;

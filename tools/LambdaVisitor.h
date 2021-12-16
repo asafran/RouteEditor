@@ -6,7 +6,7 @@
 
 
 class SceneObject;
-class SceneTrajectory;
+class SectionTrajectory;
 
 template<typename F1, typename C1>
 class LambdaVisitor : public vsg::Visitor
@@ -77,16 +77,16 @@ public:
 class SceneObjectsVisitor : public vsg::Visitor
 {
 public:
-    SceneObjectsVisitor(std::function<void(SceneTrajectory&)> trajF = 0,
+    SceneObjectsVisitor(std::function<void(SectionTrajectory&)> trajF = 0,
                         std::function<void(SceneObject&)> objectF = 0)
         : _trajFunction(trajF)
         , _objectFunction(objectF)
     {}
 
-    std::function<void(SceneTrajectory&)> _trajFunction;
+    std::function<void(SectionTrajectory&)> _trajFunction;
     std::function<void(SceneObject&)> _objectFunction;
 
-    void apply(SceneTrajectory& traj)
+    void apply(SectionTrajectory& traj)
     {
         if (_trajFunction)
             _trajFunction(traj);
@@ -98,76 +98,80 @@ public:
             _objectFunction(object);
     }
 };
+
 class ConstSceneObjectsVisitor : public vsg::ConstVisitor
 {
 public:
-    ConstSceneObjectsVisitor(std::function<void(const SceneTrajectory&)> trajF = 0,
+    ConstSceneObjectsVisitor(std::function<void(const SectionTrajectory&)> trajF = 0,
                         std::function<void(const SceneObject&)> objectF = 0)
         : _trajFunction(trajF)
         , _objectFunction(objectF)
     {}
 
-    std::function<void(const SceneTrajectory&)> _trajFunction;
+    std::function<void(const SectionTrajectory&)> _trajFunction;
     std::function<void(const SceneObject&)> _objectFunction;
 
-    virtual void apply(const SceneTrajectory& traj)
+    void apply(const SectionTrajectory& traj)
     {
         if (_trajFunction)
             _trajFunction(traj);
     }
 
-    virtual void apply(const SceneObject& object)
+    void apply(const SceneObject& object)
     {
         if (_objectFunction)
             _objectFunction(object);
     }
 };
 
-template<typename F1, typename F2, typename F3> //template for auto& lambda
-class FunctionVisitor : public SceneObjectsVisitor
+//template<typename F1> //template for auto& lambda
+class FunctionVisitor : public vsg::Visitor
 {
 public:
-    FunctionVisitor(F1 autoF, F2 groupF, F3 plodF,
-                    std::function<void(SceneTrajectory&)> trajF = 0,
-                    std::function<void(SceneObject&)> objectF = 0)
-        : SceneObjectsVisitor(trajF, objectF)
-        , _autoFunction(autoF)
+    explicit FunctionVisitor(
+                    std::function<void(vsg::Group&)> groupF = 0,
+                    std::function<void(vsg::Switch&)> swF = 0,
+                    std::function<void(vsg::LOD&)> lodF = 0)
+                    //std::function<void(SectionTrajectory&)> trajF = 0,
+                    //std::function<void(SceneObject&)> objectF = 0)
+        //: SceneObjectsVisitor(trajF, objectF)
+        : vsg::Visitor()
         , _groupFunction(groupF)
-        , _plodFunction(plodF)
+        , _swFunction(swF)
+        , _lodFunction(lodF)
     {}
 
-    F1 _autoFunction;
-    F2 _groupFunction;
-    F3 _plodFunction;
+    std::function<void(vsg::Group&)> _groupFunction;
+    std::function<void(vsg::Switch&)> _swFunction;
+    std::function<void(vsg::LOD&)> _lodFunction;
 
     //using vsg::Visitor::apply;
 
     void apply(vsg::Group& group) override
     {
-        _groupFunction(group);
-    }
-
-    void apply(vsg::PagedLOD& plod) override
-    {
-        _plodFunction(plod);
+        if(_groupFunction)
+            _groupFunction(group);
     }
     void apply(vsg::Switch& sw) override
     {
-        _autoFunction(sw);
+        if(_swFunction)
+            _swFunction(sw);
     }
     void apply(vsg::LOD& lod) override
     {
-        _autoFunction(lod);
+        if(_lodFunction)
+            _lodFunction(lod);
     }
 };
 template<typename F1> //template for auto& lambda
-class CFunctionVisitor : public ConstSceneObjectsVisitor
+class CFunctionVisitor : public vsg::ConstVisitor//: public ConstSceneObjectsVisitor
 {
 public:
     CFunctionVisitor(F1 autoF,
-                    std::function<void(const vsg::Group&)> groupF,
-                    std::function<void(const SceneTrajectory&)> trajF = 0)
-        : ConstSceneObjectsVisitor(trajF)
+                    std::function<void(const vsg::Group&)> groupF)
+                    //std::function<void(const SectionTrajectory&)> trajF = 0)
+        //: ConstSceneObjectsVisitor(trajF)
+        : vsg::ConstVisitor()
         , _autoFunction(autoF)
         , _groupFunction(groupF)
     {}

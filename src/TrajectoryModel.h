@@ -1,5 +1,5 @@
-#ifndef SCENEOBJECT_H
-#define SCENEOBJECT_H
+#ifndef TRAJMODEL_H
+#define TRAJMODEL_H
 
 #include <QAbstractItemModel>
 #include <QItemSelectionModel>
@@ -8,12 +8,13 @@
 #include <QUndoStack>
 
 
-class ObjectModel : public QAbstractTableModel
+class TrajectoryModel : public QAbstractTableModel
 {
     Q_OBJECT
 public:
+    explicit TrajectoryModel(QUndoStack *stack, QObject* parent = 0);
 
-    ObjectModel(vsg::ref_ptr<vsg::EllipsoidModel> ellipsoid, QUndoStack *stack, QObject* parent = 0);
+    ~TrajectoryModel();
 
     int rowCount ( const QModelIndex & parent = QModelIndex() ) const;
     int columnCount ( const QModelIndex & parent = QModelIndex() ) const;
@@ -39,23 +40,13 @@ private:
     //vsg::dmat4 rotate(double yaw, double pitch, double roll);
     enum Properties
     {
-        NAME = 0,
-        COORD_ECEFX = 1,
-        COORD_ECEFY = 2,
-        COORD_ECEFZ = 3,
-        COORDX = 4,
-        COORDY = 5,
-        COORDZ = 6,
-        ROTATEX = 7,
-        ROTATEY = 8,
-        ROTATEZ = 9,
-        //SHADER = 11,
-        //ANIMATION = 12,
-        ROW_COUNT = 10
+        INCLINATION,
+        SUPERELEVATION,
+        VIBRATION,
+        COLUMN_COUNT
     };
-    vsg::ref_ptr<SceneObject> selectedObject;
-    vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel;
+    vsg::ref_ptr<Trajectory> selectedObject;
     QUndoStack *undoStack;
 };
 
-#endif // SCENEOBJECT_H
+#endif // TRAJMODEL_H

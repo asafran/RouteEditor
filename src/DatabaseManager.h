@@ -10,6 +10,8 @@
 #include <QFileSystemModel>
 #include <vsgXchange/all.h>
 
+class Topology;
+
 class DatabaseException : public QException
 {
 public:
@@ -24,6 +26,8 @@ private:
     QString err_path;
 };
 
+
+
 class DatabaseManager : public QObject
 {
     Q_OBJECT
@@ -34,20 +38,7 @@ public:
     vsg::ref_ptr<vsg::Node> getDatabase() const noexcept { return database; }
     SceneModel *getTilesModel() noexcept { return tilesModel; }
 
-    vsg::ref_ptr<vsg::Node> read(const QString &path) const;
-
-public slots:
-    void writeTiles() noexcept;
-    void addObject(vsg::dvec3 position, const QModelIndex &index) noexcept;
-    void addTrack(vsg::dvec3 position, SceneTrajectory *traj) noexcept;
-    void activeGroupChanged(const QModelIndex &index) noexcept;
-    void activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept;
-    void loaderButton(bool checked) noexcept;
-signals:
-    void sendStatusText(const QString &message, int timeout);
-
-
-private:
+    //vsg::ref_ptr<vsg::Node> read(const QString &path) const;
 
     enum ObjectType
     {
@@ -55,7 +46,6 @@ private:
         Trk,
         TrkObj
     };
-
     struct Loaded
     {
         QString path = "";
@@ -64,9 +54,26 @@ private:
         explicit operator bool() { return node.valid(); }
     };
 
+public slots:
+    void writeTiles() noexcept;
+    void addObject(vsg::dvec3 position, const QModelIndex &index) noexcept;
+    void addTrack(SceneTrajectory *traj, double position = 0.0) noexcept;
+    void activeGroupChanged(const QModelIndex &index) noexcept;
+    void activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept;
+    void loaderButton(bool checked) noexcept;
+signals:
+    void sendStatusText(const QString &message, int timeout);
+
+private:
+
     QPair<QString, vsg::ref_ptr<vsg::Node>> concurrentRead(const QString &path);
 
-    vsg::ref_ptr<vsg::Node> database;
+    Trajectory *createTrajectory(const Loaded &loaded, Trajectory *prev = nullptr);
+
+    vsg::ref_ptr<vsg::Group> database;
+    std::string databasePath;
+
+    vsg::ref_ptr<Topology> topology;
 
     vsg::ref_ptr<vsg::Builder> builder;
 

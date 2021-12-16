@@ -37,6 +37,11 @@ vsg::dmat4 StraitTrack::transform(double coord) const
                       0, coord, 0, 1);
 }
 
+double StraitTrack::coord(vsg::dvec3 point) const
+{
+    return point.y;
+}
+
 CurvedTrack::CurvedTrack()
     : vsg::Inherit<Track, CurvedTrack>()
 {
@@ -64,6 +69,11 @@ vsg::dmat4 CurvedTrack::transform(double coord) const
     matrix[3][0] = -radius * (cos(angle) - 1);
     matrix[3][1] = radius * sin(angle);
     return matrix;
+}
+
+double CurvedTrack::coord(vsg::dvec3 point) const
+{
+    return asin(point.y / radius) * radius;
 }
 
 LinearInterpolation::LinearInterpolation(vsg::dvec2 first, vsg::dvec2 second)

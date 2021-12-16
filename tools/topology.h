@@ -15,13 +15,32 @@ public:
 
     QMap<std::string, Trajectory> trajectories;
 };
+
+class Topology;
+
+class TopologySingleton
+{
+private:
+    TopologySingleton() {}
+    TopologySingleton(const TopologySingleton&);
+    TopologySingleton& operator=(const TopologySingleton&);
+
+public:
+    vsg::ref_ptr<Topology> _ptr;
+    static TopologySingleton& instance(){ static TopologySingleton g_Instance; return g_Instance; }
+    static Topology* topology(){ static TopologySingleton g_Instance; return g_Instance._ptr; }
+};
 */
+using Trajectories = std::map<std::string, vsg::ref_ptr<Trajectory>>;
+
 class Topology : public vsg::Inherit<vsg::Node, Topology>
 {
 public:
     Topology();
 
     virtual ~Topology();
+
+    Trajectories::iterator insertTraj(vsg::ref_ptr<Trajectory> traj);
 
     void read(vsg::Input& input) override;
     void write(vsg::Output& output) const override;
@@ -39,12 +58,10 @@ public:
 
     //void bindTrajs();
 
-    std::map<std::string, vsg::ref_ptr<Trajectory>> trajectories;
+    Trajectories trajectories;
     //std::map<std::string, vsg::ref_ptr<Junction>> junctions;
     //std::map<std::string, AnimatedTrackside> trackside;
     //std::map<std::string, Signal> signal;
-
-    static Topology* s_Topology;
 
 protected:
 

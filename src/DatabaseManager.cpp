@@ -2,26 +2,49 @@
 #include "LambdaVisitor.h"
 #include "vsgGIS/TileDatabase.h"
 #include <QtConcurrent/QtConcurrent>
+#include <QInputDialog>
 #include "TilesVisitor.h"
 #include "undo-redo.h"
+#include "topology.h"
 
 DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, QFileSystemModel *model, QObject *parent) : QObject(parent)
-  , database(vsg::Group::create())
+  , databasePath(path.toStdString())
   , builder(in_builder)
   , fsmodel(model)
   , modelsDir(vsg::getEnvPaths("RRS2_ROOT").begin()->c_str())
   , undoStack(stack)
 {
+    database = vsg::read_cast<vsg::Group>(databasePath, builder->options);
+    if (!database)
+        throw (DatabaseException(path));
+
+    try {
+        topology = database->children.at(TOPOLOGY_CHILD).cast<Topology>();
+    }  catch (std::out_of_range) {
+        topology = Topology::create();
+        database->addChild(topology);
+    }
+    builder->options->objectCache->add(topology, TOPOLOGY_KEY);
+
     QFileInfo directory(path);
     QStringList filter("*subtile.vsg*");
     QStringList tileFiles;
     QDirIterator it(directory.absolutePath(), filter, QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
     while (it.hasNext())
         tileFiles << it.next();
-    std::function<QPair<QString, vsg::ref_ptr<vsg::Node>>(const QString &path)> load = [this](const QString &path)
+    std::function<QPair<QString, vsg::ref_ptr<vsg::Node>>(const QString &tilepath)> load = [in_builder](const QString &tilepath)
     {
-        QFileInfo info(path);
-        return qMakePair(info.fileName(), read(path));
+        QFileInfo info(tilepath);
+        try {
+            auto tile = vsg::read_cast<vsg::Node>(tilepath.toStdString(), in_builder->options);
+            if (tile)
+                return qMakePair(info.fileName(), tile);
+            else
+                throw (DatabaseException(tilepath));
+        }  catch (std::out_of_range) {
+            throw (DatabaseException (tilepath));
+        }
+
     };
     std::function reduce = [](QMap<QString, vsg::ref_ptr<vsg::Node>> &map, const QPair<QString, vsg::ref_ptr<vsg::Node>> &node)
     {
@@ -30,7 +53,6 @@ DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::re
     QFuture<QMap<QString, vsg::ref_ptr<vsg::Node>>> future = QtConcurrent::mappedReduced(tileFiles, load, reduce, QtConcurrent::UnorderedReduce);
     future.waitForFinished();
 
-    database = read(path);
     LoadTiles lt(future.result());
     database->accept(lt);
     tilesModel = new SceneModel(lt.tiles, builder, stack, this);
@@ -38,7 +60,7 @@ DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::re
 DatabaseManager::~DatabaseManager()
 {
 }
-
+/*
 vsg::ref_ptr<vsg::Node> DatabaseManager::read(const QString &path) const
 {
     auto tile = vsg::read_cast<vsg::Node>(path.toStdString(), builder->options);
@@ -49,7 +71,7 @@ vsg::ref_ptr<vsg::Node> DatabaseManager::read(const QString &path) const
     } else
         throw (DatabaseException(path));
 }
-
+*/
 void DatabaseManager::addObject(vsg::dvec3 position, const QModelIndex &index) noexcept
 {
 
@@ -65,7 +87,12 @@ void DatabaseManager::addObject(vsg::dvec3 position, const QModelIndex &index) n
     if(static_cast<vsg::Node*>(readindex.internalPointer())->is_compatible(typeid (SceneObject)))
         position = vsg::dvec3();
     if (loaded.type == Trk)
-        ;//obj = SceneTrajectory::create(loaded.node, loaded.path.toStdString(), position, quat);
+    {
+        if(auto trj = createTrajectory(loaded); trj != nullptr)
+            obj = SceneTrajectory::create(trj, position, quat);
+        else
+            return;
+    }
     else if(placeLoader)
         obj = SingleLoader::create(loaded.node, modelsDir.relativeFilePath(loaded.path).toStdString(), position, quat);
     else
@@ -73,7 +100,7 @@ void DatabaseManager::addObject(vsg::dvec3 position, const QModelIndex &index) n
     undoStack->push(new AddNode(tilesModel, readindex, obj));
 }
 
-void DatabaseManager::addTrack(vsg::dvec3 position, SceneTrajectory *traj) noexcept
+void DatabaseManager::addTrack(SceneTrajectory *traj, double position) noexcept
 {
     switch (loaded.type) {
     case Obj:
@@ -82,24 +109,10 @@ void DatabaseManager::addTrack(vsg::dvec3 position, SceneTrajectory *traj) noexc
     }
     case Trk:
     {
-        /*
-        auto layout = vsg::StandardLayout::create();
-                    layout->glyphLayout = vsg::StandardLayout::RIGHT_TO_LEFT_LAYOUT;
-                    layout->position = vsg::vec3(13.0, 0.0, 2.0);
-                    layout->horizontal = vsg::vec3(0.5, 0.0, 0.0);
-                    layout->vertical = vsg::vec3(0.0, 0.0, 0.5);
-                    layout->color = vsg::vec4(0.0, 0.0, 1.0, 1.0);
-
-                    auto text = vsg::Text::create();
-                    text->text = vsg::stringValue::create("RIGHT_TO_LEFT_LAYOUT");
-                    text->font = vsg::read_cast<vsg::Font>("/home/asafr/Development/vsg/vsgExamples/data/fonts/times.vsgb", builder->options);
-                    text->font->options = builder->options;
-                    text->layout = layout;
-                    text->setup();
-                    builder->compile(text);
-                    traj->addChild(text);
-                    */
-        undoStack->push(new AddTrack(traj, loaded.node, loaded.path));
+        if(position == 0.0)
+            undoStack->push(new AddTrack(traj->traj, loaded));
+        else
+            createTrajectory(loaded, traj->traj);
         break;
     }
     case TrkObj:
@@ -107,6 +120,30 @@ void DatabaseManager::addTrack(vsg::dvec3 position, SceneTrajectory *traj) noexc
         break;
     }
     }
+}
+
+Trajectory *DatabaseManager::createTrajectory(const Loaded &loaded, Trajectory *prev)
+{
+    bool ok;
+    QString name = QInputDialog::getText(qobject_cast<QWidget*>(parent()) , tr("Имя новой траектории"),
+                                         tr("Имя:"), QLineEdit::Normal, "", &ok);
+    if (ok && !name.isEmpty())
+    {
+        while (topology->trajectories.find(name.toStdString()) != topology->trajectories.end())
+        {
+            name = QInputDialog::getText(qobject_cast<QWidget*>(parent()) , tr("Имя новой траектории"),
+                                                 tr("Уже использовано, введите другое:"), QLineEdit::Normal, "", &ok);
+            if(!ok)
+                return nullptr;
+        }
+        undoStack->beginMacro(tr("Добавлена траектория %1").arg(name));
+        auto cmd = new AddTrajectory(topology, name.toStdString(), prev);
+        undoStack->push(cmd);
+        undoStack->push(new AddTrack(cmd->_traj, loaded));
+        undoStack->endMacro();
+        return cmd->_traj;
+    }
+    return nullptr;
 }
 
 void DatabaseManager::activeGroupChanged(const QModelIndex &index) noexcept
@@ -158,6 +195,7 @@ void DatabaseManager::writeTiles() noexcept
     };
     LambdaVisitor<decltype (removeBounds), vsg::VertexIndexDraw> lv(removeBounds);
     tilesModel->getRoot()->accept(lv);
+    vsg::write(database, databasePath, builder->options);
     try {
         QFuture<void> future = QtConcurrent::map(tilesModel->getRoot()->children, write);
         future.waitForFinished();

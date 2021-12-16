@@ -14,6 +14,7 @@ public:
     void write(vsg::Output& output) const override;
 
     virtual vsg::dmat4 transform(double coord) const = 0;
+    virtual double coord(vsg::dvec3 point) const = 0;
     //virtual vsg::dquat rotation(double coord) const = 0;
 
     double lenght;
@@ -29,6 +30,7 @@ public:
     virtual ~StraitTrack();
 
     vsg::dmat4 transform(double coord) const override;
+    double coord(vsg::dvec3 point) const override;
     //vsg::dquat rotation(double coord) const override;
 };
 
@@ -43,6 +45,7 @@ public:
     void write(vsg::Output& output) const override;
 
     vsg::dmat4 transform(double coord) const override;
+    double coord(vsg::dvec3 point) const override;
     //vsg::dquat rotation(double coord) const override;
 
     double radius;
@@ -57,6 +60,7 @@ public:
     ~LinearInterpolation();
 
     vsg::dmat4 transform(double coord) const override;
+    double coord(vsg::dvec3 point) const override;
 
     vsg::dvec3 begin = {};
     vsg::dvec3 orth = {};

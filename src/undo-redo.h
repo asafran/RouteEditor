@@ -2,6 +2,8 @@
 #define UNDO_H
 
 #include "SceneModel.h"
+#include "topology.h"
+#include "DatabaseManager.h"
 
 class AddNode : public QUndoCommand
 {
@@ -54,7 +56,7 @@ public:
     }
     void redo() override
     {
-        _model->removeNode(_index);
+        _model->removeNode(_group, _index);
     }
 private:
     SceneModel *_model;
@@ -115,13 +117,12 @@ private:
     const std::string _newName;
 
 };
-/*
+
 class ChangeIncl : public QUndoCommand
 {
 public:
-    ChangeIncl(SceneTrajectory *traj, RailLoader *rail, double incl, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    ChangeIncl(TrackSection *rail, double incl, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _rail(rail)
-        , _traj(traj)
         , _oldIncl(rail->inclination)
         , _newIncl(incl)
     {
@@ -130,21 +131,20 @@ public:
     void undo() override
     {
         _rail->inclination = _oldIncl;
-        _traj->recalculatePositions();
+        _rail->traj->recalculatePositions();
     }
     void redo() override
     {
         _rail->inclination = _newIncl;
-        _traj->recalculatePositions();
+        _rail->traj->recalculatePositions();
     }
 private:
-    vsg::ref_ptr<RailLoader> _rail;
-    vsg::ref_ptr<SceneTrajectory> _traj;
+    TrackSection *_rail;
     const double _oldIncl;
     const double _newIncl;
 
 };
-*/
+
 class RotateObject : public QUndoCommand
 {
 public:
@@ -203,27 +203,98 @@ private:
 class AddTrack : public QUndoCommand
 {
 public:
-    AddTrack(SceneTrajectory *traj, vsg::ref_ptr<vsg::Node> node, QString name, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddTrack(Trajectory *traj, const DatabaseManager::Loaded &loaded, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _traj(traj)
-        , _name(name)
-        , _node(node)
+        , _loaded(loaded)
     {
-        setText(QObject::tr("Добавлен участок пути %1").arg(name));
+        setText(QObject::tr("Добавлен участок пути %1").arg(loaded.path));
     }
     void undo() override
     {
-        //_traj->removeTrack();
+        _traj->removeTrack();
     }
     void redo() override
     {
-        //_traj->addTrack(_node, _name.toStdString());
+        _traj->addTrack(_loaded.node, _loaded.path.toStdString());
     }
 private:
-    SceneTrajectory *_traj;
-    QString _name;
-    vsg::ref_ptr<vsg::Node> _node;
+    Trajectory *_traj;
+    const DatabaseManager::Loaded _loaded;
 
+};
 
+class AddTrajectory : public QUndoCommand
+{
+public:
+    AddTrajectory(Topology *topology, std::string name, Trajectory *prev = nullptr, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _topo(topology)
+        , _prev(prev)
+        , _traj(Trajectory::create(name))
+    {
+        setText(QObject::tr("Добавлена траектория %1").arg(name.c_str()));
+    }
+    void undo() override
+    {
+        if(_traj->bwdTraj != nullptr)
+            _traj->bwdTraj = nullptr;
+        if(_traj->fwdTraj != nullptr)
+            _traj->fwdTraj = nullptr;
+        _topo->trajectories.erase(it);
+    }
+    void redo() override
+    {
+        if(_prev != nullptr)
+        {
+            _prev->fwdTraj = _traj;
+            _traj->bwdTraj = _prev;
+        }
+        it = _topo->insertTraj(_traj);
+    }
+    const vsg::ref_ptr<Trajectory> _traj;
+
+private:
+    Topology *_topo;
+    Trajectory *_prev;
+    Trajectories::iterator it;
+};
+
+class RemoveTrajectory : public QUndoCommand
+{
+public:
+    RemoveTrajectory(Topology *topology, Trajectory *traj, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _topo(topology)
+        , _prev(traj->bwdTraj)
+    {
+        std::string name;
+        traj->getValue(META_NAME, name);
+        setText(QObject::tr("Удалена траектория %1").arg(name.c_str()));
+        it = _topo->trajectories.find(name);
+        Q_ASSERT(it != _topo->trajectories.end());
+    }
+    void undo() override
+    {
+        std::string name;
+        _traj->getValue(META_NAME, name);
+        if(_prev != nullptr)
+        {
+            _prev->fwdTraj = _traj;
+            _traj->bwdTraj = _prev;
+        }
+        _topo->insertTraj(_traj);
+    }
+    void redo() override
+    {
+        if(_traj->bwdTraj != nullptr)
+            _traj->bwdTraj = nullptr;
+        if(_traj->fwdTraj != nullptr)
+            _traj->fwdTraj = nullptr;
+        _topo->trajectories.erase(it);
+    }
+private:
+    Topology *_topo;
+    Trajectory *_prev;
+    vsg::ref_ptr<Trajectory> _traj;
+    Trajectories::iterator it;
 };
 
 /*
