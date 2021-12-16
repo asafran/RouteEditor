@@ -8,11 +8,15 @@
 #include "sceneobjects.h"
 //#include "vehicle-controller.h"
 #include <vsg/maths/transform.h>
+#include "splines/uniform_cr_spline.h"
+#include <GeographicLib/Geodesic.hpp>
+#include <GeographicLib/Constants.hpp>
 
 class Bogie;
 class Trajectory;
 class SceneModel;
 
+/*
 class TrackSection : public vsg::Inherit<vsg::Transform, TrackSection>
 {
 public:
@@ -37,10 +41,11 @@ public:
 
     SectionTrajectory *traj;
 };
+*/
 
-using Sections = std::vector<vsg::ref_ptr<TrackSection>>;
+//using Sections = std::vector<vsg::ref_ptr<TrackSection>>;
 
-class Trajectory : public vsg::Inherit<SceneObject, Trajectory> //subclass from Node to implement junction
+class Trajectory : public vsg::Inherit<vsg::Node, Trajectory> //subclass from Node to implement junction
 {
 public:
 
@@ -49,20 +54,17 @@ public:
 
     ~Trajectory() {}
 
-    virtual vsg::dmat4 getPosition(double x) const = 0;
+    virtual vsg::dvec3 getPosition(double x) const = 0;
 
-    virtual std::pair<Sections::const_iterator, double> getSection(double x) const = 0;
+    virtual vsg::dmat4 getMatrixAt(double x) const = 0;
 
     virtual double getLength() const = 0;
 
-    virtual bool isFrontReversed() const = 0;
-/*
-    virtual void setOffset(const vsg::dvec3 &pos) = 0;
-    virtual void setOffset(const vsg::dmat4 &offset) = 0;
-*/
-    virtual Trajectory* getFwd() const  = 0;
+    virtual bool isFrontReversed() const { return frontReversed; }
+    virtual bool isBackReversed() const { return backReversed; }
 
-    Trajectory* getBwd() const { return trajectory; }
+    virtual Trajectory* getFwd() const { return fwdTraj; }
+    virtual Trajectory* getBwd() const  { return bwdTraj; }
 
     void setBusy(Bogie *vehicle) { vehicles_on_traj.insert(vehicle); }
 
@@ -72,86 +74,64 @@ public:
 
     QSet<Bogie *> getTrajVehicleSet() const { return vehicles_on_traj; }
 
-    //TrackSection *getSectionPtr(size_t sec);
-
-    virtual Sections::const_iterator getBegin(const Trajectory*) const = 0;
-    virtual Sections::const_iterator getEnd(const Trajectory*) const = 0;
-    virtual int size() const = 0;
-
-    //Trajectory       *bwdTraj;
 
 protected:
     QSet<Bogie *> vehicles_on_traj;
+
+    Trajectory       *fwdTraj;
+    Trajectory       *bwdTraj;
+
+    bool frontReversed;
+    bool backReversed;
 };
 
-class SectionTrajectory : public vsg::Inherit<Trajectory, SectionTrajectory>
+class SplineTrajectory : public vsg::Inherit<Trajectory, SectionTrajectory>
 {
 public:
 
-    explicit SectionTrajectory(std::string name, const vsg::dmat4 &offset);
-    SectionTrajectory();
+    explicit SplineTrajectory(std::string name, const vsg::dvec3 &lla_point);
+    SplineTrajectory();
 
-    ~SectionTrajectory();
+    ~SplineTrajectory();
 
-    vsg::dmat4 getPosition(double x) const override;
+    vsg::dvec3 getPosition(double x) const override;
 
-    std::pair<Sections::const_iterator, double> getSection(double x) const override;
+    vsg::dmat4 getMatrixAt(double x) const override;
 
-    double getLength() const override { return lenght; }
-
-    bool isFrontReversed() const override { return frontReversed; }
-
-    //void setOffset(const vsg::dvec3 &pos) override { matrixStack.front()[3] = vsg::dvec4(pos, 1.0); }
-    //void setOffset(const vsg::dmat4 &offset) override { matrixStack.front() = offset; }
+    double getLength() const override;
 
     void read(vsg::Input& input) override;
     void write(vsg::Output& output) const override;
 
-    void recalculatePositions();
-
-    void addTrack(vsg::ref_ptr<vsg::Node> node, const std::string &name);
-    void removeTrack(int section);
-
-    Sections::const_iterator getBegin(const Trajectory*) const  override { return sections.cbegin(); }
-    Sections::const_iterator getEnd(const Trajectory*) const override { return sections.cend(); }
-    int size() const override { return sections.size(); }
-
     template<class N, class V>
     static void t_traverse(N& node, V& visitor)
     {
-        for (auto it = node.sections.begin(); it != node.sections.end(); ++it)
+        for (auto it = node.sleepers.begin(); it != node.sleepers.end(); ++it)
             (*it)->accept(visitor);
+        node.rails->accept(visitor);
     }
-
-    void accept(vsg::Visitor& visitor) override
-    {
-        if(auto csov = dynamic_cast<SceneObjectsVisitor*>(&visitor); csov)
-            csov->apply(*this);
-        else
-            visitor.apply(*this);
-    }
-    void accept(vsg::ConstVisitor& visitor) const override
-    {
-        if(auto csov = dynamic_cast<ConstSceneObjectsVisitor*>(&visitor); csov)
-            csov->apply(*this);
-        else
-            visitor.apply(*this);
-    }
-    void accept(vsg::RecordTraversal& visitor) const override { visitor.apply(*this); }
 
     void traverse(vsg::Visitor& visitor) override { t_traverse(*this, visitor); }
     void traverse(vsg::ConstVisitor& visitor) const override { t_traverse(*this, visitor); }
     void traverse(vsg::RecordTraversal& visitor) const override { t_traverse(*this, visitor); }
 
-    Trajectory       *fwdTraj;
+    void recalculate();
+
+    int add(vsg::dvec3 lla);
+    void move(vsg::dvec3 lla, int point);
 
 private:
-    Sections sections;
 
-    double lenght;
-    bool frontReversed;
+    void applyChanges(vsg::ref_ptr<vsg::vec3Array> vertices,
+                      vsg::ref_ptr<vsg::vec3Array> colors,
+                      vsg::ref_ptr<vsg::vec2Array> texcoords,
+                      vsg::ref_ptr<vsg::ushortArray> indices);
 
-    std::vector<vsg::dmat4> matrixStack;
+    std::shared_ptr<UniformCRSpline<vsg::dvec2>> railSpline; //coordinates in lla
+    std::shared_ptr<UniformCRSpline<vsg::dvec2>> elevationSpline; //elevation in meters
+
+    vsg::ref_ptr<vsg::Commands> rails;
+    std::vector<vsg::ref_ptr<vsg::MatrixTransform>> sleepers;
 };
 
 class SceneTrajectory : public vsg::Inherit<vsg::Node, SceneTrajectory>
@@ -174,56 +154,6 @@ public:
     std::vector<vsg::ref_ptr<vsg::MatrixTransform>> tracks;
 */
     Trajectory *traj;
-};
-
-class Junction2 : public vsg::Inherit<Trajectory, Junction2>
-{
-public:
-
-    explicit Junction2(std::string name) { setValue(META_NAME, name); }
-    Junction2() {}
-
-    ~Junction2() {}
-
-    virtual vsg::dmat4 getPosition(double x) const;
-
-    virtual std::pair<Sections::const_iterator, double> getSection(double x) const;
-
-    virtual double getLength() const;
-
-    virtual bool isFrontReversed() const;
-
-    virtual void setOffset(const vsg::dvec3 &pos);
-    virtual void setOffset(const vsg::dmat4 &offset);
-
-    void setBusy(Bogie *vehicle) { vehicles_on_traj.insert(vehicle); }
-
-    void removeBusy(Bogie *vehicle) { vehicles_on_traj.remove(vehicle); }
-
-    bool isBusy() const { return !vehicles_on_traj.isEmpty(); }
-
-    QSet<Bogie *> getTrajVehicleSet() const { return vehicles_on_traj; }
-
-    //TrackSection *getSectionPtr(size_t sec);
-
-    virtual Sections::const_iterator getBegin(const Trajectory* prev) const = 0;
-    virtual Sections::const_iterator getEnd(const Trajectory* prev) const = 0;
-    virtual int size() const = 0;
-
-protected:
-
-    Sections sections1;
-    double lenght1;
-    bool frontReversed1;
-
-    Sections sections2;
-    double lenght2;
-    bool frontReversed2;
-
-    Trajectory       *fwdTraj1;
-    Trajectory       *fwdTraj2;
-
-    bool state = false;
 };
 
 #endif // TRAJ_H

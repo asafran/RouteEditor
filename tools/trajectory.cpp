@@ -6,86 +6,33 @@
 #include    <vsg/io/read.h>
 #include    "topology.h"
 
-TrackSection::TrackSection(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, vsg::dmat4 in_mat, Trajectory *parent)
-    : vsg::Inherit<vsg::Transform, TrackSection>()
-    , matrix(in_mat)
-    , filename(in_file)
-    , traj(parent)
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+SplineTrajectory::SplineTrajectory(std::string name, const vsg::dvec3 &lla_point)
+  : vsg::Inherit<Trajectory, SectionTrajectory>()
 {
-    track = loaded->getObject<Track>(META_TRACK);
-    addChild(loaded);
+    std::vector<vsg::dvec2> vec2vector;
+    vec2vector.emplace_back(lla_point.x, lla_point.y);
+    railSpline.reset(new UniformCRSpline<vsg::dvec2>(vec2vector));
 }
 
-void TrackSection::read(vsg::Input& input)
+SplineTrajectory::SplineTrajectory()
+  : vsg::Inherit<Trajectory, SectionTrajectory>()
 {
-    Node::read(input);
-
-    input.read("filename", filename);
-    auto node = vsg::read_cast<vsg::Node>(filename, input.options);
-    addChild(node);
-    track = node->getObject<Track>(META_TRACK);
-
-    input.read("incl", inclination);
-    input.read("matrix", matrix);
-    input.read("filename", filename);
-    //input.read("prev", prev);
-    input.read("parent", traj);
-
-    input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
 }
-
-void TrackSection::write(vsg::Output& output) const
+SplineTrajectory::~SplineTrajectory()
 {
-    Node::write(output);
-
-    output.write("filename", filename);
-
-    output.write("incl", inclination);
-    output.write("matrix", matrix);
-    output.write("filename", filename);
-    //output.write("prev", prev);
-    output.write("parent", traj);
-
-    output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
 }
-vsg::dmat4 TrackSection::transform(const vsg::dmat4 &m) const
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+void SplineTrajectory::read(vsg::Input& input)
 {
     /*
-    auto pincl = vsg::rotate(atan(prev->inclination / 1000), vsg::dvec3(1.0, 0.0, 0.0));
-    auto incl = vsg::rotate(atan(inclination / 1000), vsg::dvec3(1.0, 0.0, 0.0));
-
-    return m * prev->world(prev->track->lenght) * vsg::inverse(pincl) * incl;
-    */
-    return m * matrix;
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-
-SectionTrajectory::SectionTrajectory(std::string name, const vsg::dmat4 &offset)
-  : SectionTrajectory()
-{
-    matrixStack.front() = offset;
-}
-
-SectionTrajectory::SectionTrajectory()
-  : vsg::Inherit<Trajectory, SectionTrajectory>()
-  , lenght(0.0)
-  , frontReversed(false)
-  , sections()
-{
-    matrixStack.push_back(vsg::dmat4());
-}
-SectionTrajectory::~SectionTrajectory()
-{
-}
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-
-void SectionTrajectory::read(vsg::Input& input)
-{
     Object::read(input);
 
     input.read("sections", sections);
@@ -94,10 +41,12 @@ void SectionTrajectory::read(vsg::Input& input)
     input.read("matrixStack", matrixStack);
 
     input.read("fwd", fwdTraj);
+    */
 }
 
-void SectionTrajectory::write(vsg::Output& output) const
+void SplineTrajectory::write(vsg::Output& output) const
 {
+    /*
     Object::write(output);
 
     output.write("sections", sections);
@@ -106,69 +55,144 @@ void SectionTrajectory::write(vsg::Output& output) const
     output.write("matrixStack", matrixStack);
 
     output.write("fwd", fwdTraj);
+    */
 }
 
-void SectionTrajectory::addTrack(vsg::ref_ptr<vsg::Node> node, const std::string &name)
+void SplineTrajectory::recalculate()
 {
-    auto loader = TrackSection::create(node, name, matrixStack.back(), this);
 
-    matrixStack.emplace_back(matrixStack.back() * loader->track->transform(loader->track->lenght));
-    lenght += loader->track->lenght;
-
-    //track->ltw = vsg::inverse(vsg::translate(position)) * vsg::inverse(next);
-    sections.push_back(loader);
 }
 
-void SectionTrajectory::removeTrack(int section)
+void SplineTrajectory::applyChanges(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec3Array> colors, vsg::ref_ptr<vsg::vec2Array> texcoords, vsg::ref_ptr<vsg::ushortArray> indices)
 {
 
-    sections.pop_back();
-}
+    // set up defaults and read command line arguments to override them
+       vsg::CommandLine arguments(&argc, argv);
 
-void SectionTrajectory::recalculatePositions()
-{
-    auto matrix = matrixStack.begin();
-    auto it = sections.begin();
+       auto windowTraits = vsg::WindowTraits::create();
+       windowTraits->debugLayer = arguments.read({"--debug", "-d"});
+       windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
+       arguments.read({"--window", "-w"}, windowTraits->width, windowTraits->height);
 
-    vsg::dmat4 next;
-    for(; it != sections.end(); ++it)
-    {
-        auto inclination = vsg::rotate(atan((*it)->inclination / 1000), vsg::dvec3(1.0, 0.0, 0.0));
+       if (arguments.errors()) return arguments.writeErrorMessages(std::cerr);
 
-        (*it)->matrix = *matrix * next * inclination;
-        matrix++;
-        next = next * inclination * (*matrix * vsg::inverse(*(matrix - 1))) * vsg::inverse(inclination) * vsg::inverse(*matrix * vsg::inverse(*(matrix - 1)));
-        //next[3] = 1.0;
+       // set up search paths to SPIRV shaders and textures
+       vsg::Paths searchPaths = vsg::getEnvPaths("VSG_FILE_PATH");
 
-     }
-}
+       // load shaders
+       vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("shaders/vert_PushConstants.spv", searchPaths));
+       vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("shaders/frag_PushConstants.spv", searchPaths));
+       if (!vertexShader || !fragmentShader)
+       {
+           std::cout << "Could not create shaders." << std::endl;
+           return 1;
+       }
 
+       // read texture image
+       vsg::Path textureFile("textures/lz.vsgb");
+       auto textureData = vsg::read_cast<vsg::Data>(vsg::findFile(textureFile, searchPaths));
+       if (!textureData)
+       {
+           std::cout << "Could not read texture file : " << textureFile << std::endl;
+           return 1;
+       }
 
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-vsg::dmat4 SectionTrajectory::getPosition(double x) const
-{
-    auto section = getSection(x);
+       // set up graphics pipeline
+       vsg::DescriptorSetLayoutBindings descriptorBindings{
+           {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
+       };
 
-    return (*section.first)->world(section.second);
-}
+       auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
 
-std::pair<Sections::const_iterator, double> SectionTrajectory::getSection(double x) const
-{
-    if(x > lenght)
-        x = lenght;
+       vsg::PushConstantRanges pushConstantRanges{
+           {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls automatically provided by the VSG's DispatchTraversal
+       };
 
-    double tracks_coord = 0.0;
-    auto it = sections.begin();
+       vsg::VertexInputState::Bindings vertexBindingsDescriptions{
+           VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // vertex data
+           VkVertexInputBindingDescription{1, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // colour data
+           VkVertexInputBindingDescription{2, sizeof(vsg::vec2), VK_VERTEX_INPUT_RATE_VERTEX}  // tex coord data
+       };
 
-    while ((tracks_coord + (*it)->track->lenght) < x)
-    {
-        tracks_coord += (*it)->track->lenght;
-        ++it;
-    }
+       vsg::VertexInputState::Attributes vertexAttributeDescriptions{
+           VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0}, // vertex data
+           VkVertexInputAttributeDescription{1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0}, // colour data
+           VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R32G32_SFLOAT, 0}     // tex coord data
+       };
 
-    return std::make_pair(it, x - tracks_coord);
+       vsg::GraphicsPipelineStates pipelineStates{
+           vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
+           vsg::InputAssemblyState::create(),
+           vsg::RasterizationState::create(),
+           vsg::MultisampleState::create(),
+           vsg::ColorBlendState::create(),
+           vsg::DepthStencilState::create()};
+
+       auto pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout}, pushConstantRanges);
+       auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, vsg::ShaderStages{vertexShader, fragmentShader}, pipelineStates);
+       auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
+
+       // create texture image and associated DescriptorSets and binding
+       auto texture = vsg::DescriptorImage::create(vsg::Sampler::create(), textureData, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+       auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{texture});
+       auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
+
+       // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
+       auto scenegraph = vsg::StateGroup::create();
+       scenegraph->add(bindGraphicsPipeline);
+       scenegraph->add(bindDescriptorSet);
+
+       // set up model transformation node
+       auto transform = vsg::MatrixTransform::create(); // VK_SHADER_STAGE_VERTEX_BIT
+
+       // add transform to root of the scene graph
+       scenegraph->addChild(transform);
+
+       /* set up vertex and index arrays
+       auto vertices = vsg::vec3Array::create(
+           {{-0.5f, -0.5f, 0.0f},
+            {0.5f, -0.5f, 0.0f},
+            {0.5f, 0.5f, 0.0f},
+            {-0.5f, 0.5f, 0.0f},
+            {-0.5f, -0.5f, -0.5f},
+            {0.5f, -0.5f, -0.5f},
+            {0.5f, 0.5f, -0.5f},
+            {-0.5f, 0.5f, -0.5f}}); // VK_FORMAT_R32G32B32_SFLOAT, VK_VERTEX_INPUT_RATE_INSTANCE, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE
+
+       auto colors = vsg::vec3Array::create(
+           {
+               {1.0f, 0.0f, 0.0f},
+               {0.0f, 1.0f, 0.0f},
+               {0.0f, 0.0f, 1.0f},
+               {1.0f, 1.0f, 1.0f},
+               {1.0f, 0.0f, 0.0f},
+               {0.0f, 1.0f, 0.0f},
+               {0.0f, 0.0f, 1.0f},
+               {1.0f, 1.0f, 1.0f},
+           }); // VK_FORMAT_R32G32B32_SFLOAT, VK_VERTEX_INPUT_RATE_VERTEX, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE
+
+       auto texcoords = vsg::vec2Array::create(
+           {{0.0f, 0.0f},
+            {1.0f, 0.0f},
+            {1.0f, 1.0f},
+            {0.0f, 1.0f},
+            {0.0f, 0.0f},
+            {1.0f, 0.0f},
+            {1.0f, 1.0f},
+            {0.0f, 1.0f}}); // VK_FORMAT_R32G32_SFLOAT, VK_VERTEX_INPUT_RATE_VERTEX, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE
+
+       auto indices = vsg::ushortArray::create(
+           {0, 1, 2,
+            2, 3, 0,
+            4, 5, 6,
+            6, 7, 4}); // VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE
+
+       // setup geometry */
+       auto drawCommands = vsg::Commands::create();
+       drawCommands->addChild(vsg::BindVertexBuffers::create(0, vsg::DataList{vertices, colors, texcoords}));
+       drawCommands->addChild(vsg::BindIndexBuffer::create(indices));
+       drawCommands->addChild(vsg::DrawIndexed::create(12, 1, 0, 0, 0));
 }
 
 SceneTrajectory::SceneTrajectory()

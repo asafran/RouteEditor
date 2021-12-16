@@ -8,6 +8,7 @@ project(RouteEditor
 
 # build all examples into the bin directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+set(CMAKE_MODULE_PATH /usr/share/cmake/geographiclib/) # on ubuntu
 
 set(SOURCES
     src/MainWindow.cpp
@@ -66,7 +67,6 @@ set(TOOLS
     tools/ParentVisitor.h
 )
 
-
 # Change the default build type to Release
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
@@ -88,6 +88,7 @@ find_package(Qt6 COMPONENTS Concurrent REQUIRED)
 find_package(vsg REQUIRED)
 find_package(vsgXchange REQUIRED)
 find_package(vsgQt REQUIRED)
+find_package(GeographicLib REQUIRED)
 
 # set the use of C++17 globally as all examples require it
 set(CMAKE_CXX_STANDARD 17)
@@ -115,6 +116,8 @@ add_executable(editor ${SOURCES})
 target_include_directories(editor PRIVATE tools)
 
 add_library(tools ${TOOLS})
+
+target_include_directories(tools PRIVATE spline_library)
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
