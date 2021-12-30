@@ -16,4 +16,4 @@ target_compile_definitions(converter PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
 target_compile_definitions(converter PRIVATE META_NAME="MetaName" TILE_PATH="Path" META_TRACK="TrackInfo")
 
-target_link_libraries(converter tools vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange Qt6::Concurrent)
+target_link_libraries(converter tools vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange)

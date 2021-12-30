@@ -14,14 +14,22 @@ public:
 
     explicit ParentVisitor(const vsg::Node* child);
 
-    void apply(const vsg::Node& node) override;
-    /*
-    void apply(const vsg::Switch& sw) override;
-    void apply(const vsg::Group& group) override;
-    void apply(const vsg::LOD& lod) override;
-    void apply(const vsg::PagedLOD& plod) override;
-    void apply(const vsg::CullNode& cn) override;
-    */
+    void apply(const vsg::Node&) override;
+    /*virtual void apply(const vsg::Commands&);
+    virtual void apply(const vsg::Group&);
+    virtual void apply(const vsg::QuadGroup&);
+    virtual void apply(const vsg::LOD&);
+    virtual void apply(const vsg::PagedLOD&);
+    virtual void apply(const vsg::StateGroup&);
+    virtual void apply(const vsg::CullGroup&);
+    virtual void apply(const vsg::CullNode&);
+    virtual void apply(const vsg::MatrixTransform&);
+    virtual void apply(const vsg::Transform&);
+    virtual void apply(const vsg::Geometry&);
+    //virtual void apply(const vsg::VertexIndexDraw&);
+    virtual void apply(const vsg::DepthSorted&);
+    //virtual void apply(const vsg::Bin&);
+    virtual void apply(const vsg::Switch&);*/
 protected:
 
     vsg::ref_ptr<const vsg::Node> child;

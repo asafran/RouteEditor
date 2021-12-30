@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include "TrajectoryModel.h"
+#include <vsg/viewer/EllipsoidModel.h>
 
 namespace Ui {
 class ObjectPropertiesEditor;
@@ -17,7 +18,7 @@ public:
     virtual ~ObjectPropertiesEditor();
 
 public slots:
-    void selectObject(const QModelIndex &modelindex);
+    void receiveObject(vsg::ref_ptr<route::SceneObject> object);
     void updateData();
 
 private:
@@ -26,7 +27,7 @@ private:
     vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel;
     QUndoStack *undoStack;
 
-    vsg::ref_ptr<SceneObject> selectedObject;
+    vsg::ref_ptr<route::SceneObject> selectedObject;
 
     double xrot;
     double yrot;

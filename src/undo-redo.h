@@ -5,10 +5,14 @@
 #include "topology.h"
 #include "DatabaseManager.h"
 
-class AddNode : public QUndoCommand
+class AddSceneObject : public QUndoCommand
 {
 public:
-    AddNode(SceneModel *model, const QModelIndex &group, vsg::ref_ptr<vsg::Node> node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddSceneObject(SceneModel *model,
+            const QModelIndex &group,
+            vsg::ref_ptr<route::SceneObject> node,
+            QUndoCommand *parent = nullptr)
+        : QUndoCommand(parent)
         , _model(model)
         , _group(group)
         , _node(node)
@@ -21,17 +25,17 @@ public:
     }
     void undo() override
     {
-        _model->removeRows(row, 1, _group);
+        _model->removeRows(_row, 1, _group);
     }
     void redo() override
     {
-        row = _model->addNode(_group, _node);
+        _row = _model->addNode(_group, _node);
     }
 private:
     SceneModel *_model;
-    int row;
+    int _row;
     const QModelIndex _group;
-    vsg::ref_ptr<vsg::Node> _node;
+    vsg::ref_ptr<route::SceneObject> _node;
 
 };
 
@@ -65,34 +69,7 @@ private:
     QModelIndex _index;
 
 };
-/*
-class AddObject : public QUndoCommand
-{
-public:
-    AddObject(vsg::Group *group, vsg::SceneObject *object, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
-        , _group(group)
-        , _object(object)
-    {
-        std::string name;
-        object->getValue(META_NAME, name);
-        setText(QObject::tr("Новый объект %1").arg(name.c_str()));
-    }
-    void undo() override
-    {
-        auto position = std::find(_group->children.cbegin(), _group->children.cend(), _object);
-        Q_ASSERT(position != _group->children.end());
-        _group->children.erase(position);
-    }
-    void redo() override
-    {
-        _group->addChild(_object);
-    }
-private:
-    vsg::ref_ptr<vsg::Group> _group;
-    vsg::ref_ptr<vsg::SceneObject> _object;
 
-};
-*/
 class RenameObject : public QUndoCommand
 {
 public:
@@ -117,7 +94,7 @@ private:
     const std::string _newName;
 
 };
-
+/*
 class ChangeIncl : public QUndoCommand
 {
 public:
@@ -144,14 +121,14 @@ private:
     const double _newIncl;
 
 };
-
+*/
 class RotateObject : public QUndoCommand
 {
 public:
-    RotateObject(SceneObject *object, vsg::dquat q, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    RotateObject(route::SceneObject *object, vsg::dquat q, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _object(object)
         , _oldQ(object->quat)
-        , _newQ(mult(object->quat, q))
+        , _newQ(route::mult(object->quat, q))
     {
         std::string name;
         _object->getValue(META_NAME, name);
@@ -166,7 +143,7 @@ public:
         _object->quat = _newQ;
     }
 private:
-    vsg::ref_ptr<SceneObject> _object;
+    vsg::ref_ptr<route::SceneObject> _object;
     const vsg::dquat _oldQ;
     const vsg::dquat _newQ;
 };
@@ -174,9 +151,9 @@ private:
 class MoveObject : public QUndoCommand
 {
 public:
-    MoveObject(SceneObject *object, const vsg::dvec3& pos, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    MoveObject(route::SceneObject *object, const vsg::dvec3& pos, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _object(object)
-        , _oldPos(object->position)
+        , _oldPos(object->getPosition())
         , _newPos(pos)
     {
         std::string name;
@@ -187,46 +164,23 @@ public:
     }
     void undo() override
     {
-        _object->position = _oldPos;
+        _object->setPosition(_oldPos);
     }
     void redo() override
     {
-        _object->position = _newPos;
+        _object->setPosition(_newPos);
     }
 private:
-    vsg::ref_ptr<SceneObject> _object;
+    vsg::ref_ptr<route::SceneObject> _object;
     const vsg::dvec3 _oldPos;
     const vsg::dvec3 _newPos;
 
 };
-
-class AddTrack : public QUndoCommand
-{
-public:
-    AddTrack(Trajectory *traj, const DatabaseManager::Loaded &loaded, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
-        , _traj(traj)
-        , _loaded(loaded)
-    {
-        setText(QObject::tr("Добавлен участок пути %1").arg(loaded.path));
-    }
-    void undo() override
-    {
-        _traj->removeTrack();
-    }
-    void redo() override
-    {
-        _traj->addTrack(_loaded.node, _loaded.path.toStdString());
-    }
-private:
-    Trajectory *_traj;
-    const DatabaseManager::Loaded _loaded;
-
-};
-
+/*
 class AddTrajectory : public QUndoCommand
 {
 public:
-    AddTrajectory(Topology *topology, std::string name, Trajectory *prev = nullptr, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddTrajectory(route::Topology *topology, std::string name, Trajectory *prev = nullptr, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _topo(topology)
         , _prev(prev)
         , _traj(Trajectory::create(name))
@@ -296,7 +250,7 @@ private:
     vsg::ref_ptr<Trajectory> _traj;
     Trajectories::iterator it;
 };
-
+*/
 /*
 class MoveTilePoint : public QUndoCommand
 {

@@ -31,29 +31,6 @@ bool isCompatible(const vsg::Node* node)
 
 void MouseHandler::handleIntersection(vsg::LineSegmentIntersector::Intersections intersections)
 {
-
-    if(intersections.empty())
-        switch (mode) {
-        case TERRAIN:
-        {
-            if(isMovingTerrain)
-               movingPoint->children.pop_back();
-            isMovingTerrain = false;
-            return;
-        }
-        case MOVE:
-        {
-            if(isMovingObject)
-            {
-                undoStack->endMacro();
-                isMovingObject = false;
-            }
-            return;
-        }
-        default:
-            return;
-        }
-
     auto front = intersections.front();
 
     switch (mode) {
@@ -73,23 +50,7 @@ void MouseHandler::handleIntersection(vsg::LineSegmentIntersector::Intersections
     }
     case TERRAIN:
     {
-        if(points.isEmpty())
-        {
-            if(auto vid = front.nodePath.back()->cast<vsg::VertexIndexDraw>(); vid && lowTile(front, database->frameCount))
-            {
-                auto vertarray = vid->arrays.front()->data.cast<vsg::vec3Array>();
-                for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
-                {
-                    auto point = addTerrainPoint(*it);
-                    points.insert(point, it);
-                    terrainPoints->addChild(point);
-                }
-                active = const_cast<vsg::MatrixTransform *>((*(front.nodePath.crbegin() + 4))->cast<vsg::MatrixTransform>());
-                active->addChild(terrainPoints);
-                info = front.nodePath.back()->cast<vsg::VertexIndexDraw>()->arrays.front();
-            }
-        }
-        else if(points.contains(*(front.nodePath.rbegin() + 2)) && !isMovingTerrain)
+        if(points.contains(*(front.nodePath.rbegin() + 2)) && !isMovingTerrain)
         {
             isMovingTerrain = true;
             movingPoint = const_cast<vsg::MatrixTransform *>((*(front.nodePath.rbegin() + 2))->cast<vsg::MatrixTransform>());
@@ -154,25 +115,7 @@ vsg::ref_ptr<vsg::MatrixTransform> MouseHandler::addTerrainPoint(vsg::vec3 pos)
     return transform;
 }
 
-void MouseHandler::setMode(int index)
-{
-    if(index == mode)
-        return;
-    if(mode == TERRAIN)
-    {
-        if(isMovingTerrain)
-            movingPoint->children.pop_back();
-        isMovingTerrain = false;
-        if(active)
-            active->children.erase(std::find(active->children.begin(), active->children.end(), terrainPoints));
-        terrainPoints->children.clear();
-        points.clear();
-    } else if(mode == MOVE)
-    {
-        undoStack->endMacro();
-        isMovingObject = false;
-    }
-    mode = index;
+ mode = index;
 }
 
 

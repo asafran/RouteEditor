@@ -4,6 +4,8 @@
 #include <vector>
 #include <cmath>
 
+#include <vsg/maths/vec3.h>
+
 namespace SplineCommon
 {
     //compute the T values for the given points, with the given alpha.

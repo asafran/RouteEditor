@@ -140,6 +140,14 @@ struct Spline<InterpolationType,floating_t>::InterpolatedPT
     InterpolatedPT(const InterpolationType &p, const InterpolationType &t)
         :position(p),tangent(t)
     {}
+    InterpolatedPT(const InterpolatedPT&& pt) : position(std::move(pt.position)), tangent(std::move(pt.tangent)) {}
+    InterpolatedPT() {}
+    InterpolatedPT& operator=(InterpolatedPT&& x)
+    {
+        position = std::move(x.position);
+        tangent = std::move(x.tangent);
+        return *this;
+    }
 };
 
 template<class InterpolationType, typename floating_t>
@@ -152,6 +160,15 @@ struct Spline<InterpolationType,floating_t>::InterpolatedPTC
     InterpolatedPTC(const InterpolationType &p, const InterpolationType &t, const InterpolationType &c)
         :position(p),tangent(t),curvature(c)
     {}
+    InterpolatedPTC(const InterpolatedPTC&& ptc) : position(std::move(ptc.position)), tangent(std::move(ptc.tangent)), curvature(std::move(ptc.curvature)) {}
+    InterpolatedPTC() {}
+    InterpolatedPTC& operator=(InterpolatedPTC&& x)
+    {
+        position = std::move(x.position);
+        tangent = std::move(x.tangent);
+        curvature = std::move(x.curvature);
+        return *this;
+    }
 };
 
 template<class InterpolationType, typename floating_t>
@@ -165,6 +182,16 @@ struct Spline<InterpolationType,floating_t>::InterpolatedPTCW
     InterpolatedPTCW(const InterpolationType &p, const InterpolationType &t, const InterpolationType &c, const InterpolationType &w)
         :position(p),tangent(t),curvature(c), wiggle(w)
     {}
+    InterpolatedPTCW(const InterpolatedPTCW&& ptc) : position(std::move(ptc.position)), tangent(std::move(ptc.tangent)), curvature(std::move(ptc.curvature)), wiggle(std::move(ptc.wiggle)) {}
+    InterpolatedPTCW() {}
+    InterpolatedPTCW& operator=(InterpolatedPTCW&& x)
+    {
+        position = std::move(x.position);
+        tangent = std::move(x.tangent);
+        curvature = std::move(x.curvature);
+        wiggle = std::move(x.wiggle);
+        return *this;
+    }
 };
 
 template<template<class, typename> class SplineCore, class InterpolationType, typename floating_t>

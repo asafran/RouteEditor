@@ -4,9 +4,7 @@
 #include <vsg/nodes/PagedLOD.h>
 #include <vsg/nodes/Switch.h>
 
-
-class SceneObject;
-class SectionTrajectory;
+#include "sceneobjects.h"
 
 template<typename F1, typename C1>
 class LambdaVisitor : public vsg::Visitor
@@ -48,6 +46,23 @@ public:
     }
 };
 
+template<typename F1, typename C1>
+class CLambda1Visitor : public vsg::ConstVisitor
+{
+public:
+    CLambda1Visitor(F1 func) :
+        _function1(func) {}
+
+    F1 _function1;
+
+    using ConstVisitor::apply;
+
+    void apply(C1& object) override
+    {
+        _function1(object);
+    }
+};
+
 template<typename F1, typename C1, typename F2, typename C2>
 class Lambda2Visitor : public vsg::Visitor
 {
@@ -74,62 +89,12 @@ public:
     }
 };
 
-class SceneObjectsVisitor : public vsg::Visitor
-{
-public:
-    SceneObjectsVisitor(std::function<void(SectionTrajectory&)> trajF = 0,
-                        std::function<void(SceneObject&)> objectF = 0)
-        : _trajFunction(trajF)
-        , _objectFunction(objectF)
-    {}
-
-    std::function<void(SectionTrajectory&)> _trajFunction;
-    std::function<void(SceneObject&)> _objectFunction;
-
-    void apply(SectionTrajectory& traj)
-    {
-        if (_trajFunction)
-            _trajFunction(traj);
-    }
-
-    void apply(SceneObject& object)
-    {
-        if (_objectFunction)
-            _objectFunction(object);
-    }
-};
-
-class ConstSceneObjectsVisitor : public vsg::ConstVisitor
-{
-public:
-    ConstSceneObjectsVisitor(std::function<void(const SectionTrajectory&)> trajF = 0,
-                        std::function<void(const SceneObject&)> objectF = 0)
-        : _trajFunction(trajF)
-        , _objectFunction(objectF)
-    {}
-
-    std::function<void(const SectionTrajectory&)> _trajFunction;
-    std::function<void(const SceneObject&)> _objectFunction;
-
-    void apply(const SectionTrajectory& traj)
-    {
-        if (_trajFunction)
-            _trajFunction(traj);
-    }
-
-    void apply(const SceneObject& object)
-    {
-        if (_objectFunction)
-            _objectFunction(object);
-    }
-};
-
 //template<typename F1> //template for auto& lambda
 class FunctionVisitor : public vsg::Visitor
 {
 public:
     explicit FunctionVisitor(
-                    std::function<void(vsg::Group&)> groupF = 0,
+                    std::function<void(vsg::Group&)> groupF,
                     std::function<void(vsg::Switch&)> swF = 0,
                     std::function<void(vsg::LOD&)> lodF = 0)
                     //std::function<void(SectionTrajectory&)> trajF = 0,
@@ -140,6 +105,7 @@ public:
         , _swFunction(swF)
         , _lodFunction(lodF)
     {}
+    FunctionVisitor() : vsg::Visitor() {}
 
     std::function<void(vsg::Group&)> _groupFunction;
     std::function<void(vsg::Switch&)> _swFunction;
@@ -156,6 +122,8 @@ public:
     {
         if(_swFunction)
             _swFunction(sw);
+        //else
+           //Visitor::apply(static_cast<vsg::Node&>(sw));
     }
     void apply(vsg::LOD& lod) override
     {
@@ -167,38 +135,46 @@ template<typename F1> //template for auto& lambda
 class CFunctionVisitor : public vsg::ConstVisitor//: public ConstSceneObjectsVisitor
 {
 public:
-    CFunctionVisitor(F1 autoF,
-                    std::function<void(const vsg::Group&)> groupF)
+    CFunctionVisitor(F1 autoF)
                     //std::function<void(const SectionTrajectory&)> trajF = 0)
         //: ConstSceneObjectsVisitor(trajF)
         : vsg::ConstVisitor()
         , _autoFunction(autoF)
-        , _groupFunction(groupF)
+        //, _groupFunction(groupF)
     {}
 
     F1 _autoFunction;
-    std::function<void(const vsg::Group&)> _groupFunction;
+    std::function<void(const vsg::Group&)> groupFunction;
+    std::function<void(const vsg::Switch&)> swFunction;
+    std::function<void(const vsg::PagedLOD&)> plodFunction;
 
     //using vsg::Visitor::apply;
 
     void apply(const vsg::Group& group) override
     {
-        if(_groupFunction)
-            _groupFunction(group);
+        if(groupFunction)
+            groupFunction(group);
     }
 
     void apply(const vsg::PagedLOD& plod) override
     {
-        _autoFunction(plod);
+        if(plodFunction)
+            plodFunction(plod);
+        else
+            _autoFunction(plod);
     }
     void apply(const vsg::Switch& sw) override
     {
-        _autoFunction(sw);
+        if(swFunction)
+            swFunction(sw);
+        else
+            _autoFunction(sw);
     }
     void apply(const vsg::LOD& lod) override
     {
         _autoFunction(lod);
     }
 };
+
 
 #endif // CACHETILEVISITOR_H

@@ -4,6 +4,7 @@
 #include "TrajectoryModel.h"
 #include <QUndoStack>
 #include "sceneobjects.h"
+#include <vsg/utils/Builder.h>
 
 class SceneModel : public QAbstractItemModel
 {
@@ -11,7 +12,7 @@ class SceneModel : public QAbstractItemModel
 public:
 
     explicit SceneModel(vsg::ref_ptr<vsg::Group> group, QObject* parent = 0);
-    SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QUndoStack *stack, QObject* parent = 0);
+    SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> compile, QUndoStack *stack, QObject* parent = 0);
 
     ~SceneModel();
 
@@ -42,8 +43,9 @@ public:
 
 //    bool canFetchMore(const QModelIndex &parent) const;
 
-    void fetchMore(const QModelIndex &parent);
+//    void fetchMore(const QModelIndex &parent);
 
+    /*
     template<typename F1, typename... Args>
     void fetchMore(const QModelIndex &parent, F1 function1, Args&... args)
     {
@@ -51,9 +53,13 @@ public:
         function1(root, args...);
         beginInsertRows(parent, rows, rowCount(parent));
         endInsertRows();
-    }
+    }*/
 
-    int addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loaded);
+    int addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loaded, uint32_t mask = route::SceneObjects);
+    /*
+    uint32_t setMask(uint32_t mask, int row, const QModelIndex &parent);
+    uint32_t setMask(uint32_t mask, const QModelIndex &index);
+    */
     QModelIndex removeNode(const QModelIndex &index);
     void removeNode(const QModelIndex &parent, const QModelIndex &index);
     //void removeNode(vsg::ref_ptr<vsg::Node> node);
@@ -62,11 +68,12 @@ public:
     //int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
 
     QModelIndex index(const vsg::Node *node) const;
+    QModelIndex index(const vsg::Node *node, const vsg::Node *parent) const;
 
 //    void clear();
     bool hasChildren(const QModelIndex &parent) const;
 
-    vsg::ref_ptr<vsg::Group> getRoot() { return root; }
+    vsg::ref_ptr<vsg::Group> getRoot() { return _root; }
 
 /*
 signals:
@@ -83,9 +90,10 @@ private:
             Option,
             ColumnCount
         };
-    vsg::ref_ptr<vsg::Group> root;
-     vsg::ref_ptr<vsg::Builder> compiler;
-    QUndoStack *undoStack;
+
+    vsg::ref_ptr<vsg::Group> _root;
+    vsg::ref_ptr<vsg::Builder> _compile;
+    QUndoStack *_undoStack;
 };
 
 #endif // SCENEMODEL_H

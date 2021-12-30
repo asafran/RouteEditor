@@ -4,6 +4,16 @@
 
 #include "../spline.h"
 
+namespace vsg {
+
+template<typename T>
+constexpr t_vec3<T> operator*( T rhs, const t_vec3<T>& lhs)
+{
+    return t_vec3<T>(lhs[0] * rhs, lhs[1] * rhs, lhs[2] * rhs);
+}
+
+}
+
 template<class InterpolationType, typename floating_t>
 class UniformCRSplineCommon
 {
@@ -85,7 +95,7 @@ public:
     {
         auto segmentFunction = [this, index](floating_t t) -> floating_t {
             auto tangent = computeTangent(index + 1, t);
-            return tangent.length();
+            return vsg::length(tangent);
         };
 
         floating_t localA = a - index;

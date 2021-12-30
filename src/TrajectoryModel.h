@@ -45,7 +45,7 @@ private:
         VIBRATION,
         COLUMN_COUNT
     };
-    vsg::ref_ptr<Trajectory> selectedObject;
+    vsg::ref_ptr<route::Trajectory> selectedObject;
     QUndoStack *undoStack;
 };
 

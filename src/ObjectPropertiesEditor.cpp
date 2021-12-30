@@ -1,6 +1,7 @@
 #include "ObjectPropertiesEditor.h"
 #include "ui_ObjectPropertiesEditor.h"
 #include "undo-redo.h"
+#include <QSignalBlocker>
 
 ObjectPropertiesEditor::ObjectPropertiesEditor(vsg::ref_ptr<vsg::EllipsoidModel> model, QUndoStack *stack, QWidget *parent) :
     QWidget(parent),
@@ -12,38 +13,38 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(vsg::ref_ptr<vsg::EllipsoidModel>
 
     connect(ui->ecefXspin, &QDoubleSpinBox::valueChanged, this, [this](double d)
     {
-        auto newpos = selectedObject->position;
+        auto newpos = selectedObject->getPosition();
         newpos.x = d;
         undoStack->push(new MoveObject(selectedObject, newpos));
     });
     connect(ui->ecefYspin, &QDoubleSpinBox::valueChanged, this, [this](double d)
     {
-        auto newpos = selectedObject->position;
+        auto newpos = selectedObject->getPosition();
         newpos.y = d;
         undoStack->push(new MoveObject(selectedObject, newpos));
     });
     connect(ui->ecefZspin, &QDoubleSpinBox::valueChanged, this, [this](double d)
     {
-        auto newpos = selectedObject->position;
+        auto newpos = selectedObject->getPosition();
         newpos.z = d;
         undoStack->push(new MoveObject(selectedObject, newpos));
     });
 
     connect(ui->latSpin, &QDoubleSpinBox::valueChanged, this, [this](double d)
     {
-        auto lla = ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position);
+        auto lla = ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->getPosition());
         lla.x = d;
         undoStack->push(new MoveObject(selectedObject, ellipsoidModel->convertLatLongAltitudeToECEF(lla)));
     });
     connect(ui->lonSpin, &QDoubleSpinBox::valueChanged, this, [this](double d)
     {
-        auto lla = ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position);
+        auto lla = ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->getPosition());
         lla.y = d;
         undoStack->push(new MoveObject(selectedObject, ellipsoidModel->convertLatLongAltitudeToECEF(lla)));
     });
     connect(ui->altSpin, &QDoubleSpinBox::valueChanged, this, [this](double d)
     {
-        auto lla = ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position);
+        auto lla = ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->getPosition());
         lla.z = d;
         undoStack->push(new MoveObject(selectedObject, ellipsoidModel->convertLatLongAltitudeToECEF(lla)));
     });
@@ -66,34 +67,82 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(vsg::ref_ptr<vsg::EllipsoidModel>
         undoStack->push(new RotateObject(selectedObject, vsg::dquat(rad - zrot, vsg::dvec3(0.0, 0.0, 1.0))));
         zrot = rad;
     });
+    connect(ui->llaCombo, &QComboBox::currentIndexChanged, this, [this](int index)
+    {
+        auto step = 0.0001 * std::pow(100, index);
+        ui->latSpin->setSingleStep(step);
+        ui->lonSpin->setSingleStep(step);
+    });
+    connect(ui->ecefCombo, &QComboBox::currentIndexChanged, this, [this](int index)
+    {
+        auto step = 0.01 * std::pow(10, index);
+        ui->ecefXspin->setSingleStep(step);
+        ui->ecefYspin->setSingleStep(step);
+        ui->ecefZspin->setSingleStep(step);
+    });
+    connect(ui->rotCombo, &QComboBox::currentIndexChanged, this, [this](int index)
+    {
+        auto step = 0.0001 * std::pow(100, index);
+        ui->rotXspin->setSingleStep(step);
+        ui->rotYspin->setSingleStep(step);
+        ui->rotZspin->setSingleStep(step);
+    });
 }
 
 ObjectPropertiesEditor::~ObjectPropertiesEditor()
 {
     delete ui;
 }
-
+/*
 void ObjectPropertiesEditor::selectObject(const QModelIndex &modelindex)
 {
-    if(auto object = static_cast<vsg::Node*>(modelindex.internalPointer())->cast<SceneObject>(); object)
-    {
+    QSignalBlocker l1(ui->ecefXspin);
+    QSignalBlocker l2(ui->ecefYspin);
+    QSignalBlocker l3(ui->ecefZspin);
+    QSignalBlocker l4(ui->latSpin);
+    QSignalBlocker l5(ui->lonSpin);
+    QSignalBlocker l6(ui->altSpin);
+    QSignalBlocker l7(ui->rotXspin);
+    QSignalBlocker l8(ui->rotYspin);
+    QSignalBlocker l9(ui->rotZspin);
+
+    if(auto object = static_cast<vsg::Node*>(modelindex.internalPointer())->cast<route::SceneObject>(); object)
         selectedObject = object;
-
-    } else {
+    else
         selectedObject = nullptr;
+    updateData();
+}*/
 
-    }
+void ObjectPropertiesEditor::receiveObject(vsg::ref_ptr<route::SceneObject> object)
+{
+    QSignalBlocker l1(ui->ecefXspin);
+    QSignalBlocker l2(ui->ecefYspin);
+    QSignalBlocker l3(ui->ecefZspin);
+    QSignalBlocker l4(ui->latSpin);
+    QSignalBlocker l5(ui->lonSpin);
+    QSignalBlocker l6(ui->altSpin);
+    QSignalBlocker l7(ui->rotXspin);
+    QSignalBlocker l8(ui->rotYspin);
+    QSignalBlocker l9(ui->rotZspin);
+
+    selectedObject = object;
+    updateData();
 }
 
 void ObjectPropertiesEditor::updateData()
 {
-    ui->ecefXspin->setValue(selectedObject->position.x);
-    ui->ecefYspin->setValue(selectedObject->position.y);
-    ui->ecefZspin->setValue(selectedObject->position.z);
+    setEnabled(selectedObject);
+    if(!selectedObject)
+        return;
 
-    ui->latSpin->setValue(ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position).x);
-    ui->lonSpin->setValue(ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position).y);
-    ui->altSpin->setValue(ellipsoidModel->convertECEFToLatLongAltitude(selectedObject->position).z);
+    auto position = selectedObject->getPosition();
+    ui->ecefXspin->setValue(position.x);
+    ui->ecefYspin->setValue(position.y);
+    ui->ecefZspin->setValue(position.z);
+
+    ui->latSpin->setValue(ellipsoidModel->convertECEFToLatLongAltitude(position).x);
+    ui->lonSpin->setValue(ellipsoidModel->convertECEFToLatLongAltitude(position).y);
+    ui->altSpin->setValue(ellipsoidModel->convertECEFToLatLongAltitude(position).z);
 
     double sinr_cosp = 2 * (selectedObject->quat.w * selectedObject->quat.x + selectedObject->quat.y * selectedObject->quat.z);
     double cosr_cosp = 1 - 2 * (selectedObject->quat.x * selectedObject->quat.x + selectedObject->quat.y * selectedObject->quat.y);

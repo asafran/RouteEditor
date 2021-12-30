@@ -74,7 +74,7 @@ floating_t SplineInverter<InterpolationType, floating_t, sampleDimension>::findC
     //compute the first derivative of distance to spline at the sample point
     auto sampleResult = spline.getTangent(closestSampleT);
     InterpolationType sampleDisplacement = sampleResult.position - queryPoint;
-    floating_t sampleDistanceSlope = InterpolationType::dotProduct(sampleDisplacement.normalized(), sampleResult.tangent);
+    floating_t sampleDistanceSlope = vsg::dot(vsg::normalize(sampleDisplacement), sampleResult.tangent);
 
     //if the spline is not a loop there are a few special cases to account for
     if(!spline.isLooping())
@@ -107,7 +107,7 @@ floating_t SplineInverter<InterpolationType, floating_t, sampleDimension>::findC
     }
 
     auto distanceFunction = [this, queryPoint](floating_t t) {
-        return (spline.getPosition(t) - queryPoint).lengthSquared();
+        return vsg::length2(spline.getPosition(t) - queryPoint);
     };
 
     //we know that the actual closest T is now between a and b

@@ -21,11 +21,11 @@ namespace __ArcLengthSolvePrivate
 
             //the derivative will be the length of the tangent
             auto interpolationResult = spline.getCurvature(b);
-            floating_t tangentLength = interpolationResult.tangent.length();
+            floating_t tangentLength = vsg::length(interpolationResult.tangent);
 
             //the second derivative will be the curvature projected onto the tangent
             interpolationResult.tangent /= tangentLength;
-            floating_t secondDerivative = InterpolationType::dotProduct(interpolationResult.tangent, interpolationResult.curvature);
+            floating_t secondDerivative = vsg::dot(interpolationResult.tangent, interpolationResult.curvature);
 
             return std::make_tuple(value, tangentLength, secondDerivative);
         };

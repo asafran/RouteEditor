@@ -13,8 +13,12 @@ StartDialog::StartDialog(QWidget *parent) :
     auto HMH = settings.value("HMH", 1.0).toDouble();
     auto NFR = settings.value("NFR", 0.0001).toDouble();
 
-    ui->HMHedit->setText(QString::number(HMH));
-    ui->NFRedit->setText(QString::number(NFR));
+    ui->HMHSpin->setValue(HMH);
+    ui->NFRSpin->setValue(NFR);
+    ui->pointsSpinBox->setValue(settings.value("POINTSIZE", 3).toInt());
+    ui->lodPointsSpinBox->setValue(settings.value("LOD_POINTS", 0.1).toDouble());
+    ui->lodTilesSpinBox->setValue(settings.value("LOD_TILES", 0.5).toDouble());
+    ui->cursorSpinBox->setValue(settings.value("CURSORSIZE", 3).toInt());
 
     auto routefsmodel = new QFileSystemModel(this);
     ui->routeTree->setModel(routefsmodel);
@@ -34,9 +38,12 @@ StartDialog::StartDialog(QWidget *parent) :
 void StartDialog::updateSettings()
 {
     QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
-    settings.setValue("HMH", ui->HMHedit->text().toDouble());
-    settings.setValue("NFR", ui->NFRedit->text().toDouble());
+    settings.setValue("HMH", ui->HMHSpin->value());
+    settings.setValue("NFR", ui->NFRSpin->value());
     settings.setValue("COLORS", ui->comboBox->currentIndex());
+    settings.setValue("POINTSIZE", ui->pointsSpinBox->value());
+    settings.setValue("LOD_POINTS", ui->lodPointsSpinBox->value());
+    settings.setValue("LOD_TILES", ui->lodTilesSpinBox->value());
     settings.setValue("CURSORSIZE", ui->cursorSpinBox->value());
 }
 

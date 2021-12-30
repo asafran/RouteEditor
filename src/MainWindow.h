@@ -9,7 +9,7 @@
 #include <vsgQt/ViewerWindow.h>
 #include <QUndoView>
 #include <QRegularExpression>
-#include "ObjectModel.h"
+#include <vsg/all.h>
 #include "tilessorter.h"
 
 QT_BEGIN_NAMESPACE
@@ -38,15 +38,18 @@ private:
 
     void constructWidgets();
 
+    void initializeDB();
+
     //DatabaseManager *openDialog();
 
     Ui::MainWindow *ui;
-    vsg::ref_ptr<vsg::Group> scene;
     //vsg::ref_ptr<vsg::Options> options;
     vsg::ref_ptr<vsg::Builder> builder;
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;
     DatabaseManager *database;
+
+    QString pathDB;
     //vsg::ref_ptr<Manipulator> manipulator;
 
     //QFileSystemModel *fsmodel;

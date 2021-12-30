@@ -75,11 +75,11 @@ QWindow* MainWindow::initilizeVSGwindow()
         auto& viewer = vw.viewer;
         if (!viewer) viewer = vsg::Viewer::create();
 
-        vsg::RegisterWithObjectFactoryProxy<SceneObject>();
-        vsg::RegisterWithObjectFactoryProxy<SingleLoader>();
+        vsg::RegisterWithObjectFactoryProxy<route::SceneObject>();
+        vsg::RegisterWithObjectFactoryProxy<route::SingleLoader>();
         vsg::RegisterWithObjectFactoryProxy<StraitTrack>();
         vsg::RegisterWithObjectFactoryProxy<CurvedTrack>();
-        vsg::RegisterWithObjectFactoryProxy<SceneTrajectory>();
+        vsg::RegisterWithObjectFactoryProxy<route::SceneTrajectory>();
 
         viewer->addWindow(window);
 

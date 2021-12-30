@@ -21,18 +21,21 @@ public:
     std::optional<vsg::ref_ptr<vsg::Node>> getSelectedObject();
     //void setActiveGroup(const QItemSelection &selected, const QItemSelection &);
 
-signals:
-    void compile();
+public slots:
+    void activeGroupChanged(const QModelIndex &index) noexcept;
+    void activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept;
+    void loaderButton(bool checked) noexcept;
 
 private:
-    void loadModels(QStringList tileFiles);
-    std::pair<QString, vsg::ref_ptr<vsg::Node>> read(const QString &path);
-
     Ui::ContentManager *ui;
-    QMap<QString, vsg::ref_ptr<vsg::Node>> preloaded;
+    QMap<QString, vsg::ref_ptr<vsg::Node>> _preloaded;
 
-    QModelIndex active;
-    QFileSystemModel *model;
+    QModelIndex _activeGroup;
+
+    QString _loadedPath;
+    vsg::ref_ptr<vsg::Node> _loaded;
+
+    QFileSystemModel *_fsmodel;
 };
 
 #endif // CONTENTMANAGER_H

@@ -8,10 +8,10 @@
 #include "TilesVisitor.h"
 #include <QFileInfo>
 
-LoadTiles::LoadTiles(QMap<QString, vsg::ref_ptr<vsg::Node> > in_loaded) :
+LoadTiles::LoadTiles(vsg::ref_ptr<vsg::Options> in_options) :
     vsg::Visitor()
   , tiles(vsg::Group::create())
-  , loaded(in_loaded)
+  , options(in_options)
 {
 }
 
@@ -24,16 +24,14 @@ void LoadTiles::apply(vsg::PagedLOD& plod)
 {
     for (auto& child : plod.children)
     {
-        QFileInfo filepath(plod.filename.c_str());
-
-        if (!child.node && loaded.contains(filepath.fileName()))
+        if (!child.node)
         {
-            child.node = loaded.value(filepath.fileName());
+            child.node = vsg::read_cast<vsg::Node>(plod.filename, options);
             if(child.node->is_compatible(typeid (vsg::Group)))
                 if(auto group = child.node.cast<vsg::Group>(); group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
                 {
-                    group->setValue(TILE_PATH, filepath.canonicalFilePath().toStdString());
-                    group->setValue(META_NAME, filepath.fileName().toStdString());
+                    group->setValue(TILE_PATH, plod.filename);
+                    group->setValue(META_NAME, plod.filename);
                     tiles->addChild(group);
                     if(group->children.size() < 5)
                     {
@@ -52,7 +50,40 @@ void LoadTiles::apply(vsg::PagedLOD& plod)
         if (child.node) child.node->accept(*this);
     }
 }
+
 /*
+void LoadTiles::apply(vsg::PagedLOD& plod)
+{
+    for (auto& child : plod.children)
+    {
+        auto find = loaded.find(plod.filename);
+        if (!child.node && find != loaded.end())
+        {
+            child.node = find->second;
+            if(child.node->is_compatible(typeid (vsg::Group)))
+                if(auto group = child.node.cast<vsg::Group>(); group->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
+                {
+                    group->setValue(TILE_PATH, plod.filename);
+                    group->setValue(META_NAME, plod.filename);
+                    tiles->addChild(group);
+                    if(group->children.size() < 5)
+                    {
+                        auto objectLayer = vsg::Switch::create();
+                        objectLayer->setValue(META_NAME, "Слой объектов");
+                        group->addChild(objectLayer);
+
+                        auto trackLayer = vsg::Group::create();
+                        trackLayer->setValue(META_NAME, "Слой путевой инфраструктуры");
+                        group->addChild(trackLayer);
+                    }
+                }
+            ++numTiles;
+        }
+
+        if (child.node) child.node->accept(*this);
+    }
+}
+
 void LoadTiles::apply(vsg::PagedLOD& plod)
 {
     for (auto& child : plod.children)

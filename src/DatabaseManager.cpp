@@ -1,149 +1,245 @@
 #include "DatabaseManager.h"
 #include "LambdaVisitor.h"
 #include "vsgGIS/TileDatabase.h"
-#include <QtConcurrent/QtConcurrent>
+//#include <QtConcurrent/QtConcurrent>
 #include <QInputDialog>
-#include "TilesVisitor.h"
+//#include "TilesVisitor.h"
 #include "undo-redo.h"
 #include "topology.h"
+#include <QRegularExpression>
 
-DatabaseManager::DatabaseManager(const QString &path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, QFileSystemModel *model, QObject *parent) : QObject(parent)
-  , databasePath(path.toStdString())
+#include <execution>
+
+/*
+vsg::ref_ptr<vsg::Switch> prepareTile(vsg::Group *tile, vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer)
+{
+    vsg::GeometryInfo info;
+
+    info.dx.set(3.0f, 0.0f, 0.0f);
+    info.dy.set(0.0f, 3.0f, 0.0f);
+    info.dz.set(0.0f, 0.0f, 3.0f);
+
+    auto sphere = builder->createSphere(info);
+    builder->compile(sphere);
+
+    auto sw = vsg::Switch::create();
+
+    for (auto& node : tile->children)
+    {
+        auto transform = node.cast<vsg::MatrixTransform>();
+        auto addPoint = [transform, sphere, copyBuffer](vsg::VertexIndexDraw& vid)
+        {
+            auto bufferInfo = vid.arrays.front();
+            auto vertarray = bufferInfo->data.cast<vsg::vec3Array>();
+            for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
+            {
+                auto point = route::TerrainPoint::create(copyBuffer, bufferInfo, sphere, it);
+                transform->addChild(point);
+            }
+        };
+        LambdaVisitor<decltype (addPoint), vsg::VertexIndexDraw> lv(addPoint);
+        transform->accept(lv);
+        sw->addChild(route::Tiles, transform);
+    }
+
+    return sw;
+}
+*/
+DatabaseManager::DatabaseManager(QString path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, QFileSystemModel *model, QObject *parent) : QObject(parent)
+  , root(vsg::Group::create())
+  , databasePath(path)
   , builder(in_builder)
   , fsmodel(model)
   , modelsDir(vsg::getEnvPaths("RRS2_ROOT").begin()->c_str())
   , undoStack(stack)
 {
-    database = vsg::read_cast<vsg::Group>(databasePath, builder->options);
+    database = vsg::read_cast<vsg::Group>(databasePath.toStdString(), builder->options);
     if (!database)
         throw (DatabaseException(path));
-
     try {
-        topology = database->children.at(TOPOLOGY_CHILD).cast<Topology>();
+        topology = database->children.at(TOPOLOGY_CHILD).cast<route::Topology>();
     }  catch (std::out_of_range) {
-        topology = Topology::create();
+        topology = route::Topology::create();
         database->addChild(topology);
     }
     builder->options->objectCache->add(topology, TOPOLOGY_KEY);
-
-    QFileInfo directory(path);
-    QStringList filter("*subtile.vsg*");
-    QStringList tileFiles;
-    QDirIterator it(directory.absolutePath(), filter, QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
-    while (it.hasNext())
-        tileFiles << it.next();
-    std::function<QPair<QString, vsg::ref_ptr<vsg::Node>>(const QString &tilepath)> load = [in_builder](const QString &tilepath)
-    {
-        QFileInfo info(tilepath);
-        try {
-            auto tile = vsg::read_cast<vsg::Node>(tilepath.toStdString(), in_builder->options);
-            if (tile)
-                return qMakePair(info.fileName(), tile);
-            else
-                throw (DatabaseException(tilepath));
-        }  catch (std::out_of_range) {
-            throw (DatabaseException (tilepath));
-        }
-
-    };
-    std::function reduce = [](QMap<QString, vsg::ref_ptr<vsg::Node>> &map, const QPair<QString, vsg::ref_ptr<vsg::Node>> &node)
-    {
-        map.insert(node.first, node.second);
-    };
-    QFuture<QMap<QString, vsg::ref_ptr<vsg::Node>>> future = QtConcurrent::mappedReduced(tileFiles, load, reduce, QtConcurrent::UnorderedReduce);
-    future.waitForFinished();
-
-    LoadTiles lt(future.result());
-    database->accept(lt);
-    tilesModel = new SceneModel(lt.tiles, builder, stack, this);
 }
 DatabaseManager::~DatabaseManager()
 {
 }
-/*
-vsg::ref_ptr<vsg::Node> DatabaseManager::read(const QString &path) const
-{
-    auto tile = vsg::read_cast<vsg::Node>(path.toStdString(), builder->options);
-    if (tile)
-    {
-        //tile->setValue(META_NAME, path.toStdString());
-        return tile;
-    } else
-        throw (DatabaseException(path));
-}
-*/
-void DatabaseManager::addObject(vsg::dvec3 position, const QModelIndex &index) noexcept
-{
 
-    if(!loaded || (loadToSelected && !activeGroup.isValid()) || (!loadToSelected && !index.isValid()) || loaded.type == TrkObj)
+SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, double tileLOD, double pointsLOD, float size)
+{
+    QFileInfo directory(databasePath);
+    QStringList filter("*L*_X*_Y*_subtile.vsg*");
+    QStringList tileFiles;
+    QDirIterator it(directory.absolutePath(), filter, QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+    std::vector<int> levels;
+    while (it.hasNext())
+    {
+        auto path = it.next();
+        tileFiles << path;
+        auto index = path.lastIndexOf(QRegularExpression("L[0-9]"));
+        levels.push_back(path.at(++index).toLatin1() - '0');
+    }
+    auto level = *std::max_element(levels.begin(), levels.end());
+    tileFiles = tileFiles.filter(QRegularExpression(QString(".+L%1_X[0-9]+_Y[0-9]+_subtile.vsg.").arg(level)));
+
+    auto prepare = [builder=builder, copyBuffer, pointsLOD, size](vsg::Group *tile)
+    {
+        vsg::GeometryInfo info;
+        vsg::StateInfo state;
+
+        info.dx.set(size, 0.0f, 0.0f);
+        info.dy.set(0.0f, size, 0.0f);
+        info.dz.set(0.0f, 0.0f, size);
+
+        state.lighting = false;
+
+        auto sphere = builder->createSphere(info, state);
+        builder->compile(sphere);
+
+        auto sw = vsg::Switch::create();
+
+        for (auto& node : tile->children)
+        {
+            auto transform = node.cast<vsg::MatrixTransform>();
+            auto pointSwitch = vsg::Switch::create();
+            auto pointGroup = vsg::Group::create();
+            pointSwitch->addChild(route::Points, pointGroup);
+
+            auto addPoint = [pointGroup, sphere, copyBuffer, pointsLOD, size=size/2](vsg::VertexIndexDraw& vid)
+            {
+                auto bufferInfo = vid.arrays.front();
+                auto vertarray = bufferInfo->data.cast<vsg::vec3Array>();
+                for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
+                {
+                    auto point = route::TerrainPoint::create(copyBuffer, bufferInfo, sphere, it);
+
+                    auto lod = vsg::LOD::create();
+                    vsg::LOD::Child hires{pointsLOD, point};
+                    vsg::LOD::Child dummy{0.0, vsg::Node::create()};
+                    lod->addChild(hires);
+                    lod->addChild(dummy);
+
+                    vsg::dsphere bound;
+                    bound.center = *it;
+                    bound.radius = size;
+                    lod->bound = bound;
+
+                    pointGroup->addChild(lod);
+                }
+            };
+            LambdaVisitor<decltype (addPoint), vsg::VertexIndexDraw> lv(addPoint);
+            transform->accept(lv);
+            transform->addChild(pointSwitch);
+            sw->addChild(route::Tiles, transform);
+        }
+
+        return sw;
+    };
+
+    auto tiles = vsg::Group::create();
+    auto scene = vsg::Group::create();
+
+    std::mutex m;
+    auto load = [prepare, tiles, scene, tileLOD, this, &m](const QString &tilepath)
+    {
+        auto file = vsg::read_cast<vsg::Node>(tilepath.toStdString(), builder->options);
+        if (file)
+        {
+            vsg::ref_ptr<vsg::Node> tile;
+
+            if(file->is_compatible( typeid (vsg::Switch)))
+                tile = file;
+            else if(auto group = file->cast<vsg::Group>(); group)
+                tile = prepare(group);
+            else
+            {
+                std::scoped_lock lock(m);
+                emit sendStatusText(tr("Ошибка чтения БД, файл: %1").arg(tilepath), 1000);
+                return;
+            }
+
+            auto sceneLOD = vsg::LOD::create();
+            vsg::LOD::Child hires{tileLOD, tile};
+            vsg::LOD::Child dummy{0.0, vsg::Node::create()};
+            sceneLOD->addChild(hires);
+            sceneLOD->addChild(dummy);
+
+            vsg::ComputeBounds cb;
+            cb.traversalMask = route::SceneObjects | route::Tiles;
+            tile->accept(cb);
+            vsg::dsphere bound;
+            bound.center = (cb.bounds.min + cb.bounds.max) * 0.5;
+            bound.radius = length(cb.bounds.max - cb.bounds.min) * 0.5;
+            sceneLOD->bound = bound;
+
+            {
+                std::scoped_lock lock(m);
+                tiles->addChild(tile);
+                scene->addChild(sceneLOD);
+                files.insert(std::pair{tile.get(), tilepath});
+            }
+        }
+    };
+    std::for_each(std::execution::par, tileFiles.begin(), tileFiles.end(), load);
+
+    root->addChild(scene);
+
+    tilesModel = new SceneModel(tiles, builder, undoStack, this);
+    return tilesModel;
+}
+
+
+void DatabaseManager::addToClicked(const FindNode &found) noexcept
+{
+    /*
+    if(found.track.first != nullptr)
+    {
+
+    } else if(found.)
+
+    auto index = tilesModel->index(tile.first, tile.second);
+    bool canAddToIntersected = !loadToSelected && index.isValid();
+    bool canAddToSelected = loadToSelected && activeGroup.isValid();
+    if(!loaded || (!canAddToIntersected && !canAddToSelected))
         return;
 
     QModelIndex readindex = loadToSelected ? activeGroup : index;
 
-    vsg::ref_ptr<SceneObject> obj;
-    auto norm = vsg::normalize(position);
+    vsg::ref_ptr<route::SceneObject> obj;
+    auto norm = vsg::normalize(local);
     vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
 
-    if(static_cast<vsg::Node*>(readindex.internalPointer())->is_compatible(typeid (SceneObject)))
-        position = vsg::dvec3();
-    if (loaded.type == Trk)
-    {
-        if(auto trj = createTrajectory(loaded); trj != nullptr)
-            obj = SceneTrajectory::create(trj, position, quat);
-        else
-            return;
-    }
-    else if(placeLoader)
-        obj = SingleLoader::create(loaded.node, modelsDir.relativeFilePath(loaded.path).toStdString(), position, quat);
+    if(placeLoader)
+        obj = route::SingleLoader::create(loaded, loadedPath, local, quat);
     else
-        obj = SceneObject::create(loaded.node, position, quat);
-    undoStack->push(new AddNode(tilesModel, readindex, obj));
+        obj = route::SceneObject::create(loaded, local, quat);
+    undoStack->push(new AddSceneObject(tilesModel, readindex, obj));
+    */
 }
 
-void DatabaseManager::addTrack(SceneTrajectory *traj, double position) noexcept
+void DatabaseManager::addTrack(const vsg::dvec3 &pos) noexcept
 {
-    switch (loaded.type) {
-    case Obj:
-    {
-        return;
-    }
-    case Trk:
-    {
-        if(position == 0.0)
-            undoStack->push(new AddTrack(traj->traj, loaded));
-        else
-            createTrajectory(loaded, traj->traj);
-        break;
-    }
-    case TrkObj:
-    {
-        break;
-    }
-    }
-}
+    auto sphere = builder->createSphere();
+    auto sleeper = builder->createBox();
 
-Trajectory *DatabaseManager::createTrajectory(const Loaded &loaded, Trajectory *prev)
-{
-    bool ok;
-    QString name = QInputDialog::getText(qobject_cast<QWidget*>(parent()) , tr("Имя новой траектории"),
-                                         tr("Имя:"), QLineEdit::Normal, "", &ok);
-    if (ok && !name.isEmpty())
-    {
-        while (topology->trajectories.find(name.toStdString()) != topology->trajectories.end())
-        {
-            name = QInputDialog::getText(qobject_cast<QWidget*>(parent()) , tr("Имя новой траектории"),
-                                                 tr("Уже использовано, введите другое:"), QLineEdit::Normal, "", &ok);
-            if(!ok)
-                return nullptr;
-        }
-        undoStack->beginMacro(tr("Добавлена траектория %1").arg(name));
-        auto cmd = new AddTrajectory(topology, name.toStdString(), prev);
-        undoStack->push(cmd);
-        undoStack->push(new AddTrack(cmd->_traj, loaded));
-        undoStack->endMacro();
-        return cmd->_traj;
-    }
-    return nullptr;
+    builder->compile(sphere);
+    builder->compile(sleeper);
+
+    std::vector<vsg::ref_ptr<route::SplinePoint>> points;
+    points.push_back(route::SplinePoint::create(pos - vsg::dvec3(10.0, 0.0, 0.0), sphere));
+    points.push_back(route::SplinePoint::create(pos, sphere));
+    points.push_back(route::SplinePoint::create(pos + vsg::dvec3(100000.0, 0.0, 0.0), sphere));
+    points.push_back(route::SplinePoint::create(pos + vsg::dvec3(200000.0, 0.0, 0.0), sphere));
+    std::vector<vsg::vec3> geometry;
+    geometry.emplace_back(0.0f, 0.0f, 0.0f);
+    geometry.emplace_back(0.0f, 2.0f, 0.0f);
+    geometry.emplace_back(2.0f, 2.0f, 0.0f);
+    geometry.emplace_back(2.0f, 0.0f, 0.0f);
+    auto trajectory = route::SplineTrajectory::create("name", builder, points, geometry, sleeper, 1.0);
+    root->addChild(trajectory);
 }
 
 void DatabaseManager::activeGroupChanged(const QModelIndex &index) noexcept
@@ -159,32 +255,10 @@ void DatabaseManager::loaderButton(bool checked) noexcept
 void DatabaseManager::activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept
 {
     auto path = fsmodel->filePath(selected.indexes().front());
-    auto node = vsg::read_cast<vsg::Node>(path.toStdString(), builder->options);
-    if(!node)
-    {
-        emit sendStatusText(tr("Ошибка при загрузке модели %1").arg(path), 5);
-        loaded.node = nullptr;
-        return;
-    }
-    builder->compile(node);
-    loaded.type = Obj;
-    if(node->getObject(META_TRACK))
-        loaded.type = Trk;
-    QDir dir(qgetenv("RRS2_ROOT"));
-    loaded.path = dir.relativeFilePath(path);
-    loaded.node = node;
-}
+    loaded = vsg::read_cast<vsg::Node>(path.toStdString(), builder->options);
+    loadedPath = modelsDir.relativeFilePath(path);
 
-void write(const vsg::ref_ptr<vsg::Node> node)
-{
-    std::string file;
-    if(node->getValue(TILE_PATH, file))
-    {
-        node->removeObject(TILE_PATH);
-        if(!vsg::write(node, file))
-            throw (DatabaseException(file.c_str()));
-        node->setValue(TILE_PATH, file);
-    }
+    vsg::Objects;
 }
 
 void DatabaseManager::writeTiles() noexcept
@@ -195,14 +269,21 @@ void DatabaseManager::writeTiles() noexcept
     };
     LambdaVisitor<decltype (removeBounds), vsg::VertexIndexDraw> lv(removeBounds);
     tilesModel->getRoot()->accept(lv);
-    vsg::write(database, databasePath, builder->options);
-    try {
-        QFuture<void> future = QtConcurrent::map(tilesModel->getRoot()->children, write);
-        future.waitForFinished();
-        undoStack->setClean();
-    }  catch (DatabaseException &ex) {
+    vsg::write(database, databasePath.toStdString(), builder->options);
 
-    }
+    auto write = [options=builder->options](const auto node)
+    {
+        auto filename = node.second.toStdString();
+        auto ext = vsg::lowerCaseFileExtension(filename);
+        if (ext == ".vsgt" || ext == ".vsgb")
+        {
+            vsg::VSG rw;
+            rw.write(node.first, filename, options);
+        }
+    };
+
+    std::for_each(std::execution::par, files.begin(), files.end(), write);
+    undoStack->setClean();
 }
 
 
