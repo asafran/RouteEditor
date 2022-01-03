@@ -7,7 +7,7 @@
 
 #include <QUndoStack>
 #include "SceneModel.h"
-
+#include <vsg/ui/KeyEvent.h>
 
 namespace route {
     class SceneTrajectory;
@@ -87,15 +87,17 @@ namespace route {
         FindNode();
 
         std::vector<std::pair<const route::SceneObject*, const vsg::Node*>> objects;
-        std::pair<const route::SceneTrajectory*, const vsg::Node*> track;
+        std::pair<const route::Trajectory*, const vsg::Node*> track;
         std::pair<const route::SplinePoint*, const vsg::Node*> trackpoint;
         std::pair<const vsg::Switch*, const vsg::Node*> tile;
+
+        vsg::KeyModifier keyModifier;
 
         void apply(const vsg::Node &node) override;
 
         void apply(const route::SceneObject &object);
 
-        void apply(const route::SceneTrajectory &traj);
+        void apply(const route::Trajectory &traj);
 
         void apply(const route::SplinePoint &point);
 

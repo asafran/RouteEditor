@@ -19,9 +19,6 @@ public:
                 QObject *parent = nullptr);
     ~Manipulator();
 
-
-
-
     void apply(vsg::ButtonPressEvent& buttonPressEvent) override;
     void apply(vsg::MoveEvent& pointerEvent) override;
 
@@ -33,55 +30,33 @@ public:
 
     FindNode intersectedObjects(vsg::LineSegmentIntersector::Intersections isections);
 
-    vsg::LineSegmentIntersector::Intersections interesection(uint32_t mask, const vsg::PointerEvent& pointerEvent);
-
-    enum Mode
-    {
-        SELECT,
-        MOVE,
-        ADD,
-        ADDTRACK
-    };
+    vsg::LineSegmentIntersector::Intersections intersections(uint32_t mask, const vsg::PointerEvent& pointerEvent);
 
 public slots:
-    void selectObject(const QModelIndex &index);
     void moveToObject(const QModelIndex &index);
     void setViewpoint(const vsg::dvec3 &pos);
     void setLatLongAlt(const vsg::dvec3 &pos);
     void setViewpoint(const vsg::dvec4 &pos_mat);
-    void setMode(int index);
+    void setMask(uint32_t mask);
 
 signals:
-    void expand(const QModelIndex &index);
-    void sendData(vsg::ref_ptr<vsg::Data> buffer, vsg::ref_ptr<vsg::BufferInfo> info);
     void sendPos(const vsg::dvec3 &pos);
-
-    void addRequest(const vsg::dvec3& position, const QModelIndex &index);
-    void objectClicked(const QModelIndex &index);
-    void objectSelected(vsg::ref_ptr<route::SceneObject> object);
-    void deselect();
+    void sendIntersection(const FindNode& isection);
+    //void objectClicked(const QModelIndex &index);
     void sendStatusText(const QString &message, int timeout);
 
 protected:
+    inline void createPointer();
 
-    inline void addPointer();
-    inline void addWireframe();
-    inline void moveWireframe(const vsg::Node *node, vsg::dmat4 ltw);
-
-    void handlePress(vsg::ButtonPressEvent& buttonPressEvent);
-
-    vsg::ref_ptr<vsg::MatrixTransform> _pointer;
-    vsg::ref_ptr<vsg::MatrixTransform> _wireframe;
-
-    //----------------------Move-----------------------
+    //void handlePress(vsg::ButtonPressEvent& buttonPressEvent);
 
     DatabaseManager *_database;
 
-    route::SceneObject *_movingObject;
+    vsg::ref_ptr<vsg::MatrixTransform> _pointer;
 
     vsg::dmat4 _oldMatrix;
 
-    int _mode = ADD;
+    uint32_t _mask = 0xFFFFFF;
 
     //FindNode _lastIntersection;
 };

@@ -21,12 +21,12 @@ namespace route
                                        std::vector<vsg::vec3> geometry,
                                        vsg::ref_ptr<vsg::Node> sleeper, double distance)
       : vsg::Inherit<Trajectory, SplineTrajectory>(name)
-      , _points(points)
       , _builder(builder)
       , _geometry(geometry)
       , _sleeper(sleeper)
       , _sleepersDistance(distance)
     {
+        _points = points;
         recalculate();
     }
 
@@ -98,7 +98,7 @@ namespace route
             return sp->getPosition() - front;
         });
 
-        _railSpline.reset(new UniformCRSpline<vsg::dvec3, double>(points));
+        _railSpline.reset(new CubicHermiteSpline<vsg::dvec3, double>(points));
 
         auto partitionBoundaries = ArcLength::partition(*_railSpline, _sleepersDistance);
 
@@ -110,8 +110,8 @@ namespace route
         });
 
         //std::mutex m;
-        auto group = vsg::MatrixTransform::create(vsg::translate(front));
-        std::for_each(derivatives.begin(), derivatives.end(), [ sleeper=_sleeper, group](const InterpolatedPTCM &ptcm)
+        _track = vsg::MatrixTransform::create(vsg::translate(front));
+        std::for_each(derivatives.begin(), derivatives.end(), [ sleeper=_sleeper, group=_track](const InterpolatedPTCM &ptcm)
         {
             auto transform = vsg::MatrixTransform::create(ptcm.calculated);
             transform->addChild(sleeper);
@@ -171,124 +171,11 @@ namespace route
         auto ind = vsg::ushortArray::create(indices.size());
         std::copy(indices.begin(), indices.end(), ind->begin());
 
-        group->addChild(generateRails(vsg::DataList{vertArray}, ind));
-        children.push_back(group);
+        assignRails(vsg::DataList{vertArray}, ind);
     }
 
-    vsg::ref_ptr<vsg::Node> SplineTrajectory::generateRails(vsg::DataList list, vsg::ref_ptr<vsg::ushortArray> indices)
+    void SplineTrajectory::assignRails(vsg::DataList list, vsg::ref_ptr<vsg::ushortArray> indices)
     {
-        /*
-           // set up search paths to SPIRV shaders and textures
-           vsg::Paths searchPaths = vsg::getEnvPaths("VSG_FILE_PATH");
-
-           // load shaders
-           vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("shaders/vert_PushConstants.spv", searchPaths));
-           vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("shaders/frag_PushConstants.spv", searchPaths));
-           if (!vertexShader || !fragmentShader)
-           {
-               return vsg::ref_ptr<vsg::Node>();
-           }
-
-           // read texture image
-           vsg::Path textureFile("textures/lz.vsgb");
-           auto textureData = vsg::read_cast<vsg::Data>(vsg::findFile(textureFile, searchPaths));
-           if (!textureData)
-           {
-               return vsg::ref_ptr<vsg::Node>();
-           }
-
-           // set up graphics pipeline
-           vsg::DescriptorSetLayoutBindings descriptorBindings{
-               {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
-           };
-
-           auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
-
-           vsg::PushConstantRanges pushConstantRanges{
-               {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls automatically provided by the VSG's DispatchTraversal
-           };
-
-           vsg::VertexInputState::Bindings vertexBindingsDescriptions{
-               VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // vertex data
-               VkVertexInputBindingDescription{1, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // colour data
-               VkVertexInputBindingDescription{2, sizeof(vsg::vec2), VK_VERTEX_INPUT_RATE_VERTEX}  // tex coord data
-           };
-
-           vsg::VertexInputState::Attributes vertexAttributeDescriptions{
-               VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0}, // vertex data
-               VkVertexInputAttributeDescription{1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0}, // colour data
-               VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R32G32_SFLOAT, 0}     // tex coord data
-           };
-
-           vsg::GraphicsPipelineStates pipelineStates{
-               vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
-               vsg::InputAssemblyState::create(),
-               vsg::RasterizationState::create(),
-               vsg::MultisampleState::create(),
-               vsg::ColorBlendState::create(),
-               vsg::DepthStencilState::create()};
-
-           auto pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout}, pushConstantRanges);
-           auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, vsg::ShaderStages{vertexShader, fragmentShader}, pipelineStates);
-           auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
-
-           // create texture image and associated DescriptorSets and binding
-           auto texture = vsg::DescriptorImage::create(vsg::Sampler::create(), textureData, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-           auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{texture});
-           auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
-
-           // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
-           auto scenegraph = vsg::StateGroup::create();
-           scenegraph->add(bindGraphicsPipeline);
-           scenegraph->add(bindDescriptorSet);
-
-           // set up model transformation node
-           //auto transform = vsg::MatrixTransform::create(); // VK_SHADER_STAGE_VERTEX_BIT
-
-           // add transform to root of the scene graph
-           //scenegraph->addChild(transform);
-
-            set up vertex and index arrays
-           auto vertices = vsg::vec3Array::create(
-               {{-0.5f, -0.5f, 0.0f},
-                {0.5f, -0.5f, 0.0f},
-                {0.5f, 0.5f, 0.0f},
-                {-0.5f, 0.5f, 0.0f},
-                {-0.5f, -0.5f, -0.5f},
-                {0.5f, -0.5f, -0.5f},
-                {0.5f, 0.5f, -0.5f},
-                {-0.5f, 0.5f, -0.5f}}); // VK_FORMAT_R32G32B32_SFLOAT, VK_VERTEX_INPUT_RATE_INSTANCE, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE
-
-           auto colors = vsg::vec3Array::create(
-               {
-                   {1.0f, 0.0f, 0.0f},
-                   {0.0f, 1.0f, 0.0f},
-                   {0.0f, 0.0f, 1.0f},
-                   {1.0f, 1.0f, 1.0f},
-                   {1.0f, 0.0f, 0.0f},
-                   {0.0f, 1.0f, 0.0f},
-                   {0.0f, 0.0f, 1.0f},
-                   {1.0f, 1.0f, 1.0f},
-               }); // VK_FORMAT_R32G32B32_SFLOAT, VK_VERTEX_INPUT_RATE_VERTEX, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE
-
-           auto texcoords = vsg::vec2Array::create(
-               {{0.0f, 0.0f},
-                {1.0f, 0.0f},
-                {1.0f, 1.0f},
-                {0.0f, 1.0f},
-                {0.0f, 0.0f},
-                {1.0f, 0.0f},
-                {1.0f, 1.0f},
-                {0.0f, 1.0f}}); // VK_FORMAT_R32G32_SFLOAT, VK_VERTEX_INPUT_RATE_VERTEX, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE
-
-           auto indices = vsg::ushortArray::create(
-               {0, 1, 2,
-                2, 3, 0,
-                4, 5, 6,
-                6, 7, 4}); // VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE
-
-           // setup geometry */
         auto stateGroup = _builder->createStateGroup();
 
         stateGroup->addChild(vsg::BindVertexBuffers::create(0, list));
@@ -297,17 +184,17 @@ namespace route
 
         _builder->compile(stateGroup);
 
-        return stateGroup;
+        _track->addChild(stateGroup);
     }
 
     SceneTrajectory::SceneTrajectory()
-        : vsg::Inherit<vsg::Node, SceneTrajectory>()
+        : vsg::Inherit<vsg::Group, SceneTrajectory>()
     {
     }
     SceneTrajectory::SceneTrajectory(Trajectory *traj)
         : SceneTrajectory()
     {
-        traj = trajectory;
+        children.emplace_back(traj);
     }
 
     SceneTrajectory::~SceneTrajectory() {}
@@ -319,36 +206,20 @@ namespace route
         std::string name;
         input.read("trajName", name);
 
-        trajectory = input.options->objectCache->get(TOPOLOGY_KEY).cast<Topology>()->trajectories.at(name);
+        addChild(input.options->objectCache->get(TOPOLOGY_KEY).cast<Topology>()->trajectories.at(name));
 
-        /*
-        //input.read("files", files);
-
-        vsg::dmat4 matrix;
-        for(auto &file : files)
-        {
-            vsg::Paths searchPaths = vsg::getEnvPaths("RRS2_ROOT");
-            vsg::Path filename = vsg::findFile(file, searchPaths);
-            auto tracknode = vsg::read_cast<vsg::Node>(filename);
-            auto track = tracknode->getObject<Track>("Trk");
-            tracks.emplace_back(track);
-            auto transform = vsg::MatrixTransform::create(matrix);
-            transform->addChild(tracknode);
-            addChild(transform);
-            track->ltw = vsg::inverse(vsg::translate(position)) * vsg::inverse(matrix);
-            matrix = vsg::translate(track->position(track->lenght)) * matrix;
-        }
-        */
     }
 
     void SceneTrajectory::write(vsg::Output& output) const
     {
         Node::write(output);
 
+        auto trajectory = children.front();
+        Q_ASSERT(trajectory);
+
         std::string name;
         trajectory->getValue(META_NAME, name);
         output.write("trajName", name);
 
-        //output.write("files", files);
     }
 }

@@ -86,20 +86,7 @@
           <string>Тайлы</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout">
-          <item row="3" column="3">
-           <widget class="QPushButton" name="addGroupButt">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Добавить в слой</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="2">
+          <item row="2" column="1">
            <widget class="QPushButton" name="addSObjectButt">
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -112,36 +99,7 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="0" colspan="5">
-           <widget class="QComboBox" name="modeBox">
-            <item>
-             <property name="text">
-              <string>Выбор объектов</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>Перемещение</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>Добавление новых объектов</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>Редактирование рельефа</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>Добавление путевых объектов</string>
-             </property>
-            </item>
-           </widget>
-          </item>
-          <item row="2" column="0" colspan="5">
+          <item row="1" column="0" colspan="4">
            <widget class="QTreeView" name="tilesView">
             <property name="acceptDrops">
              <bool>true</bool>
@@ -158,41 +116,21 @@
             <property name="selectionMode">
              <enum>QAbstractItemView::ExtendedSelection</enum>
             </property>
+            <property name="selectionBehavior">
+             <enum>QAbstractItemView::SelectItems</enum>
+            </property>
             <property name="sortingEnabled">
              <bool>true</bool>
             </property>
             <property name="expandsOnDoubleClick">
              <bool>false</bool>
             </property>
-            <attribute name="headerMinimumSectionSize">
-             <number>168</number>
+            <attribute name="headerDefaultSectionSize">
+             <number>68</number>
             </attribute>
            </widget>
           </item>
-          <item row="1" column="0" colspan="5">
-           <widget class="QLineEdit" name="lineEdit">
-            <property name="placeholderText">
-             <string>Поиск по объектов по маршруту</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QPushButton" name="loaderButt">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Использовать ссылки</string>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="4">
+          <item row="2" column="3">
            <widget class="QPushButton" name="removeButt">
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -205,8 +143,15 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="1">
-           <widget class="QPushButton" name="autoAddButt">
+          <item row="0" column="0" colspan="4">
+           <widget class="QLineEdit" name="lineEdit">
+            <property name="placeholderText">
+             <string>Поиск по объектов по маршруту</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="2">
+           <widget class="QPushButton" name="addGroupButt">
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
               <horstretch>0</horstretch>
@@ -214,53 +159,9 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string>Выбирать группу автоматически</string>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
+             <string>Добавить в слой</string>
             </property>
            </widget>
-          </item>
-         </layout>
-        </widget>
-       </widget>
-       <widget class="QToolBox" name="toolBox">
-        <property name="currentIndex">
-         <number>0</number>
-        </property>
-        <widget class="QWidget" name="content">
-         <property name="geometry">
-          <rect>
-           <x>0</x>
-           <y>0</y>
-           <width>1890</width>
-           <height>192</height>
-          </rect>
-         </property>
-         <attribute name="label">
-          <string>Контент</string>
-         </attribute>
-         <layout class="QVBoxLayout" name="verticalLayout_3">
-          <property name="spacing">
-           <number>0</number>
-          </property>
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
-           <number>0</number>
-          </property>
-          <item>
-           <widget class="QTreeView" name="fileView"/>
           </item>
          </layout>
         </widget>

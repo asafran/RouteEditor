@@ -3,7 +3,6 @@
 #include "vsgGIS/TileDatabase.h"
 //#include <QtConcurrent/QtConcurrent>
 #include <QInputDialog>
-//#include "TilesVisitor.h"
 #include "undo-redo.h"
 #include "topology.h"
 #include <QRegularExpression>
@@ -45,24 +44,22 @@ vsg::ref_ptr<vsg::Switch> prepareTile(vsg::Group *tile, vsg::ref_ptr<vsg::Builde
     return sw;
 }
 */
-DatabaseManager::DatabaseManager(QString path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, QFileSystemModel *model, QObject *parent) : QObject(parent)
-  , root(vsg::Group::create())
-  , databasePath(path)
-  , builder(in_builder)
-  , fsmodel(model)
-  , modelsDir(vsg::getEnvPaths("RRS2_ROOT").begin()->c_str())
-  , undoStack(stack)
+DatabaseManager::DatabaseManager(QString path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, QObject *parent) : QObject(parent)
+  , _root(vsg::Group::create())
+  , _databasePath(path)
+  , _builder(in_builder)
+  , _undoStack(stack)
 {
-    database = vsg::read_cast<vsg::Group>(databasePath.toStdString(), builder->options);
-    if (!database)
+    _database = vsg::read_cast<vsg::Group>(_databasePath.toStdString(), _builder->options);
+    if (!_database)
         throw (DatabaseException(path));
     try {
-        topology = database->children.at(TOPOLOGY_CHILD).cast<route::Topology>();
+        _topology = _database->children.at(TOPOLOGY_CHILD).cast<route::Topology>();
     }  catch (std::out_of_range) {
-        topology = route::Topology::create();
-        database->addChild(topology);
+        _topology = route::Topology::create();
+        _database->addChild(_topology);
     }
-    builder->options->objectCache->add(topology, TOPOLOGY_KEY);
+    _builder->options->objectCache->add(_topology, TOPOLOGY_KEY);
 }
 DatabaseManager::~DatabaseManager()
 {
@@ -70,7 +67,7 @@ DatabaseManager::~DatabaseManager()
 
 SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, double tileLOD, double pointsLOD, float size)
 {
-    QFileInfo directory(databasePath);
+    QFileInfo directory(_databasePath);
     QStringList filter("*L*_X*_Y*_subtile.vsg*");
     QStringList tileFiles;
     QDirIterator it(directory.absolutePath(), filter, QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
@@ -85,81 +82,80 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
     auto level = *std::max_element(levels.begin(), levels.end());
     tileFiles = tileFiles.filter(QRegularExpression(QString(".+L%1_X[0-9]+_Y[0-9]+_subtile.vsg.").arg(level)));
 
-    auto prepare = [builder=builder, copyBuffer, pointsLOD, size](vsg::Group *tile)
-    {
-        vsg::GeometryInfo info;
-        vsg::StateInfo state;
+    vsg::GeometryInfo info;
+    vsg::StateInfo state;
 
-        info.dx.set(size, 0.0f, 0.0f);
-        info.dy.set(0.0f, size, 0.0f);
-        info.dz.set(0.0f, 0.0f, size);
+    info.dx.set(size, 0.0f, 0.0f);
+    info.dy.set(0.0f, size, 0.0f);
+    info.dz.set(0.0f, 0.0f, size);
 
-        state.lighting = false;
+    state.lighting = false;
 
-        auto sphere = builder->createSphere(info, state);
-        builder->compile(sphere);
-
-        auto sw = vsg::Switch::create();
-
-        for (auto& node : tile->children)
-        {
-            auto transform = node.cast<vsg::MatrixTransform>();
-            auto pointSwitch = vsg::Switch::create();
-            auto pointGroup = vsg::Group::create();
-            pointSwitch->addChild(route::Points, pointGroup);
-
-            auto addPoint = [pointGroup, sphere, copyBuffer, pointsLOD, size=size/2](vsg::VertexIndexDraw& vid)
-            {
-                auto bufferInfo = vid.arrays.front();
-                auto vertarray = bufferInfo->data.cast<vsg::vec3Array>();
-                for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
-                {
-                    auto point = route::TerrainPoint::create(copyBuffer, bufferInfo, sphere, it);
-
-                    auto lod = vsg::LOD::create();
-                    vsg::LOD::Child hires{pointsLOD, point};
-                    vsg::LOD::Child dummy{0.0, vsg::Node::create()};
-                    lod->addChild(hires);
-                    lod->addChild(dummy);
-
-                    vsg::dsphere bound;
-                    bound.center = *it;
-                    bound.radius = size;
-                    lod->bound = bound;
-
-                    pointGroup->addChild(lod);
-                }
-            };
-            LambdaVisitor<decltype (addPoint), vsg::VertexIndexDraw> lv(addPoint);
-            transform->accept(lv);
-            transform->addChild(pointSwitch);
-            sw->addChild(route::Tiles, transform);
-        }
-
-        return sw;
-    };
+    auto sphere = _builder->createSphere(info, state);
 
     auto tiles = vsg::Group::create();
     auto scene = vsg::Group::create();
 
     std::mutex m;
-    auto load = [prepare, tiles, scene, tileLOD, this, &m](const QString &tilepath)
+    auto load = [sphere, copyBuffer, pointsLOD, size, tiles, scene, tileLOD, this, &m](const QString &tilepath)
     {
-        auto file = vsg::read_cast<vsg::Node>(tilepath.toStdString(), builder->options);
+        auto file = vsg::read_cast<vsg::Node>(tilepath.toStdString(), _builder->options);
         if (file)
         {
-            vsg::ref_ptr<vsg::Node> tile;
+            vsg::ref_ptr<vsg::Switch> tile(file->cast<vsg::Switch>());
 
-            if(file->is_compatible( typeid (vsg::Switch)))
-                tile = file;
-            else if(auto group = file->cast<vsg::Group>(); group)
-                tile = prepare(group);
-            else
+            if(!tile)
             {
-                std::scoped_lock lock(m);
-                emit sendStatusText(tr("Ошибка чтения БД, файл: %1").arg(tilepath), 1000);
-                return;
+                if(auto group = file->cast<vsg::Group>(); group)
+                {
+                    tile = vsg::Switch::create();
+                    for (auto& node : group->children)
+                    {
+                        auto transform = node.cast<vsg::MatrixTransform>();
+                        tile->addChild(route::Tiles, transform);
+                    }
+                }
+                else
+                {
+                    std::scoped_lock lock(m);
+                    emit sendStatusText(tr("Ошибка чтения БД, файл: %1").arg(tilepath), 1000);
+                    return;
+                }
             }
+
+            auto pointGroup = vsg::Group::create();
+            tile->addChild(route::Points, pointGroup);
+
+            auto traverseTiles = [pointGroup, sphere, copyBuffer, pointsLOD, radius=size/2](vsg::MatrixTransform &transform)
+            {
+                auto addPoint = [=](vsg::VertexIndexDraw& vid)
+                {
+                    auto bufferInfo = vid.arrays.front();
+                    auto vertarray = bufferInfo->data.cast<vsg::vec3Array>();
+                    for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
+                    {
+                        auto point = route::TerrainPoint::create(copyBuffer, bufferInfo, transform.matrix, sphere, it);
+
+                        auto lod = vsg::LOD::create();
+                        vsg::LOD::Child hires{pointsLOD, point};
+                        vsg::LOD::Child dummy{0.0, vsg::Node::create()};
+                        lod->addChild(hires);
+                        lod->addChild(dummy);
+
+                        vsg::dsphere bound;
+                        bound.center = transform.matrix * vsg::dvec3(*it);
+                        bound.radius = radius;
+                        lod->bound = bound;
+
+                        pointGroup->addChild(lod);
+                    }
+                };
+                LambdaVisitor<decltype (addPoint), vsg::VertexIndexDraw> lv(addPoint);
+                transform.accept(lv);
+            };
+            LambdaVisitor<decltype (traverseTiles), vsg::MatrixTransform> lv(traverseTiles);
+            lv.traversalMask = route::Tiles;
+            tile->accept(lv);
 
             auto sceneLOD = vsg::LOD::create();
             vsg::LOD::Child hires{tileLOD, tile};
@@ -179,47 +175,19 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
                 std::scoped_lock lock(m);
                 tiles->addChild(tile);
                 scene->addChild(sceneLOD);
-                files.insert(std::pair{tile.get(), tilepath});
+                _files.insert(std::pair{tile.get(), tilepath});
             }
         }
     };
     std::for_each(std::execution::par, tileFiles.begin(), tileFiles.end(), load);
 
-    root->addChild(scene);
+    _root->addChild(scene);
 
-    tilesModel = new SceneModel(tiles, builder, undoStack, this);
-    return tilesModel;
+    _tilesModel = new SceneModel(tiles, _builder, _undoStack, this);
+    return _tilesModel;
 }
 
-
-void DatabaseManager::addToClicked(const FindNode &found) noexcept
-{
-    /*
-    if(found.track.first != nullptr)
-    {
-
-    } else if(found.)
-
-    auto index = tilesModel->index(tile.first, tile.second);
-    bool canAddToIntersected = !loadToSelected && index.isValid();
-    bool canAddToSelected = loadToSelected && activeGroup.isValid();
-    if(!loaded || (!canAddToIntersected && !canAddToSelected))
-        return;
-
-    QModelIndex readindex = loadToSelected ? activeGroup : index;
-
-    vsg::ref_ptr<route::SceneObject> obj;
-    auto norm = vsg::normalize(local);
-    vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
-
-    if(placeLoader)
-        obj = route::SingleLoader::create(loaded, loadedPath, local, quat);
-    else
-        obj = route::SceneObject::create(loaded, local, quat);
-    undoStack->push(new AddSceneObject(tilesModel, readindex, obj));
-    */
-}
-
+/*
 void DatabaseManager::addTrack(const vsg::dvec3 &pos) noexcept
 {
     auto sphere = builder->createSphere();
@@ -240,26 +208,8 @@ void DatabaseManager::addTrack(const vsg::dvec3 &pos) noexcept
     geometry.emplace_back(2.0f, 0.0f, 0.0f);
     auto trajectory = route::SplineTrajectory::create("name", builder, points, geometry, sleeper, 1.0);
     root->addChild(trajectory);
-}
+}*/
 
-void DatabaseManager::activeGroupChanged(const QModelIndex &index) noexcept
-{
-    activeGroup = index;
-}
-
-void DatabaseManager::loaderButton(bool checked) noexcept
-{
-    placeLoader = checked;
-}
-
-void DatabaseManager::activeFileChanged(const QItemSelection &selected, const QItemSelection &) noexcept
-{
-    auto path = fsmodel->filePath(selected.indexes().front());
-    loaded = vsg::read_cast<vsg::Node>(path.toStdString(), builder->options);
-    loadedPath = modelsDir.relativeFilePath(path);
-
-    vsg::Objects;
-}
 
 void DatabaseManager::writeTiles() noexcept
 {
@@ -268,10 +218,23 @@ void DatabaseManager::writeTiles() noexcept
         object.removeObject("bound");
     };
     LambdaVisitor<decltype (removeBounds), vsg::VertexIndexDraw> lv(removeBounds);
-    tilesModel->getRoot()->accept(lv);
-    vsg::write(database, databasePath.toStdString(), builder->options);
+    auto removePoints = [](vsg::Switch& sw)
+    {
+        for (auto it = sw.children.begin(); it != sw.children.end(); ++it)
+        {
+            if (it->mask == route::Points)
+            {
+                sw.children.erase(it);
+                break;
+            }
+        }
+    };
+    LambdaVisitor<decltype (removePoints), vsg::Switch> lvp(removePoints);
+    _tilesModel->getRoot()->accept(lvp);
 
-    auto write = [options=builder->options](const auto node)
+    vsg::write(_database, _databasePath.toStdString(), _builder->options);
+
+    auto write = [options=_builder->options](const auto node)
     {
         auto filename = node.second.toStdString();
         auto ext = vsg::lowerCaseFileExtension(filename);
@@ -282,8 +245,8 @@ void DatabaseManager::writeTiles() noexcept
         }
     };
 
-    std::for_each(std::execution::par, files.begin(), files.end(), write);
-    undoStack->setClean();
+    std::for_each(std::execution::par, _files.begin(), _files.end(), write);
+    _undoStack->setClean();
 }
 
 

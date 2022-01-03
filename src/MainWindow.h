@@ -10,7 +10,8 @@
 #include <QUndoView>
 #include <QRegularExpression>
 #include <vsg/all.h>
-#include "tilessorter.h"
+#include <QToolBox>
+#include "TilesSorter.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -25,12 +26,7 @@ public:
     ~MainWindow();
 
 public slots:
-//    void addToRoot(vsg::ref_ptr<vsg::Node> node);
-//    void setTilesModel(SceneModel *model);
-//    void openRoute();
-    void addObject();
-    void pushCommand(QUndoCommand *command);
-    //void receiveData(vsg::ref_ptr<vsg::Data> buffer, vsg::ref_ptr<vsg::BufferInfo> info);
+    void intersection(const FindNode& isection);
 
 private:
     QWindow* initilizeVSGwindow();
@@ -38,22 +34,19 @@ private:
 
     void constructWidgets();
 
-    void initializeDB();
-
-    //DatabaseManager *openDialog();
+    void initializeTools();
 
     Ui::MainWindow *ui;
-    //vsg::ref_ptr<vsg::Options> options;
     vsg::ref_ptr<vsg::Builder> builder;
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;
     DatabaseManager *database;
 
     QString pathDB;
-    //vsg::ref_ptr<Manipulator> manipulator;
 
-    //QFileSystemModel *fsmodel;
     TilesSorter *sorter;
+
+    QToolBox *toolbox;
 
     QUndoStack *undoStack;
     QUndoView *undoView;

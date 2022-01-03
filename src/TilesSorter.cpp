@@ -1,4 +1,4 @@
-#include "tilessorter.h"
+#include "TilesSorter.h"
 
 TilesSorter::TilesSorter(QObject *parent) : QSortFilterProxyModel(parent)
 {
@@ -19,17 +19,23 @@ void TilesSorter::select(const QModelIndex &index)
     emit viewSelectSignal(mapFromSource(index), QItemSelectionModel::Select);
 }
 
+void TilesSorter::deselect(const QModelIndex &index)
+{
+    emit viewSelectSignal(mapFromSource(index), QItemSelectionModel::Deselect);
+}
+
 void TilesSorter::expand(const QModelIndex &index)
 {
     emit viewExpandSignal(mapFromSource(index));
 }
 
-void TilesSorter::viewSelectSlot(const QItemSelection &selected, const QItemSelection &)
+void TilesSorter::viewSelectSlot(const QItemSelection &selected, const QItemSelection &deselected)
 {
+    emit selectionChanged(mapSelectionToSource(selected), mapSelectionToSource(deselected));
     if(selected.indexes().empty())
-        emit selectionChanged(QModelIndex());
+        emit frontSelectionChanged(QModelIndex());
     else
-        emit selectionChanged(mapToSource(selected.indexes().front()));
+        emit frontSelectionChanged(mapToSource(selected.indexes().front()));
 }
 
 void TilesSorter::viewDoubleClicked(const QModelIndex &index)

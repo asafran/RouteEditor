@@ -5,9 +5,10 @@
 #include <vsg/utils/Builder.h>
 #include <QObject>
 #include <QSet>
-//#include "vehicle-controller.h"
+#include "sceneobjects.h"
 #include <vsg/maths/transform.h>
 #include "splines/uniform_cr_spline.h"
+#include "splines/cubic_hermite_spline.h"
 #include "utils/arclength.h"
 #include "utils/splineinverter.h"
 
@@ -20,8 +21,6 @@ namespace route
 
     class Trajectory;
     class SceneModel;
-    class SplinePoint;
-    class SceneObject;
     class SceneTrajectory;
 
     using InterpolationSpline = UniformCRSpline<vsg::dvec3, double>;
@@ -57,6 +56,7 @@ namespace route
         return distance < 0.1;
     }
 
+
     class Trajectory : public vsg::Inherit<vsg::Group, Trajectory>
     {
     public:
@@ -77,31 +77,43 @@ namespace route
 
         virtual double getLength() const = 0;
 
-        virtual bool isFrontReversed() const { return frontReversed; }
-        virtual bool isBackReversed() const { return backReversed; }
+        virtual bool isFrontReversed() const { return _frontReversed; }
+        virtual bool isBackReversed() const { return _backReversed; }
 
-        virtual Trajectory* getFwd() const { return fwdTraj; }
-        virtual Trajectory* getBwd() const  { return bwdTraj; }
+        virtual Trajectory* getFwd() const { return _fwdTraj; }
+        virtual Trajectory* getBwd() const  { return _bwdTraj; }
 
-        void setBusy(simulator::Bogie *vehicle) { vehicles_on_traj.insert(vehicle); }
+        void setBusy(simulator::Bogie *vehicle) { _vehicles_on_traj.insert(vehicle); }
 
-        void removeBusy(simulator::Bogie *vehicle) { vehicles_on_traj.remove(vehicle); }
+        void removeBusy(simulator::Bogie *vehicle) { _vehicles_on_traj.remove(vehicle); }
 
-        bool isBusy() const { return !vehicles_on_traj.isEmpty(); }
+        bool isBusy() const { return !_vehicles_on_traj.isEmpty(); }
 
-        QSet<simulator::Bogie *> getTrajVehicleSet() const { return vehicles_on_traj; }
+        QSet<simulator::Bogie *> getTrajVehicleSet() const { return _vehicles_on_traj; }
 
+        template<class N, class V>
+        static void t_traverse(N& node, V& visitor)
+        {
+            node._track->accept(visitor);
+            for (auto& child : node._points) child->accept(visitor);
+        }
+
+        void traverse(vsg::Visitor& visitor) override { Group::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::ConstVisitor& visitor) const override { Group::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::RecordTraversal& visitor) const override { Group::traverse(visitor); t_traverse(*this, visitor); }
 
     protected:
-        QSet<simulator::Bogie *> vehicles_on_traj;
+        QSet<simulator::Bogie *> _vehicles_on_traj;
 
-        SceneTrajectory *objects;
+        vsg::ref_ptr<vsg::Group> _track;
 
-        Trajectory       *fwdTraj;
-        Trajectory       *bwdTraj;
+        std::vector<vsg::ref_ptr<SplinePoint>> _points;
 
-        bool frontReversed;
-        bool backReversed;
+        Trajectory       *_fwdTraj;
+        Trajectory       *_bwdTraj;
+
+        bool _frontReversed;
+        bool _backReversed;
     };
 
     class SplineTrajectory : public vsg::Inherit<Trajectory, SplineTrajectory>
@@ -127,22 +139,6 @@ namespace route
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-/*
-        template<class N, class V>
-        static void t_traverse(N& node, V& visitor)
-        {
-
-            for (auto it = node.sleepers.begin(); it != node.sleepers.end(); ++it)
-                (*it)->accept(visitor);
-            node.rails->accept(visitor);
-
-        }
-
-        void traverse(vsg::Visitor& visitor) override { t_traverse(*this, visitor); }
-        void traverse(vsg::ConstVisitor& visitor) const override { t_traverse(*this, visitor); }
-        void traverse(vsg::RecordTraversal& visitor) const override { t_traverse(*this, visitor); }
-*/
-
         //double getPoints();
 
         void recalculate();
@@ -150,26 +146,34 @@ namespace route
         int add(vsg::dvec3 lla);
         void move(vsg::dvec3 lla, int point);
 
+        template<class N, class V>
+        static void t_traverse(N& node, V& visitor)
+        {
+            for (auto& child : node._autoPositioned) child->accept(visitor);
+        }
+
+        void traverse(vsg::Visitor& visitor) override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::ConstVisitor& visitor) const override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::RecordTraversal& visitor) const override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
+
     private:
+
+        void assignRails(vsg::DataList list, vsg::ref_ptr<vsg::ushortArray> indices);
+
         double _sleepersDistance;
 
-        vsg::ref_ptr<vsg::Node> generateRails(vsg::DataList list, vsg::ref_ptr<vsg::ushortArray> indices);
+        std::shared_ptr<CubicHermiteSpline<vsg::dvec3, double>> _railSpline;
 
-        std::shared_ptr<UniformCRSpline<vsg::dvec3, double>> _railSpline;
+        std::vector<vsg::ref_ptr<route::SceneObject>> _autoPositioned;
 
-        std::vector<vsg::ref_ptr<SplinePoint>> _points; //coordinates in ecef
-
-        //std::vector<vsg::ref_ptr<vsg::Group>> _segments;
         vsg::ref_ptr<vsg::Builder> _builder;
 
         std::vector<vsg::vec3> _geometry;
 
         vsg::ref_ptr<vsg::Node> _sleeper;
-
-        vsg::ref_ptr<vsg::Switch> _editing;
     };
 
-    class SceneTrajectory : public vsg::Inherit<vsg::Node, SceneTrajectory>
+    class SceneTrajectory : public vsg::Inherit<vsg::Group, SceneTrajectory>
     {
     public:
         explicit SceneTrajectory(Trajectory *traj);
@@ -179,16 +183,6 @@ namespace route
 
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
-
-        void traverse(vsg::Visitor& visitor) override { trajectory->accept(visitor); }
-        void traverse(vsg::ConstVisitor& visitor) const override { trajectory->accept(visitor); }
-        void traverse(vsg::RecordTraversal& visitor) const override { trajectory->accept(visitor); }
-    /*
-        std::vector<std::string> files;
-
-        std::vector<vsg::ref_ptr<vsg::MatrixTransform>> tracks;
-    */
-        Trajectory *trajectory;
     };
 }
 

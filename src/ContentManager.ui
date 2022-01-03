@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
+    <width>435</width>
     <height>300</height>
    </rect>
   </property>
@@ -19,6 +19,23 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QTreeView" name="fileView"/>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="useLinks">
+     <property name="text">
+      <string>Использовать ссылки</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="autoGroup">
+     <property name="text">
+      <string>Выбирать группу автоматически</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>

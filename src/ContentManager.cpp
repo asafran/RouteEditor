@@ -2,51 +2,96 @@
 #include "sceneobjects.h"
 #include "ui_ContentManager.h"
 #include <QSettings>
-#include <QtConcurrent/QtConcurrent>
+#include <vsg/io/read.h>
+#include "ParentVisitor.h"
 #include "DatabaseManager.h"
 
-ContentManager::ContentManager(vsg::ref_ptr<vsg::Builder> in_builder, vsg::ref_ptr<vsg::Options> in_options, QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::ContentManager),
-    options(in_options),
-    builder(in_builder)
+ContentManager::ContentManager(DatabaseManager *database, QString root, QWidget *parent) : Tool(database, parent)
+    , ui(new Ui::ContentManager)
+  , modelsDir(root)
 {
     QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
     ui->setupUi(this);
-    model = new QFileSystemModel(this);
-    model->setRootPath(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString());
-    ui->fileView->setModel(model);
-    ui->fileView->setRootIndex(model->index(settings.value("CONTENT", "/home/asafr/Development/vsg/vsgExamples/data").toString()));
-    QDirIterator it(model->rootPath(), QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
-    QStringList models;
-    while (it.hasNext())
-        models << it.next();
-    loadModels(models);
+    _fsmodel = new QFileSystemModel(this);
+    _fsmodel->setRootPath(root);
+    ui->fileView->setModel(_fsmodel);
+    ui->fileView->setRootIndex(_fsmodel->index(root));
 }
 
-void addToGroup(QMap<QString, vsg::ref_ptr<vsg::Node>> &preloaded, std::pair<QString, vsg::ref_ptr<vsg::Node>> &node)
+void ContentManager::intersection(const FindNode &isection)
 {
-    preloaded.insert(node.first, node.second);
-}
+    bool loadToSelected = !ui->autoGroup->isChecked();
+    auto activeFile = ui->fileView->selectionModel()->selectedIndexes().front();
+    if(!activeFile.isValid() || (!_activeGroup.isValid() && loadToSelected))
+        return;
 
-std::pair<QString, vsg::ref_ptr<vsg::Node>> read(const QString &path)
-{
-    auto tile = vsg::read_cast<vsg::Node>(path.toStdString());
-    if (tile)
+    auto path = _fsmodel->filePath(activeFile).toStdString();
+    auto node = vsg::read_cast<vsg::Node>(path);
+    _database->compile(node);
+
+    if(addToTrack(node, isection))
+        return;
+
+    QModelIndex activeGroup = findGroup(isection);
+    vsg::dmat4 wtl;
+    auto world = isection.worldIntersection;
+
+    if(loadToSelected || (_activeGroup.isValid() && !activeGroup.isValid()))
     {
-        return std::make_pair(path, tile);
-    } else
-        throw (DatabaseException(path));
+        activeGroup = _activeGroup;
+        auto group = static_cast<vsg::Node*>(_activeGroup.internalPointer());
+
+        ParentVisitor pv(group);
+        _database->getRoot()->accept(pv);
+        pv.pathToChild.pop_back();
+        wtl = vsg::inverse(vsg::computeTransform(pv.pathToChild));
+    } else if(!_activeGroup.isValid() && !activeGroup.isValid())
+        return;
+
+    vsg::ref_ptr<route::SceneObject> obj;
+    auto norm = vsg::normalize(world);
+    vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
+
+    if(ui->useLinks->isChecked())
+        obj = route::SingleLoader::create(node, path, wtl * world, quat);
+    else
+        obj = route::SceneObject::create(node, wtl * world, quat);
+    _database->push(new AddSceneObject(_database->getTilesModel(), activeGroup, obj));
+    emit sendStatusText(tr("Добавлен объект %1").arg(path.c_str()), 2000);
 }
 
-void ContentManager::loadModels(QStringList tileFiles)
+QModelIndex ContentManager::findGroup(const FindNode &isection)
 {
-    QFuture<QMap<QString, vsg::ref_ptr<vsg::Node>>> future = QtConcurrent::mappedReduced(tileFiles, &DatabaseManager::read, addToGroup, );
-    future.waitForFinished();
+    if(isection.tile.first)
+    {
+        auto tilesModel = _database->getTilesModel();
+        FindPositionVisitor fpv(isection.tile.first);
+        auto index = tilesModel->index(fpv(tilesModel->getRoot()), 0, QModelIndex());
+        emit objectClicked(index);
+        return index;
+    }
+    return QModelIndex();
 }
 
+bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &isection)
+{
+    auto traj = isection.track.first;
+    if(!traj)
+        return false;
+    auto coord = traj->invert(isection.worldIntersection);
+    auto obj = route::SceneObject::create(node);
+    auto transfrom = vsg::MatrixTransform::create();
+    transfrom->addChild(obj);
+    transfrom->setValue(META_PROPERTY, coord);
+    auto model = _database->getTilesModel();
+    _database->push(new AddSceneObject(_database->getTilesModel(), model->index(isection.track.first, isection.track.second), obj));
+    return true;
+}
 
-
+void ContentManager::activeGroupChanged(const QModelIndex &index)
+{
+    _activeGroup = index;
+}
 
 ContentManager::~ContentManager()
 {

@@ -8,7 +8,6 @@ project(RouteEditor
 
 # build all examples into the bin directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
-set(CMAKE_MODULE_PATH /usr/share/cmake/geographiclib/) # on ubuntu
 
 set(SOURCES
     src/MainWindow.cpp
@@ -17,11 +16,6 @@ set(SOURCES
     src/AddDialog.ui
     src/AddDialog.cpp
     src/AddDialog.h
-#    src/sorter.ui
-#    src/sorter.h
-#    src/sorter.cpp
-#    src/metainf.h
-#    src/metainf.cpp
     src/ObjectPropertiesEditor.h
     src/ObjectPropertiesEditor.cpp
     src/ObjectPropertiesEditor.ui
@@ -29,9 +23,13 @@ set(SOURCES
     #src/MouseHandler.h
     src/SceneObjectVisitor.h
     src/SceneObjectVisitor.cpp
-    #src/ContentManager.h
-    #src/ContentManager.cpp
-    #src/MouseHandler.cpp
+    src/ContentManager.h
+    src/ContentManager.cpp
+    src/ContentManager.ui
+    src/tool.h
+    src/tool.cpp
+    #src/Selector.cpp
+    #src/Selector.h
     src/StartDialog.h
     src/StartDialog.cpp
     src/StartDialog.ui
@@ -76,6 +74,7 @@ set(TOOLS
 
 set(SPLINE
     spline_library/splines/uniform_cr_spline.h
+    spline_library/splines/cubic_hermite_spline.h
     spline_library/utils/arclength.h
     spline_library/utils/splineinverter.h
     spline_library/utils/spline_common.h
@@ -124,7 +123,7 @@ else()
     add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
 endif()
 
-add_subdirectory(RRSConv)
+#add_subdirectory(RRSConv)
 
 add_executable(editor ${SOURCES})
 
@@ -138,9 +137,9 @@ target_include_directories(spline PUBLIC spline_library)
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_compile_definitions(editor PRIVATE META_NAME="MetaName" META_TRACK="TrackInfo" TILE_PATH="Path" TOPOLOGY_KEY="topology" TOPOLOGY_CHILD=1 ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
+target_compile_definitions(editor PRIVATE META_NAME="MetaName" META_PROPERTY="MetaProp" TOPOLOGY_KEY="Topology" TOPOLOGY_CHILD=1 ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
-target_compile_definitions(tools PRIVATE META_NAME="MetaName" META_TRACK="TrackInfo" TOPOLOGY_KEY="topology")
+target_compile_definitions(tools PRIVATE META_NAME="MetaName" META_PROPERTY="MetaProp" TOPOLOGY_KEY="Topology")
 
 target_link_libraries(tools spline Qt6::Core TBB::tbb)
 

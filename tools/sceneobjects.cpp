@@ -28,7 +28,7 @@ namespace route
     {
         Group::read(input);
 
-        input.read("quat", quat);
+        input.read("quat", _quat);
         input.read("world_quat", _world_quat);
         input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
         input.read("local", local);
@@ -47,7 +47,7 @@ namespace route
     {
         Group::write(output);
 
-        output.write("quat", quat);
+        output.write("quat", _quat);
         output.write("world_quat", _world_quat);
         output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
         output.write("local", local);
@@ -74,7 +74,7 @@ namespace route
     */
     vsg::dmat4 SceneObject::transform(const vsg::dmat4& m) const
     {
-        auto matrix = vsg::rotate(mult(_world_quat, quat));
+        auto matrix = vsg::rotate(mult(_world_quat, _quat));
         matrix[3][0] = _position[0];
         matrix[3][1] = _position[1];
         matrix[3][2] = _position[2];
@@ -96,7 +96,7 @@ namespace route
     {
         Node::read(input);
 
-        input.read("quat", quat);
+        input.read("quat", _quat);
         input.read("world_quat", _world_quat);
         input.read("filename", file);
         vsg::Paths searchPaths = vsg::getEnvPaths("RRS2_ROOT");
@@ -112,7 +112,7 @@ namespace route
     {
         Node::write(output);
 
-        output.write("quat", quat);
+        output.write("quat", _quat);
         output.write("world_quat", _world_quat);
         output.write("filename", file);
         output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
@@ -123,14 +123,43 @@ namespace route
         output.write("coord", _position);
     }
 
+    Selection::Selection(std::vector<vsg::ref_ptr<SceneObject>> in_selected)
+        : vsg::Inherit<SceneObject, Selection>(vsg::dvec3(0.0,0.0,0.0))
+        , selected(in_selected)
+    {
+        setValue(META_NAME, "Группа объектов");
+        local = true;
+    }
+    Selection::Selection()
+        : vsg::Inherit<SceneObject, Selection>(vsg::dvec3(0.0,0.0,0.0))
+    {
+        setValue(META_NAME, "Группа объектов");
+        local = true;
+    }
+
+    Selection::~Selection() {}
+
+    void Selection::setPosition(const vsg::dvec3& position)
+    {
+        auto delta = position - _position;
+        _position = position;
+        for (auto object : selected)
+        {
+            auto newpos = object->getPosition() + delta;
+            object->setPosition(newpos);
+        }
+    }
+
     TerrainPoint::TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,
                                vsg::ref_ptr<vsg::BufferInfo> buffer,
+                               const vsg::dmat4 &wtl,
                                vsg::ref_ptr<vsg::Node> compiled,
                                vsg::stride_iterator<vsg::vec3> point)
-        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, vsg::dvec3(*point))
-        , info(buffer)
-        , copyBufferCmd(copy)
-        , vertex(point)
+        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, wtl * vsg::dvec3(*point))
+        , _info(buffer)
+        , _copyBufferCmd(copy)
+        , _vertex(point)
+        , _wtl(wtl)
     {
     }
     TerrainPoint::~TerrainPoint() {}
@@ -138,8 +167,8 @@ namespace route
     void TerrainPoint::setPosition(const vsg::dvec3& position)
     {
         _position = position;
-        *vertex = vsg::vec3(position);
-        copyBufferCmd->copy(info->data, info);
+        *_vertex = vsg::vec3(_wtl * position);
+        _copyBufferCmd->copy(_info->data, _info);
     }
 
     SplinePoint::SplinePoint(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled)
@@ -155,7 +184,12 @@ namespace route
 
     void SplinePoint::setPosition(const vsg::dvec3& position)
     {
-        _position = position;
+        SceneObject::setPosition(position);
+        trajectory->recalculate();
+    }
+    void SplinePoint::setRotation(const vsg::dquat &rotation)
+    {
+        SceneObject::setRotation(rotation);
         trajectory->recalculate();
     }
 }

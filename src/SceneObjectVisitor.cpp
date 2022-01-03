@@ -1,6 +1,7 @@
 #include "SceneObjectVisitor.h"
 
 #include "sceneobjects.h"
+#include "trajectory.h"
 #include <vsg/nodes/Switch.h>
 
 /*
@@ -82,7 +83,7 @@
     {
         if(auto object = node.cast<route::SceneObject>(); object)
             apply(*object);
-        else if(auto traj = node.cast<route::SceneTrajectory>(); traj)
+        else if(auto traj = node.cast<route::Trajectory>(); traj)
             apply(*traj);
         else if(auto point = node.cast<route::SplinePoint>(); point)
             apply(*point);
@@ -96,7 +97,7 @@
         prev = &object;
     }
 
-    void FindNode::apply(const route::SceneTrajectory &traj)
+    void FindNode::apply(const route::Trajectory &traj)
     {
         if(prev != nullptr)
             track = std::make_pair(&traj, prev);

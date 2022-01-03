@@ -12,75 +12,70 @@
 Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera,
                          vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel,
                          DatabaseManager *manager,
-                         QObject *parent) :
-    vsg::Inherit<vsg::Trackball, Manipulator>(camera, ellipsoidModel),
-    _pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center))),
-    _wireframe(vsg::MatrixTransform::create(vsg::translate(_lookAt->center))),
-    _database(manager)
+                         QObject *parent)
+    : vsg::Inherit<vsg::Trackball, Manipulator>(camera, ellipsoidModel)
+    , _database(manager)
+    , _pointer(vsg::MatrixTransform::create(vsg::translate(_lookAt->center)))
 {
     rotateButtonMask = vsg::BUTTON_MASK_2;
     supportsThrow = false;
-    manager->root->addChild(_pointer);
-    manager->root->addChild(_wireframe);
-    addPointer();
-    addWireframe();
+
+    createPointer();
+    manager->getRoot()->addChild(_pointer);
 }
 Manipulator::~Manipulator()
 {
-
 }
 
-void Manipulator::setMode(int index)
+void Manipulator::createPointer()
 {
-    /*
-    if(index == mode)
-        return;
-    if(mode == TERRAIN)
-    {
-        if(isMovingTerrain)
-            movingPoint->children.pop_back();
-        isMovingTerrain = false;
-        if(active)
-            active->children.erase(std::find(active->children.begin(), active->children.end(), terrainPoints));
-        terrainPoints->children.clear();
-        points.clear();
-    } else if(mode == MOVE)
-    {
-        undoStack->endMacro();
-        isMovingObject = false;
-    }
-*/
-}
+    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
+    auto size = static_cast<float>(settings.value("CURSORSIZE", 1).toInt());
+    vsg::GeometryInfo info;
+
+    info.dx.set(1.0f * size, 0.0f, 0.0f);
+    info.dy.set(0.0f, 1.0f * size, 0.0f);
+    info.dz.set(0.0f, 0.0f, 1.0f * size);
+    info.position = {0.0f, 0.0f, -1.0f * size / 2};
+    auto cone = _database->getBuilder()->createCone(info);
+    _pointer->addChild(cone);
+}
+/*
 void Manipulator::handlePress(vsg::ButtonPressEvent& buttonPressEvent)
 {
-    switch (_mode) {
-    case SELECT:
+    switch (_database->mode) {
+    case DatabaseManager::SELECT:
     {
         auto isection = intersectedObjects(route::SceneObjects | route::Points | route::Tiles, buttonPressEvent);
         if(!isection.objects.empty())
         {
             auto node = isection.objects.front().first;
             auto parent = isection.objects.front().second;
-            emit objectClicked(_database->tilesModel->index(node, parent));
-            moveWireframe(node, isection.localToWord * vsg::inverse(node->transform(vsg::dmat4())));
+            auto index = _database->tilesModel->index(node, parent);
+
+            _selector->addWireframe(index, node, isection.localToWord * vsg::inverse(node->transform(vsg::dmat4())));
+            emit objectClicked(index);
         }
-        else {
+        else
             emit deselect();
-            moveWireframe(vsg::Node::create(), vsg::dmat4());
-        }
         break;
     }
-    case ADD:
+    case DatabaseManager::ADD:
     {
         auto mask = route::Tiles | route::Tracks;
-        auto isection = interesection(mask, buttonPressEvent);
+        auto isection = intersectedObjects(mask, buttonPressEvent);
 
-        _database->addTrack(isection.front().worldIntersection);
+        if(isection.tile.first)
+        {
+            FindPositionVisitor fpv(isection.tile.first);
+            emit objectClicked(_database->tilesModel->index(fpv(_database->tilesModel->getRoot()), 0, QModelIndex()));
+            _database->addToSelected(isection.worldIntersection);
+        }
 
         break;
     }
-        /*
+
     case TERRAIN:
     {
         if(points.contains(*(front.nodePath.rbegin() + 2)) && !isMovingTerrain)
@@ -127,10 +122,16 @@ void Manipulator::handlePress(vsg::ButtonPressEvent& buttonPressEvent)
         else if(auto tile = lowTile(front, database->frameCount); tile)
             emit addRequest(front.worldIntersection, tilesModel->index(tile->children.at(5)));
         break;
-    }*/
+    }
     }
 
 
+}
+*/
+
+void Manipulator::setMask(uint32_t mask)
+{
+    _mask = mask;
 }
 
 void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
@@ -143,7 +144,7 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     if (buttonPress.mask & vsg::BUTTON_MASK_1)
     {
         _updateMode = INACTIVE;
-        handlePress(buttonPress);
+        emit sendIntersection(intersectedObjects(_mask, buttonPress));
 
     } else if (buttonPress.mask & vsg::BUTTON_MASK_2)
         _updateMode = ROTATE;
@@ -151,10 +152,13 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     {
         _updateMode = INACTIVE;
 
-        auto isection = interesection(route::Tiles, buttonPress);
-        if(isection.empty())
+        auto isection = intersectedObjects(route::Tiles, buttonPress);
+        if(isection.tile.first == nullptr)
             return;
-        setViewpoint(isection.front().worldIntersection);
+        setViewpoint(isection.worldIntersection);
+        //FindPositionVisitor fpv(isection.tile.first);
+        //auto model = _database->getTilesModel();
+        //emit objectClicked(model->index(fpv(model->getRoot()), 0, QModelIndex()));
     } else
         _updateMode = INACTIVE;
 
@@ -217,7 +221,21 @@ void Manipulator::pan(const vsg::dvec2& delta)
 
             _lookAt->up = normalize(matrix * (_lookAt->eye + _lookAt->up) - matrix * _lookAt->eye);
             _lookAt->center = matrix * _lookAt->center;
-            _lookAt->eye = matrix * _lookAt->eye;
+            _lookAt->eye = matrix * _lookAt->eye;void Manipulator::addWireframe(const QModelIndex &index, const vsg::Node *node, vsg::dmat4 ltw)
+{
+    vsg::ComputeBounds cb;
+    node->accept(cb);
+
+    vsg::dvec3 centre = ltw * ((cb.bounds.min + cb.bounds.max) * 0.5);
+    //setViewpoint(centre);
+
+    auto matrix = vsg::translate(centre) * vsg::scale(cb.bounds.max - cb.bounds.min) *
+            vsg::rotate(vsg::dquat(vsg::dvec3(0.0, 0.0, -1.0), vsg::normalize(centre)));
+    auto transform = vsg::MatrixTransform::create(matrix);
+    transform->addChild(_compiledWireframe);
+    _wireframes->children.push_back(transform);
+    _selectedObjects.insert(std::make_pair(index, _wireframes->children.end()));
+}
 
             //clampToGlobe();
         }
@@ -249,59 +267,13 @@ void Manipulator::setViewpoint(const vsg::dvec3 &pos)
     auto up = lookAt->up;
     auto translate = vsg::translate(pos);
     Trackball::setViewpoint(lookAt);
+
     _pointer->matrix = vsg::rotate(vsg::dquat(vsg::dvec3(0.0, 0.0, -1.0), vsg::normalize(pos)));
     _pointer->matrix[3][0] = translate[3][0];
     _pointer->matrix[3][1] = translate[3][1];
     _pointer->matrix[3][2] = translate[3][2];
+
     emit sendPos(_ellipsoidModel->convertECEFToLatLongAltitude(pos));
-
-}
-
-void Manipulator::addPointer()
-{
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
-
-    auto size = static_cast<float>(settings.value("CURSORSIZE", 1).toInt());
-    vsg::GeometryInfo info;
-
-    info.dx.set(1.0f * size, 0.0f, 0.0f);
-    info.dy.set(0.0f, 1.0f * size, 0.0f);
-    info.dz.set(0.0f, 0.0f, 1.0f * size);
-    info.position = {0.0f, 0.0f, -1.0f * size / 2};
-    _pointer->addChild(_database->builder->createCone(info));
-}
-
-void Manipulator::addWireframe()
-{
-    //QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
-
-    //auto size = static_cast<float>(settings.value("CURSORSIZE", 1).toInt());
-
-
-    vsg::GeometryInfo info;
-    vsg::StateInfo state;
-
-    state.wireframe = true;
-    state.lighting = false;
-    state.doubleSided = true;
-
-    info.dx.set(1.0f, 0.0f, 0.0f);
-    info.dy.set(0.0f, 1.0f, 0.0f);
-    info.dz.set(0.0f, 0.0f, 1.0f);
-    info.position = {0.0f, 0.0f, 0.0f};
-    _wireframe->addChild(_database->builder->createBox(info, state));
-}
-
-void Manipulator::moveWireframe(const vsg::Node *node, vsg::dmat4 ltw)
-{
-    vsg::ComputeBounds cb;
-    node->accept(cb);
-
-    vsg::dvec3 centre = ltw * ((cb.bounds.min + cb.bounds.max) * 0.5);
-    //setViewpoint(centre);
-
-    _wireframe->matrix = vsg::translate(centre) * vsg::scale(cb.bounds.max - cb.bounds.min) *
-            vsg::rotate(vsg::dquat(vsg::dvec3(0.0, 0.0, -1.0), vsg::normalize(centre)));
 }
 
 void Manipulator::moveToObject(const QModelIndex &index)
@@ -312,13 +284,13 @@ void Manipulator::moveToObject(const QModelIndex &index)
     auto object = static_cast<vsg::Node*>(index.internalPointer());
     Q_ASSERT(object);
 
-    if(auto sceneobject = object->cast<route::SceneObject>(); !sceneobject->local)
+    if(auto sceneobject = object->cast<route::SceneObject>(); sceneobject && !sceneobject->local)
     {
         setViewpoint(sceneobject->getPosition());
         return;
     }
     ParentVisitor pv(object);
-//    pv.traversalMask = route::SceneObjects;
+    pv.traversalMask = route::SceneObjects | route::Tiles;
     _database->getRoot()->accept(pv);
     pv.pathToChild.pop_back();
     auto ltw = vsg::computeTransform(pv.pathToChild);
@@ -327,30 +299,6 @@ void Manipulator::moveToObject(const QModelIndex &index)
     object->accept(computeBounds);
     vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
     setViewpoint(ltw * centre);
-}
-
-void Manipulator::selectObject(const QModelIndex &index)
-{
-    if(!index.isValid())
-        return;
-
-    auto object = static_cast<vsg::Node*>(index.internalPointer());
-    Q_ASSERT(object);
-
-    if(auto sceneobject = object->cast<route::SceneObject>(); sceneobject)
-    {
-        auto ltw = vsg::dmat4();
-        if(sceneobject->local)
-        {
-            ParentVisitor pv(sceneobject);
-            _database->getRoot()->accept(pv);
-            pv.pathToChild.pop_back();
-            ltw = vsg::computeTransform(pv.pathToChild);
-
-        }
-        moveWireframe(sceneobject, ltw);
-        return;
-    }
 }
 
 
@@ -402,14 +350,14 @@ FindNode Manipulator::intersectedObjects(vsg::LineSegmentIntersector::Intersecti
 
 FindNode Manipulator::intersectedObjects(uint32_t mask, const vsg::PointerEvent &pointerEvent)
 {
-    return intersectedObjects(interesection(mask, pointerEvent));
+    return intersectedObjects(intersections(mask, pointerEvent));
 }
 
-vsg::LineSegmentIntersector::Intersections Manipulator::interesection(uint32_t mask, const vsg::PointerEvent& pointerEvent)
+vsg::LineSegmentIntersector::Intersections Manipulator::intersections(uint32_t mask, const vsg::PointerEvent& pointerEvent)
 {
     auto intersector = vsg::LineSegmentIntersector::create(*_camera, pointerEvent.x, pointerEvent.y);
     intersector->traversalMask = mask;
-    _database->root->accept(*intersector);
+    _database->getRoot()->accept(*intersector);
 
     if (intersector->intersections.empty()) return vsg::LineSegmentIntersector::Intersections();
 

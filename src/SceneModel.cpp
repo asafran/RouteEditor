@@ -405,18 +405,16 @@ Qt::ItemFlags SceneModel::flags(const QModelIndex &index) const
     Qt::ItemFlags flags = QAbstractItemModel::flags(index);
     if (index.isValid())
     {
-        flags |= Qt::ItemIsSelectable;
-
         switch (index.column()) {
         case Name:
         {
             if(parent(index).isValid())
-                flags |= Qt::ItemIsEditable;
+                flags |= Qt::ItemIsEditable ;
             break;
         }
         case Type:
         {
-            flags |= Qt::ItemIsDragEnabled|Qt::ItemIsDropEnabled;
+            flags |= Qt::ItemIsDragEnabled|Qt::ItemIsDropEnabled|Qt::ItemIsSelectable;
             break;
         }
         case Option:

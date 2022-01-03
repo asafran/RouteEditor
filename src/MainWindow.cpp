@@ -9,7 +9,7 @@
 #include "AddDialog.h"
 #include "undo-redo.h"
 #include "LambdaVisitor.h"
-#include "TilesVisitor.h"
+#include "ContentManager.h"
 #include "ObjectPropertiesEditor.h"
 
 
@@ -22,15 +22,14 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
     ui->setupUi(this);
 
     constructWidgets();
-    initializeDB();
 
-    connect(sorter, &TilesSorter::selectionChanged, database, &DatabaseManager::activeGroupChanged);
-    connect(ui->fileView->selectionModel(), &QItemSelectionModel::selectionChanged, database, &DatabaseManager::activeFileChanged);
+    undoStack = new QUndoStack(this);
+    database = new DatabaseManager(pathDB, undoStack, builder, this);
+
+    initializeTools();
 
     undoView = new QUndoView(undoStack, ui->tabWidget);
     ui->tabWidget->addTab(undoView, tr("Действия"));
-
-    connect(ui->addObjectButt, &QPushButton::pressed, this, &MainWindow::addObject);
 
     connect(ui->actionUndo, &QAction::triggered, undoStack, &QUndoStack::undo);
     connect(ui->actionRedo, &QAction::triggered, undoStack, &QUndoStack::redo);
@@ -46,16 +45,31 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
 
 }
 
-void MainWindow::initializeDB()
+
+void MainWindow::initializeTools()
 {
     QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
-    undoStack = new QUndoStack(this);
 
-    auto fsmodel = new QFileSystemModel(this);
-    ui->fileView->setModel(fsmodel);
-    ui->fileView->setRootIndex(fsmodel->setRootPath(qgetenv("RRS2_ROOT") + QDir::separator().toLatin1() + "objects"));
+    toolbox = new QToolBox(ui->splitter);
+    ui->splitter->addWidget(toolbox);
 
-    database = new DatabaseManager(pathDB, undoStack, builder, fsmodel, this);
+    auto ope = ObjectPropertiesEditor::create(database, toolbox);
+    toolbox->addItem(ope, tr("Выбрать и переместить объекты"));
+    auto cm = new ContentManager(database, qgetenv("RRS2_ROOT") + QDir::separator().toLatin1() + "objects", toolbox);
+    toolbox->addItem(cm, tr("Добавить объект"));
+
+    database->getRoot()->addChild(ope);
+    ope->ref();
+
+    connect(sorter, &TilesSorter::selectionChanged, ope, &ObjectPropertiesEditor::selectObject);
+    connect(ope, &Tool::objectClicked, sorter, &TilesSorter::select);
+    connect(ope, &Tool::deselect, ui->tilesView->selectionModel(), &QItemSelectionModel::clearSelection);
+    connect(sorter, &TilesSorter::frontSelectionChanged, cm, &ContentManager::activeGroupChanged);
+}
+
+void MainWindow::intersection(const FindNode& isection)
+{
+    qobject_cast<Tool*>(toolbox->currentWidget())->intersection(isection);
 }
 
 QWindow* MainWindow::initilizeVSGwindow()
@@ -164,16 +178,10 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         grahics_commandGraph->accept(lv);
 
-        // add trackball to enable mouse driven camera view control.
-        auto manipulator = Manipulator::create(camera, ellipsoidModel, database, this);
-
         builder->setup(window, camera->viewportState);
 
-        auto objPropEditor = new ObjectPropertiesEditor(ellipsoidModel, undoStack, ui->toolBox);
-        ui->toolBox->addItem(objPropEditor, tr("Параметры"));
-        objPropEditor->setEnabled(false);
-
-        connect(manipulator.get(), &Manipulator::objectSelected, objPropEditor, &ObjectPropertiesEditor::receiveObject);
+        // add trackball to enable mouse driven camera view control.
+        auto manipulator = Manipulator::create(camera, ellipsoidModel, database, this);
 
         viewer->addEventHandler(manipulator);
 
@@ -181,15 +189,11 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         viewer->compile();
 
-        connect(ui->loaderButton, &QPushButton::toggled, database, &DatabaseManager::loaderButton);
-
-        //connect(sorter, &TilesSorter::selectionChanged, objectModel, &ObjectModel::selectObject);
-
-        connect(ui->modeBox, &QComboBox::currentIndexChanged, manipulator, &Manipulator::setMode);
         connect(ui->actionSave, &QAction::triggered, database, &DatabaseManager::writeTiles);
 
-        connect(manipulator.get(), &Manipulator::objectClicked, sorter, &TilesSorter::select);
-        connect(manipulator.get(), &Manipulator::expand, sorter, &TilesSorter::expand);
+        connect(sorter, &TilesSorter::doubleClicked, manipulator.get(), &Manipulator::moveToObject);
+
+        connect(manipulator.get(), &Manipulator::sendIntersection, this, &MainWindow::intersection);
 
         connect(manipulator.get(), &Manipulator::sendPos, [this](const vsg::dvec3 &pos)
         {
@@ -211,9 +215,7 @@ QWindow* MainWindow::initilizeVSGwindow()
             manipulator->setLatLongAlt(vsg::dvec3(ui->cursorLat->value(), ui->cursorLon->value(), value));
         });
 
-        //connect(manipulator.get(), &Manipulator::addRequest, database, &DatabaseManager::addObject);
-        //connect(manipulator.get(), &Manipulator::addTrackRequest, database, &DatabaseManager::addTrack);
-        connect(sorter, &TilesSorter::doubleClicked, manipulator, &Manipulator::selectObject);
+        connect(sorter, &TilesSorter::doubleClicked, manipulator.get(), &Manipulator::moveToObject);
 
         return true;
     };
@@ -236,7 +238,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     };
     return viewerWindow;
 }
-
+/*
 void MainWindow::addObject()
 {
     const auto selectedIndexes = ui->tilesView->selectionModel()->selectedIndexes();
@@ -263,50 +265,8 @@ void MainWindow::addObject()
         msgBox.setText("Пожалуйста, выберите группу сначала");
         msgBox.exec();
     }
-}
-/*
-DatabaseManager *MainWindow::openDialog()
-{
-    if (const auto file = QFileDialog::getOpenFileName(this, tr("Открыть базу данных"), qgetenv("RRS2_ROOT") + QDir::separator().toLatin1() + "routes"); !file.isEmpty())
-    {
-        try {
-            auto db = new DatabaseManager(file, undoStack, builder, fsmodel);
-            return db;
+}*/
 
-        }  catch (DatabaseException &ex) {
-            auto errorMessageDialog = new QErrorMessage(this);
-            errorMessageDialog->showMessage(ex.getErrPath());
-        }
-    }
-    return nullptr;
-}
-
-void MainWindow::openRoute()
-{
-    if(auto manager = openDialog(); manager)
-    {
-        scene->children.clear();
-        database.reset(manager);
-        sorter->setSourceModel(manager->getTilesModel());
-        scene->addChild(manager->getDatabase());
-
-        connect(sorter, &TilesSorter::selectionChanged, database.get(), &DatabaseManager::activeGroupChanged);
-        connect(ui->fileView->selectionModel(), &QItemSelectionModel::selectionChanged, database.get(), &DatabaseManager::activeFileChanged);
-
-        viewerWindow->viewer = vsg::Viewer::create();
-        viewerWindow->initializeCallback(*viewerWindow, embedded->width(), embedded->height());
-    }
-}
-
-void MainWindow::receiveData(vsg::ref_ptr<vsg::Data> buffer, vsg::ref_ptr<vsg::BufferInfo> info)
-{
-    copyBufferCmd->copy(buffer, info);
-}
-*/
-void MainWindow::pushCommand(QUndoCommand *command)
-{
-    undoStack->push(command);
-}
 
 void MainWindow::constructWidgets()
 {

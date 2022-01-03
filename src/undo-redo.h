@@ -10,7 +10,7 @@ class AddSceneObject : public QUndoCommand
 public:
     AddSceneObject(SceneModel *model,
             const QModelIndex &group,
-            vsg::ref_ptr<route::SceneObject> node,
+            vsg::ref_ptr<vsg::Node> node,
             QUndoCommand *parent = nullptr)
         : QUndoCommand(parent)
         , _model(model)
@@ -35,7 +35,7 @@ private:
     SceneModel *_model;
     int _row;
     const QModelIndex _group;
-    vsg::ref_ptr<route::SceneObject> _node;
+    vsg::ref_ptr<vsg::Node> _node;
 
 };
 
@@ -127,8 +127,8 @@ class RotateObject : public QUndoCommand
 public:
     RotateObject(route::SceneObject *object, vsg::dquat q, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _object(object)
-        , _oldQ(object->quat)
-        , _newQ(route::mult(object->quat, q))
+        , _oldQ(object->getRotation())
+        , _newQ(route::mult(object->getRotation(), q))
     {
         std::string name;
         _object->getValue(META_NAME, name);
@@ -136,11 +136,11 @@ public:
     }
     void undo() override
     {
-        _object->quat = _oldQ;
+        _object->setRotation(_oldQ);
     }
     void redo() override
     {
-        _object->quat = _newQ;
+        _object->setRotation(_newQ);
     }
 private:
     vsg::ref_ptr<route::SceneObject> _object;

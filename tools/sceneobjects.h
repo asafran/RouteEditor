@@ -2,13 +2,14 @@
 #define SCENEOBJECTS_H
 
 #include <QFileInfo>
-#include "trajectory.h"
+//#include "trajectory.h"
 #include <vsg/nodes/Transform.h>
 #include <vsg/commands/CopyAndReleaseBuffer.h>
 
 namespace route
 {
     class Trajectory;
+    class SplineTrajectory;
 
     class SceneObject : public vsg::Inherit<vsg::Transform, SceneObject>
     {
@@ -27,15 +28,17 @@ namespace route
 
         //void setRotation(const vsg::dquat &q);
         virtual void setPosition(const vsg::dvec3& pos) { _position = pos; }
+        virtual void setRotation(const vsg::dquat& rot) { _quat = rot; }
 
         vsg::dvec3 getPosition() const { return _position; }
+        vsg::dquat getRotation() const { return _quat; }
 
-        vsg::dquat quat;
 
         bool local;
 
     protected:
         vsg::dvec3 _position;
+        vsg::dquat _quat;
 
         vsg::dquat _world_quat = {0.0, 0.0, 0.0, 1.0};
     };
@@ -52,6 +55,19 @@ namespace route
         void write(vsg::Output& output) const override;
 
         std::string file;
+    };
+
+    class Selection : public vsg::Inherit<SceneObject, Selection>
+    {
+    public:
+        Selection(std::vector<vsg::ref_ptr<SceneObject>> in_selected);
+        Selection();
+
+        virtual ~Selection();
+
+        void setPosition(const vsg::dvec3& position) override;
+
+        std::vector<vsg::ref_ptr<SceneObject>> selected;
     };
 
     enum Mask : uint32_t
@@ -85,6 +101,7 @@ namespace route
     public:
         explicit TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,
                               vsg::ref_ptr<vsg::BufferInfo> buffer,
+                              const vsg::dmat4 &wtl,
                               vsg::ref_ptr<vsg::Node> compiled,
                               vsg::stride_iterator<vsg::vec3> point);
 
@@ -93,9 +110,11 @@ namespace route
         void setPosition(const vsg::dvec3& position) override;
 
     private:
-        vsg::ref_ptr<vsg::BufferInfo> info;
-        vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBufferCmd;
-        vsg::stride_iterator<vsg::vec3> vertex;
+        vsg::ref_ptr<vsg::BufferInfo> _info;
+        vsg::ref_ptr<vsg::CopyAndReleaseBuffer> _copyBufferCmd;
+        vsg::stride_iterator<vsg::vec3> _vertex;
+
+        vsg::dmat4 _wtl;
     };
 
     class SplinePoint : public vsg::Inherit<SceneObject, SplinePoint>
@@ -107,6 +126,7 @@ namespace route
         virtual ~SplinePoint();
 
         void setPosition(const vsg::dvec3& position) override;
+        void setRotation(const vsg::dquat& rotation) override;
 
         SplineTrajectory *trajectory;
     };
