@@ -133,6 +133,15 @@ void Manipulator::setMask(uint32_t mask)
 {
     _mask = mask;
 }
+void Manipulator::apply(vsg::KeyPressEvent& keyPress)
+{
+     keyModifier |= keyPress.keyModifier;
+}
+
+void Manipulator::apply(vsg::KeyReleaseEvent& keyRelease)
+{
+     keyModifier &= !keyRelease.keyModifier;
+}
 
 void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
 {
@@ -345,6 +354,7 @@ FindNode Manipulator::intersectedObjects(vsg::LineSegmentIntersector::Intersecti
         return FindNode();
     FindNode fn(isections.front());
     std::for_each(fn.nodePath.begin(), fn.nodePath.end(), [&fn](const vsg::Node *node){ node->accept(fn); });
+    fn.keyModifier = keyModifier;
     return fn;
 }
 

@@ -53,13 +53,10 @@ void MainWindow::initializeTools()
     toolbox = new QToolBox(ui->splitter);
     ui->splitter->addWidget(toolbox);
 
-    auto ope = ObjectPropertiesEditor::create(database, toolbox);
+    auto ope = new ObjectPropertiesEditor(database, toolbox);
     toolbox->addItem(ope, tr("Выбрать и переместить объекты"));
     auto cm = new ContentManager(database, qgetenv("RRS2_ROOT") + QDir::separator().toLatin1() + "objects", toolbox);
     toolbox->addItem(cm, tr("Добавить объект"));
-
-    database->getRoot()->addChild(ope);
-    ope->ref();
 
     connect(sorter, &TilesSorter::selectionChanged, ope, &ObjectPropertiesEditor::selectObject);
     connect(ope, &Tool::objectClicked, sorter, &TilesSorter::select);

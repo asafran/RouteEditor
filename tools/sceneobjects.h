@@ -4,6 +4,7 @@
 #include <QFileInfo>
 //#include "trajectory.h"
 #include <vsg/nodes/Transform.h>
+#include <vsg/utils/Builder.h>
 #include <vsg/commands/CopyAndReleaseBuffer.h>
 
 namespace route
@@ -30,15 +31,28 @@ namespace route
         virtual void setPosition(const vsg::dvec3& pos) { _position = pos; }
         virtual void setRotation(const vsg::dquat& rot) { _quat = rot; }
 
+        void setWireframe(vsg::ref_ptr<vsg::Builder> builder);
+        void deselect() { _wireframe = nullptr; }
+
+        void traverse(vsg::RecordTraversal& visitor) const override
+        {
+            Group::traverse(visitor);
+            if(_wireframe)
+                _wireframe->accept(visitor);
+        }
+
         vsg::dvec3 getPosition() const { return _position; }
         vsg::dquat getRotation() const { return _quat; }
 
+        bool isSelected() const { return _wireframe.valid(); }
 
         bool local;
 
     protected:
         vsg::dvec3 _position;
         vsg::dquat _quat;
+
+        vsg::ref_ptr<vsg::Node> _wireframe;
 
         vsg::dquat _world_quat = {0.0, 0.0, 0.0, 1.0};
     };

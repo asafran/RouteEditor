@@ -9,41 +9,6 @@
 
 #include <execution>
 
-/*
-vsg::ref_ptr<vsg::Switch> prepareTile(vsg::Group *tile, vsg::ref_ptr<vsg::Builder> builder, vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer)
-{
-    vsg::GeometryInfo info;
-
-    info.dx.set(3.0f, 0.0f, 0.0f);
-    info.dy.set(0.0f, 3.0f, 0.0f);
-    info.dz.set(0.0f, 0.0f, 3.0f);
-
-    auto sphere = builder->createSphere(info);
-    builder->compile(sphere);
-
-    auto sw = vsg::Switch::create();
-
-    for (auto& node : tile->children)
-    {
-        auto transform = node.cast<vsg::MatrixTransform>();
-        auto addPoint = [transform, sphere, copyBuffer](vsg::VertexIndexDraw& vid)
-        {
-            auto bufferInfo = vid.arrays.front();
-            auto vertarray = bufferInfo->data.cast<vsg::vec3Array>();
-            for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
-            {
-                auto point = route::TerrainPoint::create(copyBuffer, bufferInfo, sphere, it);
-                transform->addChild(point);
-            }
-        };
-        LambdaVisitor<decltype (addPoint), vsg::VertexIndexDraw> lv(addPoint);
-        transform->accept(lv);
-        sw->addChild(route::Tiles, transform);
-    }
-
-    return sw;
-}
-*/
 DatabaseManager::DatabaseManager(QString path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, QObject *parent) : QObject(parent)
   , _root(vsg::Group::create())
   , _databasePath(path)

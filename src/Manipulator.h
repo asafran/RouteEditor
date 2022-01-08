@@ -19,6 +19,8 @@ public:
                 QObject *parent = nullptr);
     ~Manipulator();
 
+    void apply(vsg::KeyPressEvent& keyPress) override;
+    void apply(vsg::KeyReleaseEvent& keyPress) override;
     void apply(vsg::ButtonPressEvent& buttonPressEvent) override;
     void apply(vsg::MoveEvent& pointerEvent) override;
 
@@ -57,6 +59,8 @@ protected:
     vsg::dmat4 _oldMatrix;
 
     uint32_t _mask = 0xFFFFFF;
+
+    uint16_t keyModifier = 0x0;
 
     //FindNode _lastIntersection;
 };

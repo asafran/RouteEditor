@@ -177,6 +177,14 @@ private:
 
 };
 /*
+class DeltaMoveObject : public MoveObject
+{
+public:
+    DeltaMoveObject(route::SceneObject *object, const vsg::dvec3& delta, QUndoCommand *parent = nullptr)
+        : MoveObject(object, object->getPosition() + delta)
+    {}
+};
+
 class AddTrajectory : public QUndoCommand
 {
 public:

@@ -3,6 +3,8 @@
 #include <vsg/maths/quat.h>
 #include <QDir>
 #include <vsg/io/read.h>
+#include <vsg/traversals/ComputeBounds.h>
+#include <vsg/nodes/MatrixTransform.h>
 #include "topology.h"
 
 namespace route
@@ -33,14 +35,6 @@ namespace route
         input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
         input.read("local", local);
         input.read("coord", _position);
-    /*
-        std::string name;
-        input.read("trajName", name);
-        trajectory = input.options->objectCache->get(TOPOLOGY_KEY).cast<Topology>()->trajectories.at(name);
-
-        matrix = vsg::translate(pos);
-        setRotation(quat);
-    */
     }
 
     void SceneObject::write(vsg::Output& output) const
@@ -52,26 +46,33 @@ namespace route
         output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
         output.write("local", local);
 
-        //vsg::dvec3 pos = position();
-
         output.write("coord", _position);
-    /*
-        std::string name;
-        trajectory->getValue(META_NAME, name);
-        output.write("trajName", name);
-        */
     }
-    /*
-    void SceneObject::setRotation(const vsg::dquat& q)
+
+    void SceneObject::setWireframe(vsg::ref_ptr<vsg::Builder> builder)
     {
-        quat = q;
-        auto newMat = vsg::rotate(mult(world_quat, quat));
-        newMat[3][0] = matrix[3][0];
-        newMat[3][1] = matrix[3][1];
-        newMat[3][2] = matrix[3][2];
-        matrix = newMat;
+        vsg::ComputeBounds cb;
+        t_traverse(*this, cb);
+
+        vsg::vec3 centre((cb.bounds.min + cb.bounds.max) * 0.5);
+
+        vsg::GeometryInfo info;
+        vsg::StateInfo state;
+
+        state.wireframe = true;
+        state.lighting = false;
+
+        auto delta = cb.bounds.max - cb.bounds.min;
+
+        info.dx.set(delta.x, 0.0f, 0.0f);
+        info.dy.set(0.0f, delta.y, 0.0f);
+        info.dz.set(0.0f, 0.0f, delta.z);
+        info.position = centre;
+        info.transform = vsg::rotate(vsg::quat(_world_quat));
+
+        _wireframe = builder->createBox(info, state);
     }
-    */
+
     vsg::dmat4 SceneObject::transform(const vsg::dmat4& m) const
     {
         auto matrix = vsg::rotate(mult(_world_quat, _quat));
@@ -152,14 +153,14 @@ namespace route
 
     TerrainPoint::TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,
                                vsg::ref_ptr<vsg::BufferInfo> buffer,
-                               const vsg::dmat4 &wtl,
+                               const vsg::dmat4 &ltw,
                                vsg::ref_ptr<vsg::Node> compiled,
                                vsg::stride_iterator<vsg::vec3> point)
-        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, wtl * vsg::dvec3(*point))
+        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, ltw * vsg::dvec3(*point))
         , _info(buffer)
         , _copyBufferCmd(copy)
         , _vertex(point)
-        , _wtl(wtl)
+        , _wtl(vsg::inverse(ltw))
     {
     }
     TerrainPoint::~TerrainPoint() {}

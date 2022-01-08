@@ -7,68 +7,129 @@
 
 ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidget *parent) : Tool(database, parent)
     , _ellipsoidModel(database->getDatabase()->getObject<vsg::EllipsoidModel>("EllipsoidModel"))
-    , _selectedObjects(route::Selection::create())
     , ui(new Ui::ObjectPropertiesEditor)
 {
     ui->setupUi(this);
 
     setEnabled(false);
 
-    connect(ui->ecefXspin, &QDoubleSpinBox::valueChanged, this, [this](double d)
+    auto stack = _database->getUndoStack();
+
+    connect(ui->ecefXspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        auto newpos = _selectedObject->getPosition();
-        newpos.x = d;
-        _database->push(new MoveObject(_selectedObject, newpos));
+        auto newpos = _firstObject->getPosition();
+        auto delta = vsg::dvec3(d - newpos.x, 0.0, 0.0);
+
+        if(_selectedObjects.size() != 1)
+        {
+            stack->beginMacro(tr("Перемещены объекты по x"));
+            move(delta);
+            stack->endMacro();
+        }
+        else
+            move(delta);
     });
-    connect(ui->ecefYspin, &QDoubleSpinBox::valueChanged, this, [this](double d)
+    connect(ui->ecefYspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        auto newpos = _selectedObject->getPosition();
-        newpos.y = d;
-        _database->push(new MoveObject(_selectedObject, newpos));
+        auto newpos = _firstObject->getPosition();
+        auto delta = vsg::dvec3(0.0, d - newpos.y, 0.0);
+
+        if(_selectedObjects.size() != 1)
+        {
+            stack->beginMacro(tr("Перемещены объекты по y"));
+            move(delta);
+            stack->endMacro();
+        }
+        else
+            move(delta);
     });
-    connect(ui->ecefZspin, &QDoubleSpinBox::valueChanged, this, [this](double d)
+    connect(ui->ecefZspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        auto newpos = _selectedObject->getPosition();
-        newpos.z = d;
-        _database->push(new MoveObject(_selectedObject, newpos));
+        auto newpos = _firstObject->getPosition();
+        auto delta = vsg::dvec3(0.0, 0.0, d - newpos.z);
+
+        if(_selectedObjects.size() != 1)
+        {
+            stack->beginMacro(tr("Перемещены объекты по z"));
+            move(delta);
+            stack->endMacro();
+        }
+        else
+            move(delta);
     });
 
-    connect(ui->latSpin, &QDoubleSpinBox::valueChanged, this, [this](double d)
+    connect(ui->latSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_selectedObject->getPosition());
+        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
         lla.x = d;
-        _database->push(new MoveObject(_selectedObject, _ellipsoidModel->convertLatLongAltitudeToECEF(lla)));
+        auto ecef = _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
+        auto delta = ecef - _firstObject->getPosition();
+
+        if(_selectedObjects.size() != 1)
+        {
+            stack->beginMacro(tr("Перемещены объекты по широте"));
+            move(delta);
+            stack->endMacro();
+        }
+        else
+            move(delta);
     });
-    connect(ui->lonSpin, &QDoubleSpinBox::valueChanged, this, [this](double d)
+    connect(ui->lonSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_selectedObject->getPosition());
+        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
         lla.y = d;
-        _database->push(new MoveObject(_selectedObject, _ellipsoidModel->convertLatLongAltitudeToECEF(lla)));
+        auto ecef = _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
+        auto delta = ecef - _firstObject->getPosition();
+
+        if(_selectedObjects.size() != 1)
+        {
+            stack->beginMacro(tr("Перемещены объекты по долготе"));
+            move(delta);
+            stack->endMacro();
+        }
+        else
+            move(delta);
     });
-    connect(ui->altSpin, &QDoubleSpinBox::valueChanged, this, [this](double d)
+    connect(ui->altSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_selectedObject->getPosition());
+        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
         lla.z = d;
-        _database->push(new MoveObject(_selectedObject, _ellipsoidModel->convertLatLongAltitudeToECEF(lla)));
+        auto ecef = _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
+        auto delta = ecef - _firstObject->getPosition();
+
+        if(_selectedObjects.size() != 1)
+        {
+            stack->beginMacro(tr("Перемещены объекты по высоте"));
+            move(delta);
+            stack->endMacro();
+        }
+        else
+            move(delta);
     });
 
-    connect(ui->rotXspin, &QDoubleSpinBox::valueChanged, this, [this](double d)
+    connect(ui->rotXspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
         auto rad = qDegreesToRadians(d);
-        _database->push(new RotateObject(_selectedObject, vsg::dquat(rad - _xrot, vsg::dvec3(1.0, 0.0, 0.0))));
+        _database->push(new RotateObject(_firstObject, vsg::dquat(rad - _xrot, vsg::dvec3(1.0, 0.0, 0.0))));
         _xrot = rad;
+        if(_selectedObjects.size() != 1)
+            emit sendStatusText(tr("Вращение нескольких объектов не поддерживается"), 2000);
     });
-    connect(ui->rotYspin, &QDoubleSpinBox::valueChanged, this, [this](double d)
+    connect(ui->rotYspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
         auto rad = qDegreesToRadians(d);
-        _database->push(new RotateObject(_selectedObject, vsg::dquat(rad - _yrot, vsg::dvec3(0.0, 1.0, 0.0))));
+        _database->push(new RotateObject(_firstObject, vsg::dquat(rad - _yrot, vsg::dvec3(0.0, 1.0, 0.0))));
         _yrot = rad;
+        if(_selectedObjects.size() != 1)
+            emit sendStatusText(tr("Вращение нескольких объектов не поддерживается"), 2000);
     });
-    connect(ui->rotZspin, &QDoubleSpinBox::valueChanged, this, [this](double d)
+    connect(ui->rotZspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
         auto rad = qDegreesToRadians(d);
-        _database->push(new RotateObject(_selectedObject, vsg::dquat(rad - _zrot, vsg::dvec3(0.0, 0.0, 1.0))));
+        _database->push(new RotateObject(_firstObject, vsg::dquat(rad - _zrot, vsg::dvec3(0.0, 0.0, 1.0))));
         _zrot = rad;
+        if(_selectedObjects.size() != 1)
+            emit sendStatusText(tr("Вращение нескольких объектов не поддерживается"), 2000);
     });
     connect(ui->llaCombo, &QComboBox::currentIndexChanged, this, [this](int index)
     {
@@ -97,57 +158,27 @@ ObjectPropertiesEditor::~ObjectPropertiesEditor()
     delete ui;
 }
 
-void ObjectPropertiesEditor::addWireframe(const QModelIndex &index, const vsg::Node *node, vsg::dmat4 ltw)
+void ObjectPropertiesEditor::move(const vsg::dvec3 &delta)
 {
-    vsg::ComputeBounds cb;
-    node->accept(cb);
-
-    vsg::dvec3 centre = ltw * ((cb.bounds.min + cb.bounds.max) * 0.5);
-
-    vsg::GeometryInfo info;
-    vsg::StateInfo state;
-
-    state.wireframe = true;
-    state.lighting = false;
-
-    auto delta = cb.bounds.max - cb.bounds.min;
-
-    info.dx.set(delta.x, 0.0f, 0.0f);
-    info.dy.set(0.0f, delta.y, 0.0f);
-    info.dz.set(0.0f, 0.0f, delta.z);
-    //info.position = centre;
-
-    auto box = _database->getBuilder()->createBox(info, state);
-
-    auto matrix = vsg::translate(centre) * vsg::rotate(vsg::dquat(vsg::dvec3(0.0, 0.0, -1.0), vsg::normalize(centre)));
-    auto transform = vsg::MatrixTransform::create(matrix);
-    transform->addChild(box);
-    _wireframes.insert(std::make_pair(index, transform));
+    for(auto &index : _selectedObjects)
+    {
+        auto object = index.second;
+        _database->push(new MoveObject(object, object->getPosition() + delta));
+    }
 }
-/*
-void Selector::createWireframe()
-{
 
-    vsg::GeometryInfo info;
-    vsg::StateInfo state;
-
-    state.wireframe = true;
-    state.lighting = false;
-
-    info.dx.set(1.0f, 0.0f, 0.0f);
-    info.dy.set(0.0f, 1.0f, 0.0f);
-    info.dz.set(0.0f, 0.0f, 1.0f);
-    _wireframe = _builder->createBox(info, state);
-
-}
-*/
 void ObjectPropertiesEditor::selectObject(const QItemSelection &selected, const QItemSelection &deselected)
 {
-    for (const auto &index : deselected.indexes()) { if(!selected.contains(index)) _wireframes.erase(index); }
+    for (const auto &index : deselected.indexes())
+        if(!selected.contains(index) && (_selectedObjects.find(index) != _selectedObjects.end()))
+        {
+            _selectedObjects.at(index)->deselect();
+            _selectedObjects.erase(index);
+        }
 
     for (const auto &index : selected.indexes())
     {
-        if(_wireframes.find(index) != _wireframes.end())
+        if(_selectedObjects.find(index) != _selectedObjects.end())
             continue;
         auto object = static_cast<vsg::Node*>(index.internalPointer());
         Q_ASSERT(object);
@@ -162,8 +193,7 @@ void ObjectPropertiesEditor::selectObject(const QItemSelection &selected, const 
                 pv.pathToChild.pop_back();
                 ltw = vsg::computeTransform(pv.pathToChild);
             }
-            merge(sceneobject);
-            addWireframe(index, sceneobject, ltw);
+            select(std::make_pair(index, sceneobject));
         }
     }
     updateData();
@@ -176,40 +206,38 @@ void ObjectPropertiesEditor::intersection(const FindNode& isection)
     if(_single)
         clear();
 
+    if(isection.objects.empty())
+        return;
+
     if((isection.keyModifier & vsg::MODKEY_Shift) == 0)
-        select(isection.objects.front(), isection.localToWord);
+        select(isection.objects.front());
     else
-        select(isection.objects.back(), isection.localToWord);
+        select(isection.objects.back());
 
     updateData();
 }
-void ObjectPropertiesEditor::select(std::pair<const route::SceneObject *, const vsg::Node *> object, const vsg::dmat4 &ltw)
+void ObjectPropertiesEditor::select(std::pair<const route::SceneObject *, const vsg::Node *> object)
 {
-    merge(const_cast<route::SceneObject*>(object.first));
-    auto tilesModel = _database->getTilesModel();
-    auto index = tilesModel->index(object.first, object.second);
-    addWireframe(index, object.first, ltw * vsg::inverse(object.first->transform(vsg::dmat4())));
+    auto casted = const_cast<route::SceneObject*>(object.first);
+    auto index = _database->getTilesModel()->index(object.first, object.second);
+    select(std::make_pair(index, casted));
     emit objectClicked(index);
 }
 void ObjectPropertiesEditor::clear()
 {
-    _selectedObject = nullptr;
-    _selectedObjects->selected.clear();
-    _wireframes.clear();
+    _firstObject = nullptr;
+    for (auto &object : _selectedObjects) {
+        object.second->deselect();
+    }
+    _selectedObjects.clear();
     emit deselect();
 }
-void ObjectPropertiesEditor::merge(route::SceneObject *object)
+void ObjectPropertiesEditor::select(std::pair<QModelIndex, route::SceneObject*> object)
 {
-    if(!_selectedObject)
-    {
-        _selectedObject = object;
-        _selectedObjects->selected.push_back(_selectedObject);
-    }
-    else
-    {
-        _selectedObjects->selected.emplace_back(object);
-        _selectedObject = _selectedObjects;
-    }
+    if(!_firstObject)
+        _firstObject = object.second;
+    object.second->setWireframe(_database->getBuilder());
+    _selectedObjects.insert(object);
 }
 
 void ObjectPropertiesEditor::updateData()
@@ -224,11 +252,11 @@ void ObjectPropertiesEditor::updateData()
     QSignalBlocker l8(ui->rotYspin);
     QSignalBlocker l9(ui->rotZspin);
 
-    setEnabled(_selectedObject);
-    if(!_selectedObject)
+    setEnabled(_firstObject);
+    if(!_firstObject)
         return;
 
-    auto position = _selectedObject->getPosition();
+    auto position = _firstObject->getPosition();
     ui->ecefXspin->setValue(position.x);
     ui->ecefYspin->setValue(position.y);
     ui->ecefZspin->setValue(position.z);
@@ -237,7 +265,7 @@ void ObjectPropertiesEditor::updateData()
     ui->lonSpin->setValue(_ellipsoidModel->convertECEFToLatLongAltitude(position).y);
     ui->altSpin->setValue(_ellipsoidModel->convertECEFToLatLongAltitude(position).z);
 
-    auto quat = _selectedObject->getRotation();
+    auto quat = _firstObject->getRotation();
 
     double sinr_cosp = 2 * (quat.w * quat.x + quat.y * quat.z);
     double cosr_cosp = 1 - 2 * (quat.x * quat.x + quat.y * quat.y);

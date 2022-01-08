@@ -91,7 +91,7 @@ namespace route {
         std::pair<const route::SplinePoint*, const vsg::Node*> trackpoint;
         std::pair<const vsg::Switch*, const vsg::Node*> tile;
 
-        vsg::KeyModifier keyModifier;
+        uint16_t keyModifier;
 
         void apply(const vsg::Node &node) override;
 

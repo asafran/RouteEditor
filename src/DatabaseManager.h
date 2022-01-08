@@ -46,6 +46,7 @@ public:
     vsg::ref_ptr<vsg::Group> getDatabase() const noexcept { return _database; }
     SceneModel *loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, double tileLOD, double pointsLOD, float size);
     SceneModel *getTilesModel() noexcept { return _tilesModel; }
+    QUndoStack *getUndoStack() noexcept { return _undoStack; }
 
 public slots:
     void writeTiles() noexcept;
