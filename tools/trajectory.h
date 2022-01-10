@@ -77,6 +77,8 @@ namespace route
 
         virtual double getLength() const = 0;
 
+        virtual void recalculate() = 0;
+
         virtual bool isFrontReversed() const { return _frontReversed; }
         virtual bool isBackReversed() const { return _backReversed; }
 
@@ -94,13 +96,17 @@ namespace route
         template<class N, class V>
         static void t_traverse(N& node, V& visitor)
         {
-            node._track->accept(visitor);
             for (auto& child : node._points) child->accept(visitor);
         }
 
         void traverse(vsg::Visitor& visitor) override { Group::traverse(visitor); t_traverse(*this, visitor); }
         void traverse(vsg::ConstVisitor& visitor) const override { Group::traverse(visitor); t_traverse(*this, visitor); }
-        void traverse(vsg::RecordTraversal& visitor) const override { Group::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::RecordTraversal& visitor) const override
+        {
+            Group::traverse(visitor);
+            _track->accept(visitor);
+            t_traverse(*this, visitor);
+        }
 
     protected:
         QSet<simulator::Bogie *> _vehicles_on_traj;
@@ -109,8 +115,8 @@ namespace route
 
         std::vector<vsg::ref_ptr<SplinePoint>> _points;
 
-        Trajectory       *_fwdTraj;
-        Trajectory       *_bwdTraj;
+        Trajectory      *_fwdTraj;
+        Trajectory      *_bwdTraj;
 
         bool _frontReversed;
         bool _backReversed;
@@ -139,9 +145,7 @@ namespace route
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        //double getPoints();
-
-        void recalculate();
+        void recalculate() override;
 
         int add(vsg::dvec3 lla);
         void move(vsg::dvec3 lla, int point);
@@ -152,8 +156,8 @@ namespace route
             for (auto& child : node._autoPositioned) child->accept(visitor);
         }
 
-        void traverse(vsg::Visitor& visitor) override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
-        void traverse(vsg::ConstVisitor& visitor) const override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::Visitor& visitor) override { Trajectory::traverse(visitor); }
+        void traverse(vsg::ConstVisitor& visitor) const override { Trajectory::traverse(visitor); }
         void traverse(vsg::RecordTraversal& visitor) const override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
 
     private:
@@ -171,6 +175,9 @@ namespace route
         std::vector<vsg::vec3> _geometry;
 
         vsg::ref_ptr<vsg::Node> _sleeper;
+
+        vsg::ref_ptr<SplinePoint>     _fwdPoint;
+        vsg::ref_ptr<SplinePoint>     _bwdPoint;
     };
 
     class SceneTrajectory : public vsg::Inherit<vsg::Group, SceneTrajectory>

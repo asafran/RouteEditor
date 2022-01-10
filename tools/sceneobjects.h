@@ -16,8 +16,8 @@ namespace route
     {
     public:
         SceneObject();
-        SceneObject(const vsg::dvec3 &pos, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0});
-        SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos = {}, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0});
+        SceneObject(const vsg::dvec3 &pos, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0}, const vsg::dmat4 &wtl = {});
+        SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos = {}, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0}, const vsg::dmat4 &wtl = {});
 
 
         virtual ~SceneObject();
@@ -42,11 +42,13 @@ namespace route
         }
 
         vsg::dvec3 getPosition() const { return _position; }
+        vsg::dvec3 getWorldPosition() const { return _position * worldToLocal; }
+        vsg::dquat getWorldQuat() const { return _world_quat; }
         vsg::dquat getRotation() const { return _quat; }
 
         bool isSelected() const { return _wireframe.valid(); }
 
-        bool local;
+        vsg::dmat4 worldToLocal;
 
     protected:
         vsg::dvec3 _position;
@@ -60,7 +62,11 @@ namespace route
     class SingleLoader : public vsg::Inherit<SceneObject, SingleLoader>
     {
     public:
-        SingleLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, const vsg::dvec3 &pos = {}, const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0});
+        SingleLoader(vsg::ref_ptr<vsg::Node> loaded,
+                     const std::string &in_file,
+                     const vsg::dvec3 &pos = {},
+                     const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0},
+                     const vsg::dmat4 &wtl = {});
         SingleLoader();
 
         virtual ~SingleLoader();
@@ -144,6 +150,22 @@ namespace route
 
         SplineTrajectory *trajectory;
     };
+/*
+    class RailConnectionPoint : public vsg::Inherit<SplinePoint, RailConnectionPoint>
+    {
+    public:
+        RailConnectionPoint(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled);
+        RailConnectionPoint();
+
+        virtual ~RailConnectionPoint();
+
+        void setPosition(const vsg::dvec3& position) override;
+        void setRotation(const vsg::dquat& rotation) override;
+
+        Trajectory *_1stTraj;
+        Trajectory *_2ndTraj;
+    };*/
+
 
     template<typename T>
     vsg::t_quat<T> mult(const vsg::t_quat<T>& lhs, const vsg::t_quat<T>& rhs)

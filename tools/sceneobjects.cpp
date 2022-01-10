@@ -9,15 +9,16 @@
 
 namespace route
 {
-    SceneObject::SceneObject(const vsg::dvec3& pos, const vsg::dquat& w_quat)
+    SceneObject::SceneObject(const vsg::dvec3& pos, const vsg::dquat& w_quat, const vsg::dmat4 &wtl)
         : vsg::Inherit<vsg::Transform, SceneObject>()
         , _position(pos)
         , _world_quat(w_quat)
+        , worldToLocal(wtl)
     {
     }
 
-    SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos, const vsg::dquat& w_quat)
-        : SceneObject(pos, w_quat)
+    SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos, const vsg::dquat& w_quat, const vsg::dmat4 &wtl)
+        : SceneObject(pos, w_quat, wtl)
     {
         addChild(loaded);
     }
@@ -33,7 +34,7 @@ namespace route
         input.read("quat", _quat);
         input.read("world_quat", _world_quat);
         input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
-        input.read("local", local);
+        input.read("wtl", worldToLocal);
         input.read("coord", _position);
     }
 
@@ -44,7 +45,7 @@ namespace route
         output.write("quat", _quat);
         output.write("world_quat", _world_quat);
         output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
-        output.write("local", local);
+        output.write("wtl", worldToLocal);
 
         output.write("coord", _position);
     }
@@ -83,8 +84,12 @@ namespace route
         return m * matrix;
     }
 
-    SingleLoader::SingleLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, const vsg::dvec3 &pos, const vsg::dquat &in_quat)
-        : vsg::Inherit<SceneObject, SingleLoader>(loaded, pos, in_quat)
+    SingleLoader::SingleLoader(vsg::ref_ptr<vsg::Node> loaded,
+                               const std::string &in_file,
+                               const vsg::dvec3 &pos,
+                               const vsg::dquat &in_quat,
+                               const vsg::dmat4 &wtl)
+        : vsg::Inherit<SceneObject, SingleLoader>(loaded, pos, in_quat, wtl)
         , file(in_file)
     {
     }
@@ -105,7 +110,7 @@ namespace route
         addChild(vsg::read_cast<vsg::Node>(filename));
 
         input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
-        input.read("local", local);
+        input.read("wtl", worldToLocal);
         input.read("coord", _position);
     }
 
@@ -117,7 +122,7 @@ namespace route
         output.write("world_quat", _world_quat);
         output.write("filename", file);
         output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
-        output.write("local", local);
+        output.write("wtl", worldToLocal);
 
         //vsg::dvec3 pos(matrix[3][0], matrix[3][1], matrix[3][2]);
 
@@ -129,13 +134,12 @@ namespace route
         , selected(in_selected)
     {
         setValue(META_NAME, "Группа объектов");
-        local = true;
     }
     Selection::Selection()
         : vsg::Inherit<SceneObject, Selection>(vsg::dvec3(0.0,0.0,0.0))
     {
         setValue(META_NAME, "Группа объектов");
-        local = true;
+
     }
 
     Selection::~Selection() {}

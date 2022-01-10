@@ -172,8 +172,12 @@ void ObjectPropertiesEditor::selectObject(const QItemSelection &selected, const 
     for (const auto &index : deselected.indexes())
         if(!selected.contains(index) && (_selectedObjects.find(index) != _selectedObjects.end()))
         {
-            _selectedObjects.at(index)->deselect();
+            auto deselectObject = _selectedObjects.at(index);
+            deselectObject->deselect();
             _selectedObjects.erase(index);
+            if(deselectObject == _firstObject)
+                _firstObject = _selectedObjects.empty() ? nullptr : _selectedObjects.begin()->second;
+            emit sendFirst(_firstObject);
         }
 
     for (const auto &index : selected.indexes())
@@ -185,15 +189,7 @@ void ObjectPropertiesEditor::selectObject(const QItemSelection &selected, const 
 
         if(auto sceneobject = object->cast<route::SceneObject>(); sceneobject)
         {
-            auto ltw = vsg::dmat4();
-            if(sceneobject->local)
-            {
-                ParentVisitor pv(sceneobject);
-                _database->getRoot()->accept(pv);
-                pv.pathToChild.pop_back();
-                ltw = vsg::computeTransform(pv.pathToChild);
-            }
-            select(std::make_pair(index, sceneobject));
+            select(index, sceneobject);
         }
     }
     updateData();
@@ -210,34 +206,52 @@ void ObjectPropertiesEditor::intersection(const FindNode& isection)
         return;
 
     if((isection.keyModifier & vsg::MODKEY_Shift) == 0)
-        select(isection.objects.front());
+        toggle(isection.objects.front());
     else
-        select(isection.objects.back());
+        toggle(isection.objects.back());
 
     updateData();
 }
-void ObjectPropertiesEditor::select(std::pair<const route::SceneObject *, const vsg::Node *> object)
+void ObjectPropertiesEditor::toggle(std::pair<const route::SceneObject *, const vsg::Node *> object)
 {
     auto casted = const_cast<route::SceneObject*>(object.first);
     auto index = _database->getTilesModel()->index(object.first, object.second);
-    select(std::make_pair(index, casted));
+    if(auto selectedIt = _selectedObjects.find(index); selectedIt != _selectedObjects.end())
+    {
+        auto selected = selectedIt->second;
+        selected->deselect();
+        emit deselect(selectedIt->first);
+        _selectedObjects.erase(selectedIt);
+
+        if(selected == _firstObject)
+        {
+            _firstObject = _selectedObjects.empty() ? nullptr : _selectedObjects.begin()->second;
+            emit sendFirst(_firstObject);
+        }
+        return;
+    }
+    select(index, casted);
     emit objectClicked(index);
 }
 void ObjectPropertiesEditor::clear()
 {
     _firstObject = nullptr;
+    emit sendFirst(_firstObject);
     for (auto &object : _selectedObjects) {
         object.second->deselect();
     }
     _selectedObjects.clear();
     emit deselect();
 }
-void ObjectPropertiesEditor::select(std::pair<QModelIndex, route::SceneObject*> object)
+void ObjectPropertiesEditor::select(const QModelIndex &index, route::SceneObject* object)
 {
     if(!_firstObject)
-        _firstObject = object.second;
-    object.second->setWireframe(_database->getBuilder());
-    _selectedObjects.insert(object);
+    {
+        _firstObject = object;
+        emit sendFirst(_firstObject);
+    }
+    object->setWireframe(_database->getBuilder());
+    _selectedObjects.insert({index, object});
 }
 
 void ObjectPropertiesEditor::updateData()

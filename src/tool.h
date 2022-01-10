@@ -14,8 +14,6 @@ public:
     virtual void intersection(const FindNode&) = 0;
 
 signals:
-    void objectClicked(const QModelIndex &index);
-    void deselect();
     void sendStatusText(const QString &message, int timeout);
 
 protected:

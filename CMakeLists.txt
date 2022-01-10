@@ -19,8 +19,6 @@ set(SOURCES
     src/ObjectPropertiesEditor.h
     src/ObjectPropertiesEditor.cpp
     src/ObjectPropertiesEditor.ui
-#    src/typecase.h
-    #src/MouseHandler.h
     src/SceneObjectVisitor.h
     src/SceneObjectVisitor.cpp
     src/ContentManager.h
@@ -28,11 +26,12 @@ set(SOURCES
     src/ContentManager.ui
     src/tool.h
     src/tool.cpp
-    #src/Selector.cpp
-    #src/Selector.h
     src/StartDialog.h
     src/StartDialog.cpp
     src/StartDialog.ui
+    src/AddRails.cpp
+    src/AddRails.ui
+    src/AddRails.h
     src/DatabaseManager.cpp
     src/DatabaseManager.h
     src/undo-redo.cpp
@@ -41,10 +40,6 @@ set(SOURCES
     src/Manipulator.cpp
     src/TilesSorter.cpp
     src/TilesSorter.h
-    #src/TilesVisitor.cpp
-    #src/TilesVisitor.h
-    #src/TrajectoryModel.h
-    #src/TrajectoryModel.cpp
     src/SceneModel.h
     src/SceneModel.cpp
     src/main.cpp
@@ -53,19 +48,12 @@ set(SOURCES
 set(TOOLS
     tools/sceneobjects.h
     tools/sceneobjects.cpp
-    #tools/trackobjects.h
-    #tools/trackobjects.cpp
-    #tools/connector.h
-    #tools/connector.cpp
     tools/topology.h
     tools/topology.cpp
     tools/trajectory.h
     tools/trajectory.cpp
-    #tools/LambdaVisitor.cpp
     #tools/vehicle-controller.h
     #tools/vehicle-controller.cpp
-    #tools/MouseMovable.cpp
-    #tools/MouseMovable.h
     tools/LambdaVisitor.h
     tools/ParentVisitor.cpp
     tools/ParentVisitor.h

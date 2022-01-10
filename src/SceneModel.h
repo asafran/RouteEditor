@@ -1,8 +1,8 @@
 #ifndef SCENEMODEL_H
 #define SCENEMODEL_H
 
-#include "TrajectoryModel.h"
 #include <QUndoStack>
+#include <QAbstractItemModel>
 #include "sceneobjects.h"
 #include <vsg/utils/Builder.h>
 

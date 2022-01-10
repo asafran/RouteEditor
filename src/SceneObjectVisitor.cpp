@@ -70,6 +70,34 @@
             _objectFunction(object);
     }
 */
+    CalculateTransform::CalculateTransform() : vsg::Visitor()
+    {
+    }
+
+    void CalculateTransform::apply(vsg::Node &node)
+    {
+        node.traverse(*this);
+    }
+
+    void CalculateTransform::apply(route::SceneObject &object)
+    {
+        auto newWorld = vsg::inverse(stack.top());
+        auto wposition = object.getWorldPosition();
+        object.setPosition(wposition * newWorld);
+        object.worldToLocal = newWorld;
+    }
+
+    void CalculateTransform::apply(vsg::Transform &transform)
+    {
+        if(auto object = transform.cast<route::SceneObject>(); object)
+            apply(*object);
+
+        stack.push(transform);
+        transform.traverse(*this);
+        stack.pop();
+    }
+
+
     //----------------------------------------------------------------------------------------------------
     FindNode::FindNode(const vsg::LineSegmentIntersector::Intersection &lsi)
         : vsg::ConstVisitor()

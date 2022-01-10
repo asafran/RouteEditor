@@ -142,10 +142,24 @@ public:
     {
         _object->setRotation(_newQ);
     }
+    int id() const override
+    {
+        return 2;
+    }
+    bool mergeWith(const QUndoCommand *other) override
+    {
+        if (other->id() != id())
+            return false;
+        auto rcmd = static_cast<const RotateObject*>(other);
+        if(rcmd->_object != _object)
+            return false;
+        _newQ = rcmd->_newQ;
+        return true;
+    }
 private:
     vsg::ref_ptr<route::SceneObject> _object;
     const vsg::dquat _oldQ;
-    const vsg::dquat _newQ;
+    vsg::dquat _newQ;
 };
 
 class MoveObject : public QUndoCommand
@@ -170,10 +184,25 @@ public:
     {
         _object->setPosition(_newPos);
     }
+    int id() const override
+    {
+        return 1;
+    }
+    bool mergeWith(const QUndoCommand *other) override
+    {
+        if (other->id() != id())
+            return false;
+        auto mcmd = static_cast<const MoveObject*>(other);
+        if(mcmd->_object != _object)
+            return false;
+        _newPos = mcmd->_newPos;
+        return true;
+    }
+
 private:
     vsg::ref_ptr<route::SceneObject> _object;
     const vsg::dvec3 _oldPos;
-    const vsg::dvec3 _newPos;
+    vsg::dvec3 _newPos;
 
 };
 /*

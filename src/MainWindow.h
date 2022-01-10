@@ -12,6 +12,7 @@
 #include <vsg/all.h>
 #include <QToolBox>
 #include "TilesSorter.h"
+#include "ObjectPropertiesEditor.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -38,6 +39,8 @@ private:
 
     Ui::MainWindow *ui;
     vsg::ref_ptr<vsg::Builder> builder;
+    ObjectPropertiesEditor *ope;
+
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;
     DatabaseManager *database;

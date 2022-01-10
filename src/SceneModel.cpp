@@ -1,6 +1,7 @@
 #include "SceneModel.h"
 #include "ParentVisitor.h"
 #include "LambdaVisitor.h"
+#include "SceneObjectVisitor.h"
 #include "undo-redo.h"
 #include <QMimeData>
 #include <sstream>
@@ -40,12 +41,16 @@ QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) co
 
         auto autoF = [&child, row](const auto& node) { child = node.children.at(row).node; };
         auto groupF = [&child, row](const vsg::Group& node) { child = node.children.at(row); };
-        auto swF = [&child, row](const vsg::Switch& node) mutable
+        auto swF = [&child, row](const vsg::Switch& node)
         {
-            while ((node.children.at(row).mask & route::SceneObjects) == 0) {
-                row++;
+            auto it = node.children.cbegin();
+            for (int sco = -1; it != node.children.cend() && sco < row; ++it)
+            {
+                if((it->mask & route::SceneObjects) != 0)
+                    ++sco;
             }
-            child = node.children.at(row).node;
+            Q_ASSERT(--it != node.children.cend());
+            child = it->node;
         };
 
         CFunctionVisitor<decltype (autoF)> fv(autoF);
@@ -81,6 +86,7 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
     if (parent && grandParent)
     {
         FindPositionVisitor fpv(parent);
+        fpv.traversalMask = route::SceneObjects;
         return createIndex(fpv(grandParent), 0, const_cast<vsg::Node*>(parent));
     }
     return QModelIndex();
@@ -157,6 +163,7 @@ uint32_t SceneModel::setMask(uint32_t mask, const QModelIndex &index)
 QModelIndex SceneModel::removeNode(const QModelIndex &index)
 {
     FindPositionVisitor fpv(static_cast<vsg::Node*>(index.internalPointer()));
+    fpv.traversalMask = route::SceneObjects;
     auto parent = index.parent();
     removeRows(fpv(static_cast<vsg::Node*>(index.parent().internalPointer())), 1, parent);
     return parent;
@@ -164,6 +171,7 @@ QModelIndex SceneModel::removeNode(const QModelIndex &index)
 void SceneModel::removeNode(const QModelIndex &parent, const QModelIndex &index)
 {
     FindPositionVisitor fpv(static_cast<vsg::Node*>(index.internalPointer()));
+    fpv.traversalMask = route::SceneObjects;
     removeRows(fpv(static_cast<vsg::Node*>(index.parent().internalPointer())), 1, parent);
 }
 
@@ -182,6 +190,7 @@ QModelIndex SceneModel::index(const vsg::Node *node) const
 QModelIndex SceneModel::index(const vsg::Node *node, const vsg::Node *parent) const
 {
     FindPositionVisitor fpv(node);
+    fpv.traversalMask = route::SceneObjects;
     return createIndex(fpv(parent), 0, node);
 }
 
@@ -209,15 +218,14 @@ QMimeData *SceneModel::mimeData(const QModelIndexList &indexes) const
         return 0;
 
     vsg::VSG io;
-    auto options = vsg::Options::create();
-    options->extensionHint = "vsgb";
+    _compile->options->extensionHint = "vsgt";
 
     std::ostringstream oss;
 
     if (indexes.at(0).isValid()) {
         if(auto node = static_cast<vsg::Node*>(indexes.at(0).internalPointer()); node)
         {
-            io.write(node, oss, options);
+            io.write(node, oss, _compile->options);
         }
     } else
         return 0;
@@ -242,20 +250,20 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
     if (!parent.isValid())
         return false;
 
-    auto options = vsg::Options::create();
-    options->extensionHint = "vsgb";
-
     std::istringstream iss(data->text().toStdString());
 
     vsg::VSG io;
 
-    auto object = io.read(iss, options);
-    auto node = object.cast<route::SceneObject>();
+    auto object = io.read(iss, _compile->options);
+    auto node = object.cast<vsg::Node>();
     if(!node)
         return false;
 
     Q_ASSERT(_compile);
     _compile->compile(node);
+
+    CalculateTransform ct;
+    node->accept(ct);
 
     _undoStack->push(new AddSceneObject(this, parent, node));
 

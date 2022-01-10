@@ -2,7 +2,7 @@
 #define OBJECTPROPERTIESEDITOR_H
 
 #include "tool.h"
-#include "TrajectoryModel.h"
+#include <QItemSelectionModel>
 #include <vsg/viewer/EllipsoidModel.h>
 
 namespace Ui {
@@ -23,13 +23,19 @@ public:
 public slots:
     void updateData();
     void selectObject(const QItemSelection &selected, const QItemSelection &deselected);
-
-private:
     void move(const vsg::dvec3 &delta);
 
+signals:
+    void objectClicked(const QModelIndex &index);
+    void deselect();
+    void deselect(const QModelIndex &index);
+    void sendFirst(vsg::ref_ptr<route::SceneObject> firstObject);
+
+private:
+
     void clear();
-    void select(std::pair<const route::SceneObject*, const vsg::Node*> object);
-    void select(std::pair<QModelIndex, route::SceneObject *> object);
+    void toggle(std::pair<const route::SceneObject*, const vsg::Node*> object);
+    void select(const QModelIndex &index, route::SceneObject *object);
 
     Ui::ObjectPropertiesEditor *ui;
 

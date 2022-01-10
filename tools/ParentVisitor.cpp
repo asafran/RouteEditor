@@ -71,7 +71,18 @@ void FindPositionVisitor::apply(const vsg::PagedLOD& plod)
 
 void FindPositionVisitor::apply(const vsg::Switch& sw)
 {
-    position = findPosInStruct(sw, child);
+    auto it = sw.children.begin();
+    for ( ;it != sw.children.end(); ++it)
+    {
+        if ((traversalMask & (overrideMask | it->mask)) != 0)
+        {
+            if (it->node == child)
+                break;
+            ++position;
+        }
+        else
+            continue;
+    }
 }
 
 void FindPositionVisitor::apply(const vsg::CullNode& cn)

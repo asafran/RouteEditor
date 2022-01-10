@@ -10,7 +10,6 @@ ContentManager::ContentManager(DatabaseManager *database, QString root, QWidget 
     , ui(new Ui::ContentManager)
   , modelsDir(root)
 {
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
     ui->setupUi(this);
     _fsmodel = new QFileSystemModel(this);
     _fsmodel->setRootPath(root);
@@ -53,9 +52,9 @@ void ContentManager::intersection(const FindNode &isection)
     vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
 
     if(ui->useLinks->isChecked())
-        obj = route::SingleLoader::create(node, path, wtl * world, quat);
+        obj = route::SingleLoader::create(node, path, wtl * world, quat, wtl);
     else
-        obj = route::SceneObject::create(node, wtl * world, quat);
+        obj = route::SceneObject::create(node, wtl * world, quat, wtl);
     _database->push(new AddSceneObject(_database->getTilesModel(), activeGroup, obj));
     emit sendStatusText(tr("Добавлен объект %1").arg(path.c_str()), 2000);
 }
@@ -67,7 +66,6 @@ QModelIndex ContentManager::findGroup(const FindNode &isection)
         auto tilesModel = _database->getTilesModel();
         FindPositionVisitor fpv(isection.tile.first);
         auto index = tilesModel->index(fpv(tilesModel->getRoot()), 0, QModelIndex());
-        emit objectClicked(index);
         return index;
     }
     return QModelIndex();

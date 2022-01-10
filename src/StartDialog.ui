@@ -34,13 +34,6 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="preparePush">
-       <property name="text">
-        <string>Подготовить базу данных</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QLabel" name="label_5">
        <property name="text">
         <string>Выберите скайбокс:</string>

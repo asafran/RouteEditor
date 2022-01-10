@@ -135,12 +135,18 @@ void Manipulator::setMask(uint32_t mask)
 }
 void Manipulator::apply(vsg::KeyPressEvent& keyPress)
 {
-     keyModifier |= keyPress.keyModifier;
+     _keyModifier |= keyPress.keyModifier;
+     auto m = keyPress.keyBase == vsg::KEY_M;
+     if(!_isMoving && m)
+     {
+         _isMoving = true;
+         _database->getUndoStack()->beginMacro(tr("Перемещены объекты"));
+     }
 }
 
 void Manipulator::apply(vsg::KeyReleaseEvent& keyRelease)
 {
-     keyModifier &= !keyRelease.keyModifier;
+     _keyModifier &= !keyRelease.keyModifier;
 }
 
 void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
@@ -153,6 +159,11 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     if (buttonPress.mask & vsg::BUTTON_MASK_1)
     {
         _updateMode = INACTIVE;
+        if(_isMoving)
+        {
+            _database->getUndoStack()->endMacro();
+            _isMoving = false;
+        }
         emit sendIntersection(intersectedObjects(_mask, buttonPress));
 
     } else if (buttonPress.mask & vsg::BUTTON_MASK_2)
@@ -293,9 +304,9 @@ void Manipulator::moveToObject(const QModelIndex &index)
     auto object = static_cast<vsg::Node*>(index.internalPointer());
     Q_ASSERT(object);
 
-    if(auto sceneobject = object->cast<route::SceneObject>(); sceneobject && !sceneobject->local)
+    if(auto sceneobject = object->cast<route::SceneObject>(); sceneobject)
     {
-        setViewpoint(sceneobject->getPosition());
+        setViewpoint(sceneobject->getWorldPosition());
         return;
     }
     ParentVisitor pv(object);
@@ -310,42 +321,65 @@ void Manipulator::moveToObject(const QModelIndex &index)
     setViewpoint(ltw * centre);
 }
 
+void Manipulator::setFirst(vsg::ref_ptr<route::SceneObject> firstObject)
+{
+    _movingObject = firstObject;
+}
 
 void Manipulator::apply(vsg::MoveEvent &pointerEvent)
 {
+    Trackball::apply(pointerEvent);
 
-    Trackball::apply(pointerEvent);/*
-    if(isMovingTerrain)
+    if(!_isMoving || !_movingObject)
+        return;
+
+    switch (_axis) {
+    case MovingAxis::TERRAIN:
     {
-        auto delta = (pointerEvent.y - _previousPointerEvent->y);
-        auto fmat = vsg::mat4(active->matrix);
-        vsg::vec3 mvec;
-        mvec.x = fmat[3].x;
-        mvec.y = fmat[3].y;
-        mvec.z = fmat[3].z;
-        auto norm = vsg::normalize(mvec);
+        auto isections = intersections(route::Tiles, pointerEvent);
+        if(isections.empty())
+            return;
+        auto isection = isections.front();
 
-        vsg::quat quat(vsg::vec3(0.0f, 0.0f, 1.0f), norm);
-        vsg::quat vec(0.0f, 0.0f, delta, 0.0f);
-        auto rotated = mult(mult(quat, vec), vsg::quat(-quat.x, -quat.y, -quat.z, quat.w));
-        auto point = points.value(movingPoint);
-        point->x += rotated.x;
-        point->y += rotated.y;
-        point->z += rotated.z;
-        movingPoint->matrix = vsg::translate(*point);
 
-        copyBufferCmd->copy(info->data, info);
+        vsg::dvec3 delta;
+        delta = isection.worldIntersection - _movingObject->getWorldPosition();
+
+        emit sendMovingDelta(delta);
     }
-    else if(isMovingObject)
+    case MovingAxis::X:
     {
-        auto isection = interesection(pointerEvent).front();
-        auto find = std::find_if(isection.nodePath.crbegin(), isection.nodePath.crend(), isCompatible<SceneObject>);
-        if(find == isection.nodePath.crend())
-            undoStack->push(new MoveObject(movingObject, isection.worldIntersection));
+        auto delta = pointerEvent.y - _previousPointerEvent->y;
+        auto quat = _movingObject->getWorldQuat();
+
+        vsg::dquat vec(delta, 0.0, 0.0, 0.0);
+        auto rotated = route::mult(route::mult(quat, vec), vsg::dquat(-quat.x, -quat.y, -quat.z, quat.w));
+
+        emit sendMovingDelta(vsg::dvec3(rotated.x, rotated.y, rotated.z));
+    }
+    case MovingAxis::Y:
+    {
+        auto delta = pointerEvent.y - _previousPointerEvent->y;
+        auto quat = _movingObject->getWorldQuat();
+
+        vsg::dquat vec(0.0, delta, 0.0, 0.0);
+        auto rotated = route::mult(route::mult(quat, vec), vsg::dquat(-quat.x, -quat.y, -quat.z, quat.w));
+
+        emit sendMovingDelta(vsg::dvec3(rotated.x, rotated.y, rotated.z));
+    }
+    case MovingAxis::Z:
+    {
+        auto delta = pointerEvent.y - _previousPointerEvent->y;
+        auto quat = _movingObject->getWorldQuat();
+
+        vsg::dquat vec(0.0, 0.0, delta, 0.0);
+        auto rotated = route::mult(route::mult(quat, vec), vsg::dquat(-quat.x, -quat.y, -quat.z, quat.w));
+
+        emit sendMovingDelta(vsg::dvec3(rotated.x, rotated.y, rotated.z));
+    }
 
     }
     _previousPointerEvent = &pointerEvent;
-*/
 }
 
 FindNode Manipulator::intersectedObjects(vsg::LineSegmentIntersector::Intersections isections)
@@ -354,7 +388,7 @@ FindNode Manipulator::intersectedObjects(vsg::LineSegmentIntersector::Intersecti
         return FindNode();
     FindNode fn(isections.front());
     std::for_each(fn.nodePath.begin(), fn.nodePath.end(), [&fn](const vsg::Node *node){ node->accept(fn); });
-    fn.keyModifier = keyModifier;
+    fn.keyModifier = _keyModifier;
     return fn;
 }
 
