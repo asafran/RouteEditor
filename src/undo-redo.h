@@ -21,7 +21,7 @@ public:
         node->getValue(META_NAME, name);
         if(name.empty())
             name = node->className();
-        setText(QObject::tr("Новый объект %1").arg(name.c_str()).arg(reinterpret_cast<quint64>(node.get()), 0, 16));
+        setText(QObject::tr("Новый объект %1").arg(name.c_str()));
     }
     void undo() override
     {
@@ -46,27 +46,29 @@ public:
         , _model(model)
         , _node(static_cast<vsg::Node*>(index.internalPointer()))
         , _group(index.parent())
-        , _index(index)
+        , _row(index.row())
     {
         std::string name;
         _node->getValue(META_NAME, name);
         if(name.empty())
             name = _node->className();
-        setText(QObject::tr("Удален объект %1").arg(name.c_str()).arg(reinterpret_cast<quint64>(_node.get()), 0, 16));
+        setText(QObject::tr("Удален объект %1").arg(name.c_str()));
+        if(auto scobj = _node.cast<route::SceneObject>(); scobj)
+            scobj->deselect();
     }
     void undo() override
     {
-        _index = _model->index(_model->addNode(_group, _node), 0, _group);
+        _row = _model->addNode(_group, _node);
     }
     void redo() override
     {
-        _model->removeNode(_group, _index);
+        _model->removeRows(_row, 1, _group);
     }
 private:
     SceneModel *_model;
+    int _row;
     vsg::ref_ptr<vsg::Node> _node;
     const QModelIndex _group;
-    QModelIndex _index;
 
 };
 
@@ -199,11 +201,45 @@ public:
         return true;
     }
 
-private:
+protected:
     vsg::ref_ptr<route::SceneObject> _object;
     const vsg::dvec3 _oldPos;
     vsg::dvec3 _newPos;
 
+};
+
+class ApplyTransformCalculation : public MoveObject
+{
+public:
+    ApplyTransformCalculation(route::SceneObject *object, const vsg::dvec3& pos, const vsg::dmat4& wtl, QUndoCommand *parent = nullptr)
+        : MoveObject(object, pos, parent)
+        , _oldWtl(object->worldToLocal)
+        , _newWtl(wtl)
+    {
+        std::string name;
+        object->getValue(META_NAME, name);
+        setText(QObject::tr("Перемещен объект %1, ECEF %2").arg(name.c_str())
+                .arg("X=" + QString::number(pos.x) + " Y=" + QString::number(pos.x) + " Z=" + QString::number(pos.x)));
+
+    }
+    void undo() override
+    {
+        MoveObject::undo();
+        _object->worldToLocal = _oldWtl;
+    }
+    void redo() override
+    {
+        MoveObject::redo();
+        _object->worldToLocal = _newWtl;
+    }
+    int id() const override
+    {
+        return QUndoCommand::id();
+    }
+
+private:
+    const vsg::dmat4 _oldWtl;
+    const vsg::dmat4 _newWtl;
 };
 /*
 class DeltaMoveObject : public MoveObject

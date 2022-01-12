@@ -12,6 +12,7 @@ namespace route
     SceneObject::SceneObject(const vsg::dvec3& pos, const vsg::dquat& w_quat, const vsg::dmat4 &wtl)
         : vsg::Inherit<vsg::Transform, SceneObject>()
         , _position(pos)
+        , _quat(0.0, 0.0, 0.0, 1.0)
         , _world_quat(w_quat)
         , worldToLocal(wtl)
     {
@@ -127,32 +128,6 @@ namespace route
         //vsg::dvec3 pos(matrix[3][0], matrix[3][1], matrix[3][2]);
 
         output.write("coord", _position);
-    }
-
-    Selection::Selection(std::vector<vsg::ref_ptr<SceneObject>> in_selected)
-        : vsg::Inherit<SceneObject, Selection>(vsg::dvec3(0.0,0.0,0.0))
-        , selected(in_selected)
-    {
-        setValue(META_NAME, "Группа объектов");
-    }
-    Selection::Selection()
-        : vsg::Inherit<SceneObject, Selection>(vsg::dvec3(0.0,0.0,0.0))
-    {
-        setValue(META_NAME, "Группа объектов");
-
-    }
-
-    Selection::~Selection() {}
-
-    void Selection::setPosition(const vsg::dvec3& position)
-    {
-        auto delta = position - _position;
-        _position = position;
-        for (auto object : selected)
-        {
-            auto newpos = object->getPosition() + delta;
-            object->setPosition(newpos);
-        }
     }
 
     TerrainPoint::TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,

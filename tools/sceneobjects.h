@@ -2,7 +2,7 @@
 #define SCENEOBJECTS_H
 
 #include <QFileInfo>
-//#include "trajectory.h"
+#include <vsg/maths/transform.h>
 #include <vsg/nodes/Transform.h>
 #include <vsg/utils/Builder.h>
 #include <vsg/commands/CopyAndReleaseBuffer.h>
@@ -42,7 +42,7 @@ namespace route
         }
 
         vsg::dvec3 getPosition() const { return _position; }
-        vsg::dvec3 getWorldPosition() const { return _position * worldToLocal; }
+        vsg::dvec3 getWorldPosition() const { return vsg::inverse(worldToLocal) * _position; }
         vsg::dquat getWorldQuat() const { return _world_quat; }
         vsg::dquat getRotation() const { return _quat; }
 
@@ -56,7 +56,7 @@ namespace route
 
         vsg::ref_ptr<vsg::Node> _wireframe;
 
-        vsg::dquat _world_quat = {0.0, 0.0, 0.0, 1.0};
+        vsg::dquat _world_quat;
     };
 
     class SingleLoader : public vsg::Inherit<SceneObject, SingleLoader>
@@ -75,19 +75,6 @@ namespace route
         void write(vsg::Output& output) const override;
 
         std::string file;
-    };
-
-    class Selection : public vsg::Inherit<SceneObject, Selection>
-    {
-    public:
-        Selection(std::vector<vsg::ref_ptr<SceneObject>> in_selected);
-        Selection();
-
-        virtual ~Selection();
-
-        void setPosition(const vsg::dvec3& position) override;
-
-        std::vector<vsg::ref_ptr<SceneObject>> selected;
     };
 
     enum Mask : uint32_t

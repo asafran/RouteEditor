@@ -28,7 +28,7 @@ public slots:
 signals:
     void objectClicked(const QModelIndex &index);
     void deselect();
-    void deselect(const QModelIndex &index);
+    void deselectItem(const QModelIndex &index);
     void sendFirst(vsg::ref_ptr<route::SceneObject> firstObject);
 
 private:

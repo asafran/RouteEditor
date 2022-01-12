@@ -2,6 +2,7 @@
 
 #include "sceneobjects.h"
 #include "trajectory.h"
+#include "undo-redo.h"
 #include <vsg/nodes/Switch.h>
 
 /*
@@ -83,15 +84,13 @@
     {
         auto newWorld = vsg::inverse(stack.top());
         auto wposition = object.getWorldPosition();
-        object.setPosition(wposition * newWorld);
-        object.worldToLocal = newWorld;
+        undoStack->push(new ApplyTransformCalculation(&object, newWorld * wposition, newWorld));
     }
 
     void CalculateTransform::apply(vsg::Transform &transform)
     {
         if(auto object = transform.cast<route::SceneObject>(); object)
             apply(*object);
-
         stack.push(transform);
         transform.traverse(*this);
         stack.pop();

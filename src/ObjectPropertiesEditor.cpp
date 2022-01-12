@@ -15,6 +15,8 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 
     auto stack = _database->getUndoStack();
 
+    connect(stack, &QUndoStack::indexChanged, this, &ObjectPropertiesEditor::updateData);
+
     connect(ui->ecefXspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
         auto newpos = _firstObject->getPosition();
@@ -220,8 +222,10 @@ void ObjectPropertiesEditor::toggle(std::pair<const route::SceneObject *, const 
     {
         auto selected = selectedIt->second;
         selected->deselect();
-        emit deselect(selectedIt->first);
-        _selectedObjects.erase(selectedIt);
+
+        //_selectedObjects.erase(selectedIt);
+        emit deselectItem(selectedIt->first);
+
 
         if(selected == _firstObject)
         {

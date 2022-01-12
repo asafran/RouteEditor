@@ -88,6 +88,8 @@ namespace route {
 
         vsg::MatrixStack stack;
 
+        QUndoStack *undoStack;
+
         void apply(vsg::Node &node) override;
 
         void apply(route::SceneObject &object);

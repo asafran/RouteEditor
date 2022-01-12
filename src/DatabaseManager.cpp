@@ -79,6 +79,7 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
                         auto transform = node.cast<vsg::MatrixTransform>();
                         tile->addChild(route::Tiles, transform);
                     }
+                    tile->addChild(route::Points, vsg::Group::create());
                 }
                 else
                 {
@@ -88,8 +89,11 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
                 }
             }
 
-            auto pointGroup = vsg::Group::create();
-            tile->addChild(route::Points, pointGroup);
+            auto pointsIt = std::find_if(tile->children.begin(), tile->children.end(), [](const vsg::Switch::Child &ch)
+            {
+                return (ch.mask & route::Points) != 0;
+            });
+            auto pointGroup = pointsIt->node.cast<vsg::Group>();
 
             auto traverseTiles = [pointGroup, sphere, copyBuffer, pointsLOD, radius=size/2](vsg::MatrixTransform &transform)
             {
@@ -183,19 +187,22 @@ void DatabaseManager::writeTiles() noexcept
         object.removeObject("bound");
     };
     LambdaVisitor<decltype (removeBounds), vsg::VertexIndexDraw> lv(removeBounds);
+
     auto removePoints = [](vsg::Switch& sw)
     {
         for (auto it = sw.children.begin(); it != sw.children.end(); ++it)
         {
             if (it->mask == route::Points)
             {
-                sw.children.erase(it);
+                auto group = it->node.cast<vsg::Group>();
+                group->children.clear();
                 break;
             }
         }
     };
     LambdaVisitor<decltype (removePoints), vsg::Switch> lvp(removePoints);
     _tilesModel->getRoot()->accept(lvp);
+
 
     vsg::write(_database, _databasePath.toStdString(), _builder->options);
 

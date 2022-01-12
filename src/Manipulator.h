@@ -37,6 +37,7 @@ public:
 public slots:
     void moveToObject(const QModelIndex &index);
     void setFirst(vsg::ref_ptr<route::SceneObject> firstObject);
+    void startMoving();
     void setViewpoint(const vsg::dvec3 &pos);
     void setLatLongAlt(const vsg::dvec3 &pos);
     void setViewpoint(const vsg::dvec4 &pos_mat);

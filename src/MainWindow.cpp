@@ -35,41 +35,55 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
     connect(ui->actionUndo, &QAction::triggered, undoStack, &QUndoStack::undo);
     connect(ui->actionRedo, &QAction::triggered, undoStack, &QUndoStack::redo);
 
-    connect(ui->removeButt, &QPushButton::pressed, [this]()
+    connect(ui->removeButt, &QPushButton::pressed, this, [this]()
     {
-        if(ui->tilesView->selectionModel()->selectedIndexes().front().isValid())
+        auto selected = sorter->mapSelectionToSource(ui->tilesView->selectionModel()->selection()).indexes();
+        if(!selected.empty())
         {
-            auto selected = sorter->mapToSource(ui->tilesView->selectionModel()->selectedIndexes().front());
-            undoStack->push(new RemoveNode(database->getTilesModel(), selected));
+            if(selected.size() != 1)
+            {
+                std::sort(selected.begin(), selected.end(), [](auto lhs, auto rhs){ return lhs.row() > rhs.row(); });
+                undoStack->beginMacro("Удалены объекты");
+            }
+
+            for (const auto &index : selected)
+                    undoStack->push(new RemoveNode(database->getTilesModel(), index));
+
+            if(selected.size() != 1)
+                undoStack->endMacro();
         }
+        else
+            ui->statusbar->showMessage(tr("Выберите объекты, которые нужно удалить"), 3000);
     });
-    connect(ui->addGroupButt, &QPushButton::pressed, [this]()
+    connect(ui->addGroupButt, &QPushButton::pressed, this, [this]()
     {
         auto selected = sorter->mapSelectionToSource(ui->tilesView->selectionModel()->selection()).indexes();
         if(!selected.empty())
         {
             undoStack->beginMacro(tr("Создан слой"));
             auto group = vsg::Group::create();
+            auto parent = selected.front().parent();
             for (const auto &index : selected)
             {
                 Q_ASSERT(index.isValid());
                 group->children.emplace_back(static_cast<vsg::Node*>(index.internalPointer()));
                 undoStack->push(new RemoveNode(database->getTilesModel(), index));
             }
-            undoStack->push(new AddSceneObject(database->getTilesModel(), selected.front().parent(), group));
+            undoStack->push(new AddSceneObject(database->getTilesModel(), parent, group));
             undoStack->endMacro();
         }
         else
             ui->statusbar->showMessage(tr("Выберите объекты для создания слоя"), 3000);
 
     });
-    connect(ui->addSObjectButt, &QPushButton::pressed, [this]()
+    connect(ui->addSObjectButt, &QPushButton::pressed, this, [this]()
     {
         auto selected = sorter->mapSelectionToSource(ui->tilesView->selectionModel()->selection()).indexes();
         if(!selected.empty())
         {
             auto front = selected.front();
-            auto parent = static_cast<vsg::Node*>(front.parent().internalPointer());
+            auto parentIndex = front.parent();
+            auto parent = static_cast<vsg::Node*>(parentIndex.internalPointer());
             Q_ASSERT(parent);
 
             ParentVisitor pv(parent);
@@ -77,8 +91,6 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
             database->getRoot()->accept(pv);
             auto ltw = vsg::computeTransform(pv.pathToChild);
             auto wtl = vsg::inverse(ltw);
-
-            vsg::ComputeBounds computeBounds;
 
             auto node = static_cast<vsg::Node*>(front.internalPointer());
             auto object = node->cast<route::SceneObject>();
@@ -90,24 +102,29 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
 
             auto world = object->getWorldPosition();
             auto norm = vsg::normalize(world);
-            vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
-            auto group = route::SceneObject::create(world * wtl, quat, wtl);
+            //vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
+            auto group = route::SceneObject::create(world * wtl, vsg::dquat(), wtl);
 
             undoStack->beginMacro(tr("Создана группа объектов"));
+
+            std::sort(selected.begin(), selected.end(), [](auto lhs, auto rhs){ return lhs.row() > rhs.row(); });
 
             for (const auto &index : selected)
             {
                 Q_ASSERT(index.isValid());
-                group->children.emplace_back(static_cast<vsg::Node*>(index.internalPointer()));
+                auto object = static_cast<vsg::Node*>(index.internalPointer());
+                group->children.emplace_back(object);
                 undoStack->push(new RemoveNode(database->getTilesModel(), index));
             }
 
-            undoStack->push(new AddSceneObject(database->getTilesModel(), front.parent(), group));
-            undoStack->endMacro();
+            undoStack->push(new AddSceneObject(database->getTilesModel(), parentIndex, group));
 
             CalculateTransform ct;
+            ct.undoStack = undoStack;
             ct.stack.push(ltw);
             group->accept(ct);
+
+            undoStack->endMacro();
         }
         else
             ui->statusbar->showMessage(tr("Выберите объекты для создания слоя"), 3000);
@@ -130,8 +147,8 @@ void MainWindow::initializeTools()
 
     connect(sorter, &TilesSorter::selectionChanged, ope, &ObjectPropertiesEditor::selectObject);
     connect(ope, &ObjectPropertiesEditor::objectClicked, sorter, &TilesSorter::select);
-    connect(ope, qOverload<>(&ObjectPropertiesEditor::deselect), ui->tilesView->selectionModel(), &QItemSelectionModel::clearSelection);
-    connect(ope, qOverload<const QModelIndex &>(&ObjectPropertiesEditor::deselect), sorter, &TilesSorter::deselect);
+    connect(ope, &ObjectPropertiesEditor::deselect, ui->tilesView->selectionModel(), &QItemSelectionModel::clear);
+    connect(ope, &ObjectPropertiesEditor::deselectItem, sorter, &TilesSorter::deselect);
     connect(sorter, &TilesSorter::frontSelectionChanged, cm, &ContentManager::activeGroupChanged);
 }
 
@@ -155,7 +172,6 @@ QWindow* MainWindow::initilizeVSGwindow()
     vsg::RegisterWithObjectFactoryProxy<route::SceneTrajectory>();
     vsg::RegisterWithObjectFactoryProxy<route::Topology>();
     vsg::RegisterWithObjectFactoryProxy<route::SplineTrajectory>();
-    //vsg::RegisterWithObjectFactoryProxy<route::TerrainPoint>();
 
     builder = vsg::Builder::create();
     builder->options = options;

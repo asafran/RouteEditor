@@ -22,28 +22,6 @@ MainWindow::MainWindow( QWidget *parent)
         scene = vsg::read_cast<vsg::Node>(file.toStdString(), options);
     }
 
-    connect(ui->genStButt, &QPushButton::pressed, [this]()
-    {
-        auto strait = StraitTrack::create();
-        strait->lenght = ui->lenghtSpin->value();
-        generateTrackFile(strait);
-    });
-    connect(ui->genRButt, &QPushButton::pressed, [this]()
-    {
-        auto curved = CurvedTrack::create();
-        curved->lenght = ui->lenghtSpin->value();
-        curved->radius = ui->radiusSpin->value();
-        generateTrackFile(curved);
-    });
-    /*
-    connect(ui->genStButt, &QPushButton::pressed, [this]()
-    {
-        auto strait = StraitTrack::create();
-        strait->lenght = ui->lenghtSpin->value();
-        generateTrackFile(strait);
-    });
-    */
-
 }
 QWindow* MainWindow::initilizeVSGwindow()
 {
@@ -76,10 +54,6 @@ QWindow* MainWindow::initilizeVSGwindow()
         if (!viewer) viewer = vsg::Viewer::create();
 
         vsg::RegisterWithObjectFactoryProxy<route::SceneObject>();
-        vsg::RegisterWithObjectFactoryProxy<route::SingleLoader>();
-        vsg::RegisterWithObjectFactoryProxy<StraitTrack>();
-        vsg::RegisterWithObjectFactoryProxy<CurvedTrack>();
-        vsg::RegisterWithObjectFactoryProxy<route::SceneTrajectory>();
 
         viewer->addWindow(window);
 
@@ -161,15 +135,6 @@ void MainWindow::constructWidgets()
     QList<int> sizes;
     sizes << 100 << 720;
     ui->centralsplitter->setSizes(sizes);
-}
-void MainWindow::generateTrackFile(vsg::ref_ptr<Track> track)
-{
-    scene->setObject(META_TRACK, track);
-    QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"),
-                               "untitled.vsgt",
-                               tr("VSG File (*.vsgb *.vsgt)"));
-    vsg::VSG io;
-    io.write(scene, fileName.toStdString(), options);
 }
 
 MainWindow::~MainWindow()

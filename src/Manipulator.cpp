@@ -41,93 +41,6 @@ void Manipulator::createPointer()
     auto cone = _database->getBuilder()->createCone(info);
     _pointer->addChild(cone);
 }
-/*
-void Manipulator::handlePress(vsg::ButtonPressEvent& buttonPressEvent)
-{
-    switch (_database->mode) {
-    case DatabaseManager::SELECT:
-    {
-        auto isection = intersectedObjects(route::SceneObjects | route::Points | route::Tiles, buttonPressEvent);
-        if(!isection.objects.empty())
-        {
-            auto node = isection.objects.front().first;
-            auto parent = isection.objects.front().second;
-            auto index = _database->tilesModel->index(node, parent);
-
-            _selector->addWireframe(index, node, isection.localToWord * vsg::inverse(node->transform(vsg::dmat4())));
-            emit objectClicked(index);
-        }
-        else
-            emit deselect();
-        break;
-    }
-    case DatabaseManager::ADD:
-    {
-        auto mask = route::Tiles | route::Tracks;
-        auto isection = intersectedObjects(mask, buttonPressEvent);
-
-        if(isection.tile.first)
-        {
-            FindPositionVisitor fpv(isection.tile.first);
-            emit objectClicked(_database->tilesModel->index(fpv(_database->tilesModel->getRoot()), 0, QModelIndex()));
-            _database->addToSelected(isection.worldIntersection);
-        }
-
-        break;
-    }
-
-    case TERRAIN:
-    {
-        if(points.contains(*(front.nodePath.rbegin() + 2)) && !isMovingTerrain)
-        {
-            isMovingTerrain = true;
-            movingPoint = const_cast<vsg::MatrixTransform *>((*(front.nodePath.rbegin() + 2))->cast<vsg::MatrixTransform>());
-
-            vsg::GeometryInfo info;
-            info.dx.set(4.0f, 0.0f, 0.0f);
-            info.dy.set(0.0f, 4.0f, 0.0f);
-            info.dz.set(0.0f, 0.0f, 4.0f);
-            info.color = {1.0f, 0.5f, 0.0f, 1.0f};
-
-            movingPoint->addChild(builder->createSphere(info));
-        } else
-        {
-            if(isMovingTerrain)
-               movingPoint->children.pop_back();
-            isMovingTerrain = false;
-        }
-        break;
-    }
-    case MOVE:
-    {
-        if(isMovingObject)
-        {
-            undoStack->endMacro();
-            isMovingObject = false;
-        } else {
-            auto find = std::find_if(front.nodePath.cbegin(), front.nodePath.cend(), isCompatible<SceneObject>);
-            if(find != front.nodePath.cend())
-            {
-                isMovingObject = true;
-                movingObject = const_cast<SceneObject *>((*find)->cast<SceneObject>());
-                undoStack->beginMacro("Перемещен объект");
-            }
-        }
-        break;
-    }
-    case ADDTRACK:
-    {
-        if(auto traj = std::find_if(front.nodePath.begin(), front.nodePath.end(), isCompatible<SceneTrajectory>); traj != front.nodePath.end())
-            emit addTrackRequest(const_cast<SceneTrajectory*>((*traj)->cast<SceneTrajectory>()), 0.0);
-        else if(auto tile = lowTile(front, database->frameCount); tile)
-            emit addRequest(front.worldIntersection, tilesModel->index(tile->children.at(5)));
-        break;
-    }
-    }
-
-
-}
-*/
 
 void Manipulator::setMask(uint32_t mask)
 {
@@ -136,11 +49,16 @@ void Manipulator::setMask(uint32_t mask)
 void Manipulator::apply(vsg::KeyPressEvent& keyPress)
 {
      _keyModifier |= keyPress.keyModifier;
-     auto m = keyPress.keyBase == vsg::KEY_M;
-     if(!_isMoving && m)
+
+     switch (keyPress.keyBase) {
+     case vsg::KEY_M:
      {
-         _isMoving = true;
-         _database->getUndoStack()->beginMacro(tr("Перемещены объекты"));
+         startMoving();
+         break;
+     }
+     default:
+         break;
+
      }
 }
 
@@ -324,6 +242,14 @@ void Manipulator::moveToObject(const QModelIndex &index)
 void Manipulator::setFirst(vsg::ref_ptr<route::SceneObject> firstObject)
 {
     _movingObject = firstObject;
+}
+void Manipulator::startMoving()
+{
+    if(!_isMoving)
+    {
+        _isMoving = true;
+        _database->getUndoStack()->beginMacro(tr("Перемещены объекты"));
+    }
 }
 
 void Manipulator::apply(vsg::MoveEvent &pointerEvent)
