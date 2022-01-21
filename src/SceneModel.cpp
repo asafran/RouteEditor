@@ -43,7 +43,10 @@ QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) co
         auto groupF = [&child, row](const vsg::Group& node) { child = node.children.at(row); };
         auto swF = [&child, row](const vsg::Switch& node)
         {
-            auto object = std::find_if(node.children.begin(), node.children.end(), [](const vsg::Switch::Child &ch) { return (ch.mask & route::SceneObjects) != 0;} );
+            auto object = std::find_if(node.children.begin(), node.children.end(), [](const vsg::Switch::Child &ch)
+            {
+                return (ch.mask & route::SceneObjects) != 0;
+            });
             object += row;
             Q_ASSERT(object < node.children.cend());
             child = object->node;

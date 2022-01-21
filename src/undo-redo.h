@@ -211,10 +211,10 @@ protected:
 class ApplyTransformCalculation : public MoveObject
 {
 public:
-    ApplyTransformCalculation(route::SceneObject *object, const vsg::dvec3& pos, const vsg::dmat4& wtl, QUndoCommand *parent = nullptr)
+    ApplyTransformCalculation(route::SceneObject *object, const vsg::dvec3& pos, const vsg::dmat4& ltw, QUndoCommand *parent = nullptr)
         : MoveObject(object, pos, parent)
-        , _oldWtl(object->worldToLocal)
-        , _newWtl(wtl)
+        , _oldLtw(object->localToWorld)
+        , _newLtw(ltw)
     {
         std::string name;
         object->getValue(META_NAME, name);
@@ -225,12 +225,12 @@ public:
     void undo() override
     {
         MoveObject::undo();
-        _object->worldToLocal = _oldWtl;
+        _object->localToWorld = _oldLtw;
     }
     void redo() override
     {
         MoveObject::redo();
-        _object->worldToLocal = _newWtl;
+        _object->localToWorld = _newLtw;
     }
     int id() const override
     {
@@ -238,8 +238,8 @@ public:
     }
 
 private:
-    const vsg::dmat4 _oldWtl;
-    const vsg::dmat4 _newWtl;
+    const vsg::dmat4 _oldLtw;
+    const vsg::dmat4 _newLtw;
 };
 /*
 class DeltaMoveObject : public MoveObject

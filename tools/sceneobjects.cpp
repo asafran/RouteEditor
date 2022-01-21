@@ -5,21 +5,22 @@
 #include <vsg/io/read.h>
 #include <vsg/traversals/ComputeBounds.h>
 #include <vsg/nodes/MatrixTransform.h>
+#include <vsg/nodes/LOD.h>
 #include "topology.h"
 
 namespace route
 {
-    SceneObject::SceneObject(const vsg::dvec3& pos, const vsg::dquat& w_quat, const vsg::dmat4 &wtl)
+    SceneObject::SceneObject(const vsg::dvec3& pos, const vsg::dquat& w_quat, const vsg::dmat4 &ltw)
         : vsg::Inherit<vsg::Transform, SceneObject>()
         , _position(pos)
         , _quat(0.0, 0.0, 0.0, 1.0)
         , _world_quat(w_quat)
-        , worldToLocal(wtl)
+        , localToWorld(ltw)
     {
     }
 
-    SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos, const vsg::dquat& w_quat, const vsg::dmat4 &wtl)
-        : SceneObject(pos, w_quat, wtl)
+    SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos, const vsg::dquat& w_quat, const vsg::dmat4 &ltw)
+        : SceneObject(pos, w_quat, ltw)
     {
         addChild(loaded);
     }
@@ -35,7 +36,7 @@ namespace route
         input.read("quat", _quat);
         input.read("world_quat", _world_quat);
         input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
-        input.read("wtl", worldToLocal);
+        input.read("ltw", localToWorld);
         input.read("coord", _position);
     }
 
@@ -46,9 +47,13 @@ namespace route
         output.write("quat", _quat);
         output.write("world_quat", _world_quat);
         output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
-        output.write("wtl", worldToLocal);
+        output.write("ltw", localToWorld);
 
         output.write("coord", _position);
+    }
+    vsg::dquat SceneObject::getWorldRotation() const
+    {
+        return mult(_world_quat, _quat);
     }
 
     void SceneObject::setWireframe(vsg::ref_ptr<vsg::Builder> builder)
@@ -111,7 +116,7 @@ namespace route
         addChild(vsg::read_cast<vsg::Node>(filename));
 
         input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
-        input.read("wtl", worldToLocal);
+        input.read("ltw", localToWorld);
         input.read("coord", _position);
     }
 
@@ -123,7 +128,7 @@ namespace route
         output.write("world_quat", _world_quat);
         output.write("filename", file);
         output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
-        output.write("wtl", worldToLocal);
+        output.write("ltw", localToWorld);
 
         //vsg::dvec3 pos(matrix[3][0], matrix[3][1], matrix[3][2]);
 
@@ -133,13 +138,12 @@ namespace route
     TerrainPoint::TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,
                                vsg::ref_ptr<vsg::BufferInfo> buffer,
                                const vsg::dmat4 &ltw,
-                               vsg::ref_ptr<vsg::Node> compiled,
+                               vsg::ref_ptr<vsg::LOD> compiled,
                                vsg::stride_iterator<vsg::vec3> point)
-        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, ltw * vsg::dvec3(*point))
+        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, vsg::dvec3(*point), vsg::dquat(0.0, 0.0, 0.0, 1.0), ltw)
         , _info(buffer)
         , _copyBufferCmd(copy)
         , _vertex(point)
-        , _wtl(vsg::inverse(ltw))
     {
     }
     TerrainPoint::~TerrainPoint() {}
@@ -147,29 +151,83 @@ namespace route
     void TerrainPoint::setPosition(const vsg::dvec3& position)
     {
         _position = position;
-        *_vertex = vsg::vec3(_wtl * position);
+        *_vertex = position;
         _copyBufferCmd->copy(_info->data, _info);
     }
 
-    SplinePoint::SplinePoint(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled)
-        : vsg::Inherit<SceneObject, SplinePoint>(compiled, point)
+    RailPoint::RailPoint(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled)
+        : vsg::Inherit<SceneObject, RailPoint>(compiled, point)
     {
     }
-    SplinePoint::SplinePoint()
-        : vsg::Inherit<SceneObject, SplinePoint>()
+    RailPoint::RailPoint()
+        : vsg::Inherit<SceneObject, RailPoint>()
     {
     }
-    SplinePoint::~SplinePoint() {}
+    RailPoint::~RailPoint() {}
 
+    void RailPoint::read(vsg::Input &input)
+    {
+        SceneObject::read(input);
 
-    void SplinePoint::setPosition(const vsg::dvec3& position)
+        input.read("fstTraj", trajectory);
+    }
+
+    void RailPoint::write(vsg::Output &output) const
+    {
+        SceneObject::write(output);
+
+        output.write("fstTraj", trajectory);
+    }
+
+    void RailPoint::setPosition(const vsg::dvec3& position)
     {
         SceneObject::setPosition(position);
         trajectory->recalculate();
     }
-    void SplinePoint::setRotation(const vsg::dquat &rotation)
+    void RailPoint::setRotation(const vsg::dquat &rotation)
     {
         SceneObject::setRotation(rotation);
         trajectory->recalculate();
+    }
+
+    vsg::dvec3 RailPoint::getTangent() const
+    {
+        auto q = mult(vsg::dquat(0.0, 0.0, 1.0, 0.0), mult(_world_quat, _quat));
+        return vsg::dvec3(q.x, q.y, q.z);
+    }
+
+    RailConnector::RailConnector(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled)
+        : vsg::Inherit<RailPoint, RailConnector>(point, compiled)
+    {
+    }
+    RailConnector::RailConnector()
+        : vsg::Inherit<RailPoint, RailConnector>()
+    {
+    }
+    RailConnector::~RailConnector() {}
+
+    void RailConnector::read(vsg::Input &input)
+    {
+        RailPoint::read(input);
+
+        input.read("sndTraj", secondTrajectory);
+    }
+
+    void RailConnector::write(vsg::Output &output) const
+    {
+        RailPoint::write(output);
+
+        output.write("sndTraj", secondTrajectory);
+    }
+
+    void RailConnector::setPosition(const vsg::dvec3& position)
+    {
+        RailPoint::setPosition(position);
+        secondTrajectory->recalculate();
+    }
+    void RailConnector::setRotation(const vsg::dquat &rotation)
+    {
+        RailPoint::setRotation(rotation);
+        secondTrajectory->recalculate();
     }
 }

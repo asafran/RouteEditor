@@ -84,7 +84,7 @@
     {
         auto newWorld = vsg::inverse(stack.top());
         auto wposition = object.getWorldPosition();
-        undoStack->push(new ApplyTransformCalculation(&object, newWorld * wposition, newWorld));
+        undoStack->push(new ApplyTransformCalculation(&object, newWorld * wposition, stack.top()));
     }
 
     void CalculateTransform::apply(vsg::Transform &transform)
@@ -112,7 +112,7 @@
             apply(*object);
         else if(auto traj = node.cast<route::Trajectory>(); traj)
             apply(*traj);
-        else if(auto point = node.cast<route::SplinePoint>(); point)
+        else if(auto point = node.cast<route::RailPoint>(); point)
             apply(*point);
         prev = &node;
     }
@@ -131,7 +131,7 @@
         prev = &traj;
     }
 
-    void FindNode::apply(const route::SplinePoint &point)
+    void FindNode::apply(const route::RailPoint &point)
     {
         if(prev != nullptr)
             trackpoint = std::make_pair(&point, prev);

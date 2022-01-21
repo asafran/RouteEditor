@@ -16,8 +16,8 @@ namespace route
     {
     public:
         SceneObject();
-        SceneObject(const vsg::dvec3 &pos, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0}, const vsg::dmat4 &wtl = {});
-        SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos = {}, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0}, const vsg::dmat4 &wtl = {});
+        SceneObject(const vsg::dvec3 &pos, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0}, const vsg::dmat4 &ltw = {});
+        SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos = {}, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0}, const vsg::dmat4 &ltw = {});
 
 
         virtual ~SceneObject();
@@ -42,13 +42,14 @@ namespace route
         }
 
         vsg::dvec3 getPosition() const { return _position; }
-        vsg::dvec3 getWorldPosition() const { return vsg::inverse(worldToLocal) * _position; }
+        vsg::dvec3 getWorldPosition() const { return localToWorld * _position; }
         vsg::dquat getWorldQuat() const { return _world_quat; }
         vsg::dquat getRotation() const { return _quat; }
+        vsg::dquat getWorldRotation() const;
 
         bool isSelected() const { return _wireframe.valid(); }
 
-        vsg::dmat4 worldToLocal;
+        vsg::dmat4 localToWorld;
 
     protected:
         vsg::dvec3 _position;
@@ -109,7 +110,7 @@ namespace route
         explicit TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,
                               vsg::ref_ptr<vsg::BufferInfo> buffer,
                               const vsg::dmat4 &wtl,
-                              vsg::ref_ptr<vsg::Node> compiled,
+                              vsg::ref_ptr<vsg::LOD> compiled,
                               vsg::stride_iterator<vsg::vec3> point);
 
         virtual ~TerrainPoint();
@@ -120,38 +121,43 @@ namespace route
         vsg::ref_ptr<vsg::BufferInfo> _info;
         vsg::ref_ptr<vsg::CopyAndReleaseBuffer> _copyBufferCmd;
         vsg::stride_iterator<vsg::vec3> _vertex;
-
-        vsg::dmat4 _wtl;
     };
 
-    class SplinePoint : public vsg::Inherit<SceneObject, SplinePoint>
+    class RailPoint : public vsg::Inherit<SceneObject, RailPoint>
     {
     public:
-        SplinePoint(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled);
-        SplinePoint();
+        RailPoint(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled);
+        RailPoint();
 
-        virtual ~SplinePoint();
+        virtual ~RailPoint();
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
 
         void setPosition(const vsg::dvec3& position) override;
         void setRotation(const vsg::dquat& rotation) override;
 
-        SplineTrajectory *trajectory;
+        vsg::dvec3 getTangent() const;
+
+        Trajectory *trajectory;
     };
-/*
-    class RailConnectionPoint : public vsg::Inherit<SplinePoint, RailConnectionPoint>
+
+    class RailConnector : public vsg::Inherit<RailPoint, RailConnector>
     {
     public:
-        RailConnectionPoint(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled);
-        RailConnectionPoint();
+        RailConnector(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled);
+        RailConnector();
 
-        virtual ~RailConnectionPoint();
+        virtual ~RailConnector();
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
 
         void setPosition(const vsg::dvec3& position) override;
         void setRotation(const vsg::dquat& rotation) override;
 
-        Trajectory *_1stTraj;
-        Trajectory *_2ndTraj;
-    };*/
+        Trajectory *secondTrajectory;
+    };
 
 
     template<typename T>

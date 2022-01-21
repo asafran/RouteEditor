@@ -44,7 +44,7 @@ public:
     void compile(vsg::ref_ptr<vsg::Node> subgraph) { _builder->compile(subgraph); }
     void push(QUndoCommand *cmd) { _undoStack->push(cmd); }
     vsg::ref_ptr<vsg::Group> getDatabase() const noexcept { return _database; }
-    SceneModel *loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, double tileLOD, double pointsLOD, float size);
+    SceneModel *loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer);
     SceneModel *getTilesModel() noexcept { return _tilesModel; }
     QUndoStack *getUndoStack() noexcept { return _undoStack; }
 
@@ -55,12 +55,16 @@ signals:
     void sendStatusText(const QString &message, int timeout);
 
 private:
+    void addPoints();
+
     vsg::ref_ptr<vsg::Builder> _builder;
 
     vsg::ref_ptr<vsg::Group> _root;
     vsg::ref_ptr<vsg::Group> _database;
     //vsg::ref_ptr<vsg::Group> tiles;
     std::map<vsg::Node*, const QString> _files;
+
+    vsg::ref_ptr<vsg::CopyAndReleaseBuffer> _copyBufferCmd;
 
     QString _databasePath;
 

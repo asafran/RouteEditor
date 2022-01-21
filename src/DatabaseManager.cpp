@@ -30,8 +30,73 @@ DatabaseManager::~DatabaseManager()
 {
 }
 
-SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, double tileLOD, double pointsLOD, float size)
+void DatabaseManager::addPoints()
 {
+    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+
+    auto size = settings.value("POINTSIZE", 3).toInt();
+    auto lodp = settings.value("LOD_POINTS", 0.1).toDouble();
+
+
+    vsg::GeometryInfo info;
+    vsg::StateInfo state;
+
+    info.dx.set(size, 0.0f, 0.0f);
+    info.dy.set(0.0f, size, 0.0f);
+    info.dz.set(0.0f, 0.0f, size);
+
+    state.lighting = false;
+
+    auto sphere = _builder->createSphere(info, state);
+
+    auto traverseTiles = [sphere, copyBuffer=_copyBufferCmd, lodp, radius=size/2](vsg::MatrixTransform &transform)
+    {
+        auto pointGroup = vsg::Group::create();
+        auto addPoint = [=](vsg::VertexIndexDraw& vid)
+        {
+            auto bufferInfo = vid.arrays.front();
+            auto vertarray = bufferInfo->data.cast<vsg::vec3Array>();
+            for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
+            {
+                auto lod = vsg::LOD::create();
+                vsg::LOD::Child hires{lodp, sphere};
+                vsg::LOD::Child dummy{0.0, vsg::Node::create()};
+                lod->addChild(hires);
+                lod->addChild(dummy);
+
+                vsg::dsphere bound;
+                bound.center = vsg::dvec3();
+                bound.radius = radius;
+                lod->bound = bound;
+
+                pointGroup->addChild(route::TerrainPoint::create(copyBuffer, bufferInfo, transform.matrix, lod, it));
+            }
+        };
+        LambdaVisitor<decltype (addPoint), vsg::VertexIndexDraw> lv(addPoint);
+        transform.accept(lv);
+        vsg::ref_ptr<vsg::Switch> sw;
+        auto it = std::find_if(transform.children.cbegin(), transform.children.cend(), [](const vsg::ref_ptr<vsg::Node> ch)
+        {
+            return ch->is_compatible(typeid(vsg::Switch));
+        });
+        if(it == transform.children.cend())
+        {
+            sw = vsg::Switch::create();
+            transform.addChild(sw);
+        }
+        else
+            sw = it->cast<vsg::Switch>();
+        sw->addChild(route::Points, pointGroup);
+    };
+    LambdaVisitor<decltype (traverseTiles), vsg::MatrixTransform> lv(traverseTiles);
+    lv.traversalMask = route::Tiles;
+    _tilesModel->getRoot()->accept(lv);
+}
+
+SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer)
+{
+    _copyBufferCmd = copyBuffer;
+
     QFileInfo directory(_databasePath);
     QStringList filter("*L*_X*_Y*_subtile.vsg*");
     QStringList tileFiles;
@@ -47,22 +112,15 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
     auto level = *std::max_element(levels.begin(), levels.end());
     tileFiles = tileFiles.filter(QRegularExpression(QString(".+L%1_X[0-9]+_Y[0-9]+_subtile.vsg.").arg(level)));
 
-    vsg::GeometryInfo info;
-    vsg::StateInfo state;
-
-    info.dx.set(size, 0.0f, 0.0f);
-    info.dy.set(0.0f, size, 0.0f);
-    info.dz.set(0.0f, 0.0f, size);
-
-    state.lighting = false;
-
-    auto sphere = _builder->createSphere(info, state);
-
     auto tiles = vsg::Group::create();
     auto scene = vsg::Group::create();
 
+    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+
+    auto lodt = settings.value("LOD_TILES", 0.5).toDouble();
+
     std::mutex m;
-    auto load = [sphere, copyBuffer, pointsLOD, size, tiles, scene, tileLOD, this, &m](const QString &tilepath)
+    auto load = [tiles, scene, lodt, this, &m](const QString &tilepath)
     {
         auto file = vsg::read_cast<vsg::Node>(tilepath.toStdString(), _builder->options);
         if (file)
@@ -89,45 +147,8 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
                 }
             }
 
-            auto pointsIt = std::find_if(tile->children.begin(), tile->children.end(), [](const vsg::Switch::Child &ch)
-            {
-                return (ch.mask & route::Points) != 0;
-            });
-            auto pointGroup = pointsIt->node.cast<vsg::Group>();
-
-            auto traverseTiles = [pointGroup, sphere, copyBuffer, pointsLOD, radius=size/2](vsg::MatrixTransform &transform)
-            {
-                auto addPoint = [=](vsg::VertexIndexDraw& vid)
-                {
-                    auto bufferInfo = vid.arrays.front();
-                    auto vertarray = bufferInfo->data.cast<vsg::vec3Array>();
-                    for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
-                    {
-                        auto point = route::TerrainPoint::create(copyBuffer, bufferInfo, transform.matrix, sphere, it);
-
-                        auto lod = vsg::LOD::create();
-                        vsg::LOD::Child hires{pointsLOD, point};
-                        vsg::LOD::Child dummy{0.0, vsg::Node::create()};
-                        lod->addChild(hires);
-                        lod->addChild(dummy);
-
-                        vsg::dsphere bound;
-                        bound.center = transform.matrix * vsg::dvec3(*it);
-                        bound.radius = radius;
-                        lod->bound = bound;
-
-                        pointGroup->addChild(lod);
-                    }
-                };
-                LambdaVisitor<decltype (addPoint), vsg::VertexIndexDraw> lv(addPoint);
-                transform.accept(lv);
-            };
-            LambdaVisitor<decltype (traverseTiles), vsg::MatrixTransform> lv(traverseTiles);
-            lv.traversalMask = route::Tiles;
-            tile->accept(lv);
-
             auto sceneLOD = vsg::LOD::create();
-            vsg::LOD::Child hires{tileLOD, tile};
+            vsg::LOD::Child hires{lodt, tile};
             vsg::LOD::Child dummy{0.0, vsg::Node::create()};
             sceneLOD->addChild(hires);
             sceneLOD->addChild(dummy);
@@ -153,6 +174,9 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
     _root->addChild(scene);
 
     _tilesModel = new SceneModel(tiles, _builder, _undoStack, this);
+
+    addPoints();
+
     return _tilesModel;
 }
 
@@ -190,6 +214,12 @@ void DatabaseManager::writeTiles() noexcept
 
     auto removePoints = [](vsg::Switch& sw)
     {
+        auto points = std::find_if(sw.children.begin(), sw.children.end(), [](const vsg::Switch::Child &ch)
+        {
+            return (ch.mask & route::Points) != 0;
+        });
+        sw.children.erase(points);
+        /*
         for (auto it = sw.children.begin(); it != sw.children.end(); ++it)
         {
             if (it->mask == route::Points)
@@ -198,7 +228,7 @@ void DatabaseManager::writeTiles() noexcept
                 group->children.clear();
                 break;
             }
-        }
+        }*/
     };
     LambdaVisitor<decltype (removePoints), vsg::Switch> lvp(removePoints);
     _tilesModel->getRoot()->accept(lvp);
@@ -219,6 +249,8 @@ void DatabaseManager::writeTiles() noexcept
 
     std::for_each(std::execution::par, _files.begin(), _files.end(), write);
     _undoStack->setClean();
+
+    addPoints();
 }
 
 

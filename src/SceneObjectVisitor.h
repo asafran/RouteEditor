@@ -105,7 +105,7 @@ namespace route {
 
         std::vector<std::pair<const route::SceneObject*, const vsg::Node*>> objects;
         std::pair<const route::Trajectory*, const vsg::Node*> track;
-        std::pair<const route::SplinePoint*, const vsg::Node*> trackpoint;
+        std::pair<const route::RailPoint*, const vsg::Node*> trackpoint;
         std::pair<const vsg::Switch*, const vsg::Node*> tile;
 
         uint16_t keyModifier;
@@ -116,7 +116,7 @@ namespace route {
 
         void apply(const route::Trajectory &traj);
 
-        void apply(const route::SplinePoint &point);
+        void apply(const route::RailPoint &point);
 
         void apply(const vsg::Switch &sw) override;
 

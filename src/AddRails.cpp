@@ -1,50 +1,68 @@
 #include "AddRails.h"
 #include "ui_AddRails.h"
+#include <vsg/nodes/Switch.h>
 
-AddRails::AddRails(DatabaseManager *database, QWidget *parent) : Tool(database, parent)
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
+
+AddRails::AddRails(DatabaseManager *database, QString root, QWidget *parent) : Tool(database, parent)
     , ui(new Ui::AddRails)
 {
     ui->setupUi(this);
+    _fsmodel = new QFileSystemModel(this);
+    _fsmodel->setRootPath(root);
+    ui->fileView->setModel(_fsmodel);
+    ui->fileView->setRootIndex(_fsmodel->index(root));
 }
 
 AddRails::~AddRails()
 {
     delete ui;
 }
-/*
+
 void AddRails::intersection(const FindNode &isection)
 {
+    auto activeFile = ui->fileView->selectionModel()->selectedIndexes().front();
+    if(!activeFile.isValid())
+        return;
+
     auto path = _fsmodel->filePath(activeFile).toStdString();
-    auto node = vsg::read_cast<vsg::Node>(path);
-    _database->compile(node);
+    tinyobj::ObjReaderConfig reader_config;
+    reader_config.mtl_search_path = "./"; // Path to material files
 
-    if(addToTrack(node, isection))
-        return;
+    tinyobj::ObjReader reader;
 
-    QModelIndex activeGroup = findGroup(isection);
-    vsg::dmat4 wtl;
-    auto world = isection.worldIntersection;
+    if (!reader.ParseFromFile(path, reader_config)) {
+      if (!reader.Error().empty()) {
+          std::cerr << "TinyObjReader: " << reader.Error();
+      }
+      return;
+    }
 
-    if(loadToSelected || (_activeGroup.isValid() && !activeGroup.isValid()))
-    {
-        activeGroup = _activeGroup;
-        auto group = static_cast<vsg::Node*>(_activeGroup.internalPointer());
+    if (!reader.Warning().empty()) {
+      std::cout << "TinyObjReader: " << reader.Warning();
+    }
 
-        ParentVisitor pv(group);
-        _database->getRoot()->accept(pv);
-        pv.pathToChild.pop_back();
-        wtl = vsg::inverse(vsg::computeTransform(pv.pathToChild));
-    } else if(!_activeGroup.isValid() && !activeGroup.isValid())
-        return;
+    auto& attrib = reader.GetAttrib();
+    auto& shapes = reader.GetShapes();
+    auto& materials = reader.GetMaterials();
 
-    vsg::ref_ptr<route::SceneObject> obj;
-    auto norm = vsg::normalize(world);
-    vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
+    std::vector<vsg::vec3> geometry;
+    std::vector<vsg::ref_ptr<route::RailPoint>> points;
 
-    if(ui->useLinks->isChecked())
-        obj = route::SingleLoader::create(node, path, wtl * world, quat, wtl);
-    else
-        obj = route::SceneObject::create(node, wtl * world, quat, wtl);
-    _database->push(new AddSceneObject(_database->getTilesModel(), activeGroup, obj));
-    emit sendStatusText(tr("Добавлен объект %1").arg(path.c_str()), 2000);
-}*/
+    auto it = attrib.vertices.begin();
+    auto end = attrib.vertices.end() - (attrib.vertices.size()/2);
+    while (it < end)
+        geometry.push_back(vsg::vec3(*it++, *it++, *it++));
+
+    auto point = _database->getBuilder()->createSphere();
+
+    auto bwd = route::RailConnector::create(isection.worldIntersection, point);
+    auto fwd = route::RailConnector::create(isection.worldIntersection + vsg::dvec3(30.0, 0.0, 0.0), point);
+
+    auto traj = route::SplineTrajectory::create("trj", bwd, fwd, _database->getBuilder(), geometry, _database->getBuilder()->createBox(), 0.5);
+    auto adapter = route::SceneTrajectory::create(traj);
+
+    const_cast<vsg::Switch*>(isection.tile.first)->addChild(route::SceneObjects, adapter);
+}

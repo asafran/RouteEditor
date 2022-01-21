@@ -26,6 +26,9 @@ set(SOURCES
     src/ContentManager.ui
     src/tool.h
     src/tool.cpp
+    src/Painter.h
+    src/Painter.cpp
+    src/Painter.ui
     src/StartDialog.h
     src/StartDialog.cpp
     src/StartDialog.ui
@@ -54,6 +57,8 @@ set(TOOLS
     tools/trajectory.cpp
     #tools/vehicle-controller.h
     #tools/vehicle-controller.cpp
+    tools/tiny_obj_loader.h
+    #tools/tiny_obj_loader.cc
     tools/LambdaVisitor.h
     tools/ParentVisitor.cpp
     tools/ParentVisitor.h

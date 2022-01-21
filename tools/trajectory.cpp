@@ -16,8 +16,10 @@
 
 namespace route
 {
-    SplineTrajectory::SplineTrajectory(std::string name, vsg::ref_ptr<vsg::Builder> builder,
-                                       std::vector<vsg::ref_ptr<SplinePoint>> points,
+    SplineTrajectory::SplineTrajectory(std::string name,
+                                       vsg::ref_ptr<RailConnector> bwdPoint,
+                                       vsg::ref_ptr<RailConnector> fwdPoint,
+                                       vsg::ref_ptr<vsg::Builder> builder,
                                        std::vector<vsg::vec3> geometry,
                                        vsg::ref_ptr<vsg::Node> sleeper, double distance)
       : vsg::Inherit<Trajectory, SplineTrajectory>(name)
@@ -25,8 +27,9 @@ namespace route
       , _geometry(geometry)
       , _sleeper(sleeper)
       , _sleepersDistance(distance)
+      , _fwdPoint(fwdPoint)
+      , _bwdPoint(bwdPoint)
     {
-        _points = points;
         recalculate();
     }
 
@@ -90,15 +93,25 @@ namespace route
 
     void SplineTrajectory::recalculate()
     {
-        std::vector<vsg::dvec3> points;
-        auto front = _points.front()->getPosition();
+        std::vector<vsg::dvec3> points(1);
+        std::vector<vsg::dvec3> tangents(1);
+
+        auto front = _bwdPoint->getPosition();
         std::transform(_points.begin(), _points.end(), std::back_insert_iterator(points),
-                       [front](const vsg::ref_ptr<SplinePoint> sp)
+                       [front](const vsg::ref_ptr<RailPoint> sp)
         {
             return sp->getPosition() - front;
         });
+        std::transform(_points.begin(), _points.end(), std::back_insert_iterator(tangents),
+                       [front](const vsg::ref_ptr<RailPoint> sp)
+        {
+            return sp->getTangent();
+        });
 
-        _railSpline.reset(new CubicHermiteSpline<vsg::dvec3, double>(points));
+        points.push_back(_fwdPoint->getPosition() - front);
+        tangents.push_back(_fwdPoint->getTangent());
+
+        _railSpline.reset(new CubicHermiteSpline<vsg::dvec3, double>(points, tangents));
 
         auto partitionBoundaries = ArcLength::partition(*_railSpline, _sleepersDistance);
 

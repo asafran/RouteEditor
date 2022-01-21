@@ -11,6 +11,7 @@
 #include "LambdaVisitor.h"
 #include "ParentVisitor.h"
 #include "ContentManager.h"
+#include "AddRails.h"
 
 
 
@@ -140,10 +141,14 @@ void MainWindow::initializeTools()
     toolbox = new QToolBox(ui->splitter);
     ui->splitter->addWidget(toolbox);
 
+    auto contentRoot = qgetenv("RRS2_ROOT");
+
     ope = new ObjectPropertiesEditor(database, toolbox);
     toolbox->addItem(ope, tr("Выбрать и переместить объекты"));
-    auto cm = new ContentManager(database, qgetenv("RRS2_ROOT") + QDir::separator().toLatin1() + "objects", toolbox);
+    auto cm = new ContentManager(database, contentRoot + "/objects/objects", toolbox);
     toolbox->addItem(cm, tr("Добавить объект"));
+    auto rm = new AddRails(database, contentRoot + "/objects/rails", toolbox);
+    toolbox->addItem(rm, tr("Добавить рельсы"));
 
     connect(sorter, &TilesSorter::selectionChanged, ope, &ObjectPropertiesEditor::selectObject);
     connect(ope, &ObjectPropertiesEditor::objectClicked, sorter, &TilesSorter::select);
@@ -204,11 +209,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
-        auto psize = settings.value("POINTSIZE", 3).toInt();
-        auto lodp = settings.value("LOD_POINTS", 0.1).toDouble();
-        auto lodt = settings.value("LOD_TILES", 0.5).toDouble();
-
-        sorter->setSourceModel(database->loadTiles(copyBufferCmd, lodt, lodp, psize));
+        sorter->setSourceModel(database->loadTiles(copyBufferCmd));
 
         // compute the bounds of the scene graph to help position camera
         vsg::ComputeBounds computeBounds;
@@ -222,7 +223,8 @@ QWindow* MainWindow::initilizeVSGwindow()
         auto nearFarRatio = settings.value("NFR", 0.0001).toDouble();
 
         // set up the camera
-        auto lookAt = vsg::LookAt::create(centre + (vsg::normalize(centre)*10000.0), centre, vsg::dvec3(1.0, 0.0, 0.0));
+        auto lookAt = vsg::LookAt::create(centre + (vsg::normalize(centre)*1000.0), centre, vsg::dvec3(1.0, 0.0, 0.0));
+        //auto lookAt = vsg::LookAt::create(centre + vsg::dvec3(0.0, -radius * 3.5, 0.0), centre, vsg::dvec3(0.0, 0.0, 1.0));
 
         vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
 
