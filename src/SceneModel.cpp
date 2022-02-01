@@ -136,7 +136,7 @@ bool SceneModel::removeRows(int row, int count, const QModelIndex &parent)
 
 }
 
-int SceneModel::addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loaded, uint32_t mask)
+int SceneModel::addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loaded, uint64_t mask)
 {
     int row = rowCount(parent);
 

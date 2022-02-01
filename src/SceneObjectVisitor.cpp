@@ -138,6 +138,12 @@
         prev = &point;
     }
 
+    void FindNode::apply(const vsg::MatrixTransform &transform)
+    {
+        terrain = &transform;
+        prev = &transform;
+    }
+
     void FindNode::apply(const vsg::Switch &sw)
     {
         if(prev != nullptr && sw.children.front().mask == route::Tiles)

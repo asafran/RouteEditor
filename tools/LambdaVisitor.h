@@ -30,6 +30,29 @@ public:
 };
 
 template<typename F1, typename C1>
+class CLambdaVisitor : public vsg::ConstVisitor
+{
+public:
+    CLambdaVisitor(F1 func) :
+        _function1(func) {}
+
+    F1 _function1;
+
+    using ConstVisitor::apply;
+
+    void apply(const Object& object)
+    {
+        object.traverse(*this);
+    }
+
+    void apply(const C1& object) override
+    {
+        _function1(object);
+        object.traverse(*this);
+    }
+};
+
+template<typename F1, typename C1>
 class Lambda1Visitor : public vsg::Visitor
 {
 public:

@@ -9,10 +9,11 @@
 
 #include <execution>
 
-DatabaseManager::DatabaseManager(QString path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> in_builder, QObject *parent) : QObject(parent)
+DatabaseManager::DatabaseManager(QString path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> builder, QObject *parent) : QObject(parent)
   , _root(vsg::Group::create())
   , _databasePath(path)
-  , _builder(in_builder)
+  , _builder(builder)
+  //, _compiler(compiler)
   , _undoStack(stack)
 {
     _database = vsg::read_cast<vsg::Group>(_databasePath.toStdString(), _builder->options);
@@ -30,72 +31,31 @@ DatabaseManager::~DatabaseManager()
 {
 }
 
-void DatabaseManager::addPoints()
+void DatabaseManager::addPoints(const vsg::Node *tile, vsg::ref_ptr<vsg::Node> sphere, vsg::ref_ptr<vsg::Group> points)
 {
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
-
-    auto size = settings.value("POINTSIZE", 3).toInt();
-    auto lodp = settings.value("LOD_POINTS", 0.1).toDouble();
-
-
-    vsg::GeometryInfo info;
-    vsg::StateInfo state;
-
-    info.dx.set(size, 0.0f, 0.0f);
-    info.dy.set(0.0f, size, 0.0f);
-    info.dz.set(0.0f, 0.0f, size);
-
-    state.lighting = false;
-
-    auto sphere = _builder->createSphere(info, state);
-
-    auto traverseTiles = [sphere, copyBuffer=_copyBufferCmd, lodp, radius=size/2](vsg::MatrixTransform &transform)
+    auto traverseTiles = [sphere, points, copyBuffer=_copyBufferCmd](const vsg::MatrixTransform &transform)
     {
-        auto pointGroup = vsg::Group::create();
-        auto addPoint = [=](vsg::VertexIndexDraw& vid)
+        auto addPoint = [=](const vsg::VertexIndexDraw& vid)
         {
             auto bufferInfo = vid.arrays.front();
             auto vertarray = bufferInfo->data.cast<vsg::vec3Array>();
             for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
             {
-                auto lod = vsg::LOD::create();
-                vsg::LOD::Child hires{lodp, sphere};
-                vsg::LOD::Child dummy{0.0, vsg::Node::create()};
-                lod->addChild(hires);
-                lod->addChild(dummy);
-
-                vsg::dsphere bound;
-                bound.center = vsg::dvec3();
-                bound.radius = radius;
-                lod->bound = bound;
-
-                pointGroup->addChild(route::TerrainPoint::create(copyBuffer, bufferInfo, transform.matrix, lod, it));
+                points->addChild(route::TerrainPoint::create(copyBuffer, bufferInfo, transform.matrix, sphere, it));
             }
         };
-        LambdaVisitor<decltype (addPoint), vsg::VertexIndexDraw> lv(addPoint);
+        CLambdaVisitor<decltype (addPoint), vsg::VertexIndexDraw> lv(addPoint);
         transform.accept(lv);
-        vsg::ref_ptr<vsg::Switch> sw;
-        auto it = std::find_if(transform.children.cbegin(), transform.children.cend(), [](const vsg::ref_ptr<vsg::Node> ch)
-        {
-            return ch->is_compatible(typeid(vsg::Switch));
-        });
-        if(it == transform.children.cend())
-        {
-            sw = vsg::Switch::create();
-            transform.addChild(sw);
-        }
-        else
-            sw = it->cast<vsg::Switch>();
-        sw->addChild(route::Points, pointGroup);
     };
-    LambdaVisitor<decltype (traverseTiles), vsg::MatrixTransform> lv(traverseTiles);
+    CLambdaVisitor<decltype (traverseTiles), vsg::MatrixTransform> lv(traverseTiles);
     lv.traversalMask = route::Tiles;
-    _tilesModel->getRoot()->accept(lv);
+    tile->accept(lv);
 }
 
-SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer)
+SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, vsg::ref_ptr<vsg::CopyAndReleaseImage> copyImage)
 {
     _copyBufferCmd = copyBuffer;
+    _copyImageCmd = copyImage;
 
     QFileInfo directory(_databasePath);
     QStringList filter("*L*_X*_Y*_subtile.vsg*");
@@ -119,13 +79,28 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
 
     auto lodt = settings.value("LOD_TILES", 0.5).toDouble();
 
+    auto size = settings.value("POINTSIZE", 3).toInt();
+    auto lodp = settings.value("LOD_POINTS", 0.1).toDouble();
+
+    vsg::GeometryInfo info;
+    vsg::StateInfo state;
+
+    info.dx.set(size, 0.0f, 0.0f);
+    info.dy.set(0.0f, size, 0.0f);
+    info.dz.set(0.0f, 0.0f, size);
+
+    state.lighting = false;
+
+    auto sphere = _builder->createSphere(info, state);
+
     std::mutex m;
-    auto load = [tiles, scene, lodt, this, &m](const QString &tilepath)
+    auto load = [tiles, scene, lodt, this, &m, lodp, sphere](const QString &tilepath)
     {
         auto file = vsg::read_cast<vsg::Node>(tilepath.toStdString(), _builder->options);
         if (file)
         {
             vsg::ref_ptr<vsg::Switch> tile(file->cast<vsg::Switch>());
+            vsg::ref_ptr<vsg::Group> pointsSW;
 
             if(!tile)
             {
@@ -137,7 +112,8 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
                         auto transform = node.cast<vsg::MatrixTransform>();
                         tile->addChild(route::Tiles, transform);
                     }
-                    tile->addChild(route::Points, vsg::Group::create());
+                    pointsSW = PointsGroup::create();
+                    tile->addChild(route::Points, pointsSW);
                 }
                 else
                 {
@@ -145,9 +121,19 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
                     emit sendStatusText(tr("Ошибка чтения БД, файл: %1").arg(tilepath), 1000);
                     return;
                 }
+            } else
+            {
+                auto object = std::find_if(tile->children.begin(), tile->children.end(), [](const vsg::Switch::Child &ch)
+                {
+                    return (ch.mask & route::Points) != 0;
+                });
+                Q_ASSERT(object < tile->children.cend());
+                pointsSW = object->node.cast<vsg::Group>();
             }
 
             auto sceneLOD = vsg::LOD::create();
+            auto pointsLOD = vsg::LOD::create();
+
             vsg::LOD::Child hires{lodt, tile};
             vsg::LOD::Child dummy{0.0, vsg::Node::create()};
             sceneLOD->addChild(hires);
@@ -160,6 +146,19 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
             bound.center = (cb.bounds.min + cb.bounds.max) * 0.5;
             bound.radius = length(cb.bounds.max - cb.bounds.min) * 0.5;
             sceneLOD->bound = bound;
+
+            auto pointsGroup = vsg::Group::create();
+
+            addPoints(tile, sphere, pointsGroup);
+
+            vsg::LOD::Child hiresp{lodp, pointsGroup};
+            vsg::LOD::Child dummyp{0.0, vsg::Node::create()};
+            pointsLOD->addChild(hiresp);
+            pointsLOD->addChild(dummyp);
+
+            pointsLOD->bound = bound;
+
+            pointsSW->addChild(pointsLOD);
 
             {
                 std::scoped_lock lock(m);
@@ -175,34 +174,10 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
 
     _tilesModel = new SceneModel(tiles, _builder, _undoStack, this);
 
-    addPoints();
+
 
     return _tilesModel;
 }
-
-/*
-void DatabaseManager::addTrack(const vsg::dvec3 &pos) noexcept
-{
-    auto sphere = builder->createSphere();
-    auto sleeper = builder->createBox();
-
-    builder->compile(sphere);
-    builder->compile(sleeper);
-
-    std::vector<vsg::ref_ptr<route::SplinePoint>> points;
-    points.push_back(route::SplinePoint::create(pos - vsg::dvec3(10.0, 0.0, 0.0), sphere));
-    points.push_back(route::SplinePoint::create(pos, sphere));
-    points.push_back(route::SplinePoint::create(pos + vsg::dvec3(100000.0, 0.0, 0.0), sphere));
-    points.push_back(route::SplinePoint::create(pos + vsg::dvec3(200000.0, 0.0, 0.0), sphere));
-    std::vector<vsg::vec3> geometry;
-    geometry.emplace_back(0.0f, 0.0f, 0.0f);
-    geometry.emplace_back(0.0f, 2.0f, 0.0f);
-    geometry.emplace_back(2.0f, 2.0f, 0.0f);
-    geometry.emplace_back(2.0f, 0.0f, 0.0f);
-    auto trajectory = route::SplineTrajectory::create("name", builder, points, geometry, sleeper, 1.0);
-    root->addChild(trajectory);
-}*/
-
 
 void DatabaseManager::writeTiles() noexcept
 {
@@ -249,8 +224,6 @@ void DatabaseManager::writeTiles() noexcept
 
     std::for_each(std::execution::par, _files.begin(), _files.end(), write);
     _undoStack->setClean();
-
-    addPoints();
 }
 
 

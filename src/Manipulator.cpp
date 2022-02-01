@@ -313,7 +313,7 @@ FindNode Manipulator::intersectedObjects(vsg::LineSegmentIntersector::Intersecti
     if(isections.empty())
         return FindNode();
     FindNode fn(isections.front());
-    std::for_each(fn.nodePath.begin(), fn.nodePath.end(), [&fn](const vsg::Node *node){ node->accept(fn); });
+    std::for_each(fn.nodePath.cbegin(), fn.nodePath.cend(), [&fn](const vsg::Node *node){ node->accept(fn); });
     fn.keyModifier = _keyModifier;
     return fn;
 }

@@ -211,9 +211,9 @@ void ObjectPropertiesEditor::intersection(const FindNode& isection)
         return;
 
     if((isection.keyModifier & vsg::MODKEY_Shift) == 0)
-        toggle(isection.objects.front());
-    else
         toggle(isection.objects.back());
+    else
+        toggle(isection.objects.front());
 
     updateData();
 }

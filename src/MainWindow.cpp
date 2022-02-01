@@ -12,6 +12,7 @@
 #include "ParentVisitor.h"
 #include "ContentManager.h"
 #include "AddRails.h"
+#include "Painter.h"
 
 
 
@@ -149,6 +150,8 @@ void MainWindow::initializeTools()
     toolbox->addItem(cm, tr("Добавить объект"));
     auto rm = new AddRails(database, contentRoot + "/objects/rails", toolbox);
     toolbox->addItem(rm, tr("Добавить рельсы"));
+    auto pt = new Painter(database, toolbox);
+    toolbox->addItem(pt, tr("Текстурирование"));
 
     connect(sorter, &TilesSorter::selectionChanged, ope, &ObjectPropertiesEditor::selectObject);
     connect(ope, &ObjectPropertiesEditor::objectClicked, sorter, &TilesSorter::select);
@@ -181,6 +184,8 @@ QWindow* MainWindow::initilizeVSGwindow()
     builder = vsg::Builder::create();
     builder->options = options;
 
+    //compiler = Compiler::create();
+
     auto windowTraits = vsg::WindowTraits::create();
     windowTraits->windowTitle = APPLICATION_NAME;
 
@@ -206,17 +211,18 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         auto memoryBufferPools = vsg::MemoryBufferPools::create("Staging_MemoryBufferPool", vsg::ref_ptr<vsg::Device>(window->getOrCreateDevice()));
         auto copyBufferCmd = vsg::CopyAndReleaseBuffer::create(memoryBufferPools);
+        auto copyImageCmd = vsg::CopyAndReleaseImage::create(memoryBufferPools);
 
         QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
-        sorter->setSourceModel(database->loadTiles(copyBufferCmd));
+        sorter->setSourceModel(database->loadTiles(copyBufferCmd, copyImageCmd));
 
         // compute the bounds of the scene graph to help position camera
         vsg::ComputeBounds computeBounds;
         computeBounds.traversalMask = route::SceneObjects | route::Tiles;
         database->getRoot()->accept(computeBounds);
         vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
-        double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
+        //double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
 
 
         auto horizonMountainHeight = settings.value("HMH", 0.0).toDouble();
@@ -245,9 +251,11 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
 
+        builder->setup(window, camera->viewportState);
+        //compiler->setup(window, camera->viewportState);
+
         // add close handler to respond the close window button and pressing escape
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
-
 
 
         // setup command graph to copy the image data each frame then rendering the scene graph
@@ -264,8 +272,6 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         grahics_commandGraph->accept(lv);
 
-        builder->setup(window, camera->viewportState);
-
         // add trackball to enable mouse driven camera view control.
         auto manipulator = Manipulator::create(camera, ellipsoidModel, database, this);
 
@@ -273,7 +279,10 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         viewer->assignRecordAndSubmitTaskAndPresentation({grahics_commandGraph});
 
-        viewer->compile();
+        auto resourceHints = vsg::ResourceHints::create();
+        resourceHints->maxSlot = 1;
+
+        viewer->compile(resourceHints);
 
         connect(ui->actionSave, &QAction::triggered, database, &DatabaseManager::writeTiles);
 

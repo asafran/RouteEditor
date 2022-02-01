@@ -62,7 +62,6 @@ set(TOOLS
     tools/LambdaVisitor.h
     tools/ParentVisitor.cpp
     tools/ParentVisitor.h
-
 )
 
 set(SPLINE

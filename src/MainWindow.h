@@ -39,6 +39,7 @@ private:
 
     Ui::MainWindow *ui;
     vsg::ref_ptr<vsg::Builder> builder;
+
     ObjectPropertiesEditor *ope;
 
     double horizonMountainHeight;

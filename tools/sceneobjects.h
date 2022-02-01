@@ -78,7 +78,7 @@ namespace route
         std::string file;
     };
 
-    enum Mask : uint32_t
+    enum Mask : uint64_t
     {
         Tiles = 0b1,
         SceneObjects = 0b10,
@@ -110,7 +110,7 @@ namespace route
         explicit TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,
                               vsg::ref_ptr<vsg::BufferInfo> buffer,
                               const vsg::dmat4 &wtl,
-                              vsg::ref_ptr<vsg::LOD> compiled,
+                              vsg::ref_ptr<vsg::Node> compiled,
                               vsg::stride_iterator<vsg::vec3> point);
 
         virtual ~TerrainPoint();
@@ -118,6 +118,8 @@ namespace route
         void setPosition(const vsg::dvec3& position) override;
 
     private:
+        vsg::dmat4 _worldToLocal;
+
         vsg::ref_ptr<vsg::BufferInfo> _info;
         vsg::ref_ptr<vsg::CopyAndReleaseBuffer> _copyBufferCmd;
         vsg::stride_iterator<vsg::vec3> _vertex;
@@ -156,7 +158,15 @@ namespace route
         void setPosition(const vsg::dvec3& position) override;
         void setRotation(const vsg::dquat& rotation) override;
 
-        Trajectory *secondTrajectory;
+        std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const;
+
+        std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const;
+
+        void setFwd(Trajectory *caller);
+
+        void setBwd(Trajectory *caller);
+
+        Trajectory *fwdTrajectory;
     };
 
 

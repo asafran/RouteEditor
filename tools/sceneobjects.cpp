@@ -138,9 +138,10 @@ namespace route
     TerrainPoint::TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,
                                vsg::ref_ptr<vsg::BufferInfo> buffer,
                                const vsg::dmat4 &ltw,
-                               vsg::ref_ptr<vsg::LOD> compiled,
+                               vsg::ref_ptr<vsg::Node> compiled,
                                vsg::stride_iterator<vsg::vec3> point)
-        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, vsg::dvec3(*point), vsg::dquat(0.0, 0.0, 0.0, 1.0), ltw)
+        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, ltw * vsg::dvec3(*point))
+        , _worldToLocal(vsg::inverse(ltw))
         , _info(buffer)
         , _copyBufferCmd(copy)
         , _vertex(point)
@@ -151,7 +152,7 @@ namespace route
     void TerrainPoint::setPosition(const vsg::dvec3& position)
     {
         _position = position;
-        *_vertex = position;
+        *_vertex = _worldToLocal * position;
         _copyBufferCmd->copy(_info->data, _info);
     }
 
@@ -210,24 +211,54 @@ namespace route
     {
         RailPoint::read(input);
 
-        input.read("sndTraj", secondTrajectory);
+        input.read("fwdTraj", fwdTrajectory);
     }
 
     void RailConnector::write(vsg::Output &output) const
     {
         RailPoint::write(output);
 
-        output.write("sndTraj", secondTrajectory);
+        output.write("fwdTraj", fwdTrajectory);
     }
 
     void RailConnector::setPosition(const vsg::dvec3& position)
     {
         RailPoint::setPosition(position);
-        secondTrajectory->recalculate();
+        fwdTrajectory->recalculate();
     }
     void RailConnector::setRotation(const vsg::dquat &rotation)
     {
         RailPoint::setRotation(rotation);
-        secondTrajectory->recalculate();
+        fwdTrajectory->recalculate();
+    }
+
+    std::pair<Trajectory*, bool> RailConnector::getFwd(const Trajectory *caller) const
+    {
+        bool reversed = caller == fwdTrajectory;
+        auto trj = reversed ? trajectory : fwdTrajectory;
+        return std::make_pair(trj, reversed);
+    }
+
+    std::pair<Trajectory*, bool> RailConnector::getBwd(const Trajectory *caller) const
+    {
+        bool reversed = caller == trajectory;
+        auto trj = reversed ? fwdTrajectory : trajectory;
+        return std::make_pair(trj, reversed);
+    }
+
+    void RailConnector::setFwd(Trajectory *caller)
+    {
+        if(fwdTrajectory != nullptr)
+            trajectory = caller;
+        else
+            fwdTrajectory = caller;
+    }
+
+    void RailConnector::setBwd(Trajectory *caller)
+    {
+        if(trajectory != nullptr)
+            fwdTrajectory = caller;
+        else
+            trajectory = caller;
     }
 }

@@ -55,7 +55,7 @@ public:
         endInsertRows();
     }*/
 
-    int addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loaded, uint32_t mask = route::SceneObjects);
+    int addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loaded, uint64_t mask = route::SceneObjects);
     /*
     uint32_t setMask(uint32_t mask, int row, const QModelIndex &parent);
     uint32_t setMask(uint32_t mask, const QModelIndex &index);

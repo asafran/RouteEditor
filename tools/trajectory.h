@@ -7,10 +7,14 @@
 #include <QSet>
 #include "sceneobjects.h"
 #include <vsg/maths/transform.h>
+#include <vsg/nodes/MatrixTransform.h>
 #include "splines/uniform_cr_spline.h"
 #include "splines/cubic_hermite_spline.h"
 #include "utils/arclength.h"
 #include "utils/splineinverter.h"
+#include "Compiler.h"
+
+#include "tiny_obj_loader.h"
 
 namespace simulator {
     class Bogie;
@@ -23,13 +27,13 @@ namespace route
     class SceneModel;
     class SceneTrajectory;
 
-    using InterpolationSpline = UniformCRSpline<vsg::dvec3, double>;
+    using InterpolationSpline = CubicHermiteSpline<vsg::dvec3, double>;
 
     struct InterpolatedPTCM : public InterpolationSpline::InterpolatedPTC
     {
         InterpolatedPTCM(InterpolatedPTC &&ptc) : InterpolatedPTC(std::move(ptc))
         {
-            auto rot = vsg::rotate(vsg::dquat(vsg::dvec3(0.0, 0.0, 1.0), vsg::normalize(ptc.tangent)));
+            auto rot = vsg::rotate(vsg::dquat(vsg::dvec3(1.0, 0.0, 0.0), vsg::normalize(ptc.tangent)));
             auto pos = vsg::translate(ptc.position);
             calculated = pos * rot;
         }
@@ -79,11 +83,8 @@ namespace route
 
         virtual void recalculate() = 0;
 
-        virtual bool isFrontReversed() const { return _frontReversed; }
-        virtual bool isBackReversed() const { return _backReversed; }
-
-        virtual Trajectory* getFwd() const { return _fwdTraj; }
-        virtual Trajectory* getBwd() const  { return _bwdTraj; }
+        virtual std::pair<Trajectory*, bool> getFwd() const = 0;
+        virtual std::pair<Trajectory*, bool> getBwd() const = 0;
 
         void setBusy(simulator::Bogie *vehicle) { _vehicles_on_traj.insert(vehicle); }
 
@@ -101,12 +102,6 @@ namespace route
 
     protected:
         QSet<simulator::Bogie *> _vehicles_on_traj;
-
-        Trajectory      *_fwdTraj;
-        Trajectory      *_bwdTraj;
-
-        bool _frontReversed;
-        bool _backReversed;
     };
 
     class SplineTrajectory : public vsg::Inherit<Trajectory, SplineTrajectory>
@@ -117,7 +112,9 @@ namespace route
                                   vsg::ref_ptr<RailConnector> bwdPoint,
                                   vsg::ref_ptr<RailConnector> fwdPoint,
                                   vsg::ref_ptr<vsg::Builder> builder,
-                                  std::vector<vsg::vec3> geometry,
+                                  //vsg::ref_ptr<Compiler> compiler,
+                                  tinyobj::attrib_t rail,
+                                  vsg::ref_ptr<vsg::Data> texture,
                                   vsg::ref_ptr<vsg::Node> sleeper, double distance);
         SplineTrajectory();
 
@@ -135,6 +132,9 @@ namespace route
         void write(vsg::Output& output) const override;
 
         void recalculate() override;
+
+        std::pair<Trajectory*, bool> getFwd() const override { return _fwdPoint->getFwd(this); }
+        std::pair<Trajectory*, bool> getBwd() const override { return _bwdPoint->getBwd(this); }
 
         int add(vsg::dvec3 lla);
         void move(vsg::dvec3 lla, int point);
@@ -169,9 +169,14 @@ namespace route
 
         vsg::ref_ptr<vsg::Builder> _builder;
 
-        vsg::ref_ptr<vsg::Group> _track;
+        vsg::ref_ptr<vsg::MatrixTransform> _track;
 
         std::vector<vsg::vec3> _geometry;
+
+        std::vector<vsg::vec2> _uv1;
+        std::vector<vsg::vec2> _uv2;
+
+        vsg::ref_ptr<vsg::Data> _texture;
 
         vsg::ref_ptr<vsg::Node> _sleeper;
 
