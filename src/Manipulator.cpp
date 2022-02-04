@@ -53,7 +53,23 @@ void Manipulator::apply(vsg::KeyPressEvent& keyPress)
      switch (keyPress.keyBase) {
      case vsg::KEY_M:
      {
+         _axis = TERRAIN;
          startMoving();
+         break;
+     }
+     case vsg::KEY_X:
+     {
+         _axis = X;
+         break;
+     }
+     case vsg::KEY_Y:
+     {
+         _axis = Y;
+         break;
+     }
+     case vsg::KEY_Z:
+     {
+         _axis = Z;
          break;
      }
      default:

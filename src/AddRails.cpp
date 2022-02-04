@@ -79,14 +79,24 @@ void AddRails::intersection(const FindNode &isection)
     group->addChild(builder->createBox(gi));
 
     auto bwd = route::RailConnector::create(group, isection.worldIntersection);
-    auto fwd = route::RailConnector::create(builder->createCylinder(), isection.worldIntersection + vsg::dvec3(30.0, -20.0, 0.0));
+    auto fwd = route::RailConnector::create(builder->createCylinder(), isection.worldIntersection + vsg::dvec3(30.0, -20.0, 00.0));
 
     auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, attrib, texture, group, 2);
     auto adapter = route::SceneTrajectory::create(traj);
 
     const_cast<vsg::Switch*>(isection.tile.first)->addChild(route::SceneObjects, adapter);
 
-    auto point = route::RailPoint::create(group, isection.worldIntersection + vsg::dvec3(10.0, -10.0, 0.0));
+    auto point = route::RailPoint::create(group, isection.worldIntersection + vsg::dvec3(10.0, -10.0, 20.0));
+    /*
+    auto bwd = route::RailConnector::create(group, isection.worldIntersection);
+    auto fwd = route::RailConnector::create(builder->createCylinder(), isection.worldIntersection + vsg::dvec3(-30.0, -20.0, 20.0));
 
+    auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, attrib, texture, group, 2);
+    auto adapter = route::SceneTrajectory::create(traj);
+
+    const_cast<vsg::Switch*>(isection.tile.first)->addChild(route::SceneObjects, adapter);
+
+    auto point = route::RailPoint::create(group, isection.worldIntersection + vsg::dvec3(-10.0, -10.0, 20.0));
+    */
     traj->add(point);
 }
