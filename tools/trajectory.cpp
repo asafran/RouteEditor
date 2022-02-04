@@ -35,7 +35,10 @@ namespace route
         auto it = rail.vertices.begin();
         auto end = rail.vertices.end() - (rail.vertices.size()/2);
         while (it < end)
-            _geometry.push_back(vsg::vec3(*it++, *it++, *it++));
+        {
+            _geometry.push_back(vsg::vec3(*it, *(it + 1), *(it + 2)));
+            it += 3;
+        }
 
         _points.push_back(fwdPoint);
         _points.push_back(bwdPoint);
@@ -61,6 +64,8 @@ namespace route
     }
     SplineTrajectory::~SplineTrajectory()
     {
+        _bwdPoint->setFwd(nullptr);
+        _fwdPoint->setBwd(nullptr);
     }
     //------------------------------------------------------------------------------
     //
@@ -110,7 +115,8 @@ namespace route
     vsg::dmat4 SplineTrajectory::getMatrixAt(double x) const
     {
         double T = ArcLength::solveLength(*_railSpline, 0.0, x);
-        return InterpolatedPTCM(_railSpline->getCurvature(T)).calculated;
+        auto pt = _railSpline->getTangent(T);
+        return InterpolatedPTM(std::move(pt)).calculated;
     }
 
     void SplineTrajectory::recalculate()
@@ -120,10 +126,11 @@ namespace route
         std::vector<vsg::dvec3> tangents;
 
         auto front = _points.front()->getPosition();
+
         std::transform(_points.begin(), _points.end(), std::back_insert_iterator(points),
-                       [front](const vsg::ref_ptr<RailPoint> sp)
+                       [](const vsg::ref_ptr<RailPoint> sp)
         {
-            return sp->getPosition() - front;
+            return sp->getPosition();
         });
         std::transform(_points.begin(), _points.end(), std::back_insert_iterator(tangents),
                        [](const vsg::ref_ptr<RailPoint> sp)
@@ -138,16 +145,16 @@ namespace route
 
         auto partitionBoundaries = ArcLength::partition(*_railSpline, _sleepersDistance);
 
-        std::vector<InterpolatedPTCM> derivatives(partitionBoundaries.size());
+        std::vector<InterpolatedPTM> derivatives(partitionBoundaries.size());
         std::transform(std::execution::par_unseq, partitionBoundaries.begin(), partitionBoundaries.end(), derivatives.begin(),
-                       [railSpline=_railSpline](const double T)
+                       [railSpline=_railSpline, front](const double T)
         {
-            return std::move(InterpolatedPTCM(railSpline->getCurvature(T)));
+            return std::move(InterpolatedPTM(railSpline->getTangent(T), front));
         });
 
         //std::mutex m;
         _track = vsg::MatrixTransform::create(vsg::translate(front));
-        std::for_each(derivatives.begin(), derivatives.end(), [ sleeper=_sleeper, group=_track](const InterpolatedPTCM &ptcm)
+        std::for_each(derivatives.begin(), derivatives.end(), [ sleeper=_sleeper, group=_track](const InterpolatedPTM &ptcm)
         {
             auto transform = vsg::MatrixTransform::create(ptcm.calculated);
             transform->addChild(sleeper);
@@ -183,8 +190,11 @@ namespace route
 
         std::vector<std::vector<vsg::vec3>> vertexGroups(derivatives.size());
 
+        //auto norm = vsg::normalize(front);
+        //auto w_mat = vsg::rotate(vsg::quat(vsg::vec3(0.0, 0.0, 1.0), vsg::vec3(norm)));
+
         std::transform(std::execution::par_unseq, derivatives.begin(), derivatives.end(), vertexGroups.begin(),
-        [geometry=_geometry](const InterpolatedPTCM &ptcm)
+        [geometry=_geometry](const InterpolatedPTM &ptcm)
         {
             vsg::vec3 offset(0.0, 0.0, 0.0);
 
@@ -225,12 +235,13 @@ namespace route
         }
 
         std::vector<uint16_t> indices;
-        auto next = static_cast<uint16_t>(_geometry.size());
+        const auto next = static_cast<uint16_t>(_geometry.size());
         uint16_t max = vsize - next - 1;
 
         for (uint16_t ind = 0; ind < max; ++ind)
         {
-
+            if((ind + 1) % next == 0)
+                continue;
             indices.push_back(ind);
             indices.push_back(ind + next);
             indices.push_back(ind + next + 1);
@@ -253,8 +264,6 @@ namespace route
 
     void SplineTrajectory::assignRails(vsg::DataList list, vsg::ref_ptr<vsg::ushortArray> indices)
     {
-
-        auto image = vsg::read_cast<vsg::Data>("/home/asafr/Development/vsg/vsgExamples/data/textures/lz.vsgb", _builder->options);
 /*
         auto stateGroup = vsg::StateGroup::create();
 
@@ -404,7 +413,8 @@ namespace route
         vid->instanceCount = 1;
 
         vsg::StateInfo si;
-        si.image = image;
+        si.image = _texture;
+        si.lighting = false;
 
         auto stateGroup = _builder->createStateGroup(si);
 
@@ -415,6 +425,19 @@ namespace route
         _track->addChild(stateGroup);
 
         //_builder->compile(_track);
+    }
+
+    void SplineTrajectory::add(vsg::ref_ptr<RailPoint> rp)
+    {
+        SplineInverter<vsg::dvec3, double> inverter(*_railSpline);
+        double t = inverter.findClosestT(rp->getPosition());
+        auto index = static_cast<size_t>(std::floor(t)) + 1;
+        auto it = _points.begin() + index;
+        Q_ASSERT(it <= _points.end());
+        _points.insert(it, rp);
+        rp->trajectory = this;
+
+        recalculate();
     }
 
     SceneTrajectory::SceneTrajectory()

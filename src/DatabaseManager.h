@@ -10,7 +10,6 @@
 #include <QFileSystemModel>
 #include <vsgXchange/all.h>
 #include "SceneObjectVisitor.h"
-#include "Compiler.h"
 #include <vsg/nodes/MatrixTransform.h>
 #include <vsg/nodes/Switch.h>
 

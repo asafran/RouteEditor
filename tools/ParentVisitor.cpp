@@ -55,7 +55,8 @@ void FindPositionVisitor::apply(const SectionTrajectory &traj)
 void FindPositionVisitor::apply(const vsg::Group& group)
 {
     auto it = std::find(group.children.cbegin(), group.children.cend(), child);
-    Q_ASSERT(it != group.children.end());
+    if(it != group.children.end())
+        return;
     position = std::distance(group.children.cbegin(), it);
 }
 

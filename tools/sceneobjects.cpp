@@ -156,9 +156,12 @@ namespace route
         _copyBufferCmd->copy(_info->data, _info);
     }
 
-    RailPoint::RailPoint(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled)
-        : vsg::Inherit<SceneObject, RailPoint>(compiled, point)
+    RailPoint::RailPoint(vsg::ref_ptr<vsg::Node> compiled, const vsg::dvec3 &pos)
+        : vsg::Inherit<SceneObject, RailPoint>(compiled, pos)
     {
+        auto norm = vsg::normalize(pos);
+        _world_quat = vsg::dquat(vsg::dvec3(0.0, 0.0, 1.0), norm);
+        //always in world coordinates
     }
     RailPoint::RailPoint()
         : vsg::Inherit<SceneObject, RailPoint>()
@@ -193,12 +196,12 @@ namespace route
 
     vsg::dvec3 RailPoint::getTangent() const
     {
-        auto q = mult(vsg::dquat(0.0, 0.0, 1.0, 0.0), mult(_world_quat, _quat));
+        auto q = mult(vsg::dquat(0.0, 0.0, 20.0, 0.0), mult(_world_quat, _quat));
         return vsg::dvec3(q.x, q.y, q.z);
     }
 
-    RailConnector::RailConnector(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled)
-        : vsg::Inherit<RailPoint, RailConnector>(point, compiled)
+    RailConnector::RailConnector(vsg::ref_ptr<vsg::Node> compiled, const vsg::dvec3 &pos)
+        : vsg::Inherit<RailPoint, RailConnector>(compiled, pos)
     {
     }
     RailConnector::RailConnector()

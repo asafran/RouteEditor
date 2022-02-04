@@ -58,11 +58,35 @@ void AddRails::intersection(const FindNode &isection)
 
     std::vector<vsg::ref_ptr<route::RailPoint>> points;
 
-    auto bwd = route::RailConnector::create(isection.worldIntersection, vsg::Node::create());
-    auto fwd = route::RailConnector::create(isection.worldIntersection + vsg::dvec3(30.0, 0.0, 0.0), vsg::Node::create());
+    auto builder = _database->getBuilder();
 
-    auto traj = route::SplineTrajectory::create("trj", bwd, fwd, _database->getBuilder(), attrib, texture, vsg::Node::create(), 3);
+    auto group = vsg::Group::create();
+    vsg::GeometryInfo gi;
+    gi.dx = vsg::vec3(1.0f, 0.0f, 0.0f);
+    gi.dy = vsg::vec3(0.0f, 0.1f, 0.0f);
+    gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
+    gi.color = vsg::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    group->addChild(builder->createBox(gi));
+    gi.dx = vsg::vec3(0.1f, 0.0f, 0.0f);
+    gi.dy = vsg::vec3(0.0f, 1.0f, 0.0f);
+    gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
+    gi.color = vsg::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+    group->addChild(builder->createBox(gi));
+    gi.dx = vsg::vec3(0.1f, 0.0f, 0.0f);
+    gi.dy = vsg::vec3(0.0f, 0.1f, 0.0f);
+    gi.dz = vsg::vec3(0.0f, 0.0f, 1.0f);
+    gi.color = vsg::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+    group->addChild(builder->createBox(gi));
+
+    auto bwd = route::RailConnector::create(group, isection.worldIntersection);
+    auto fwd = route::RailConnector::create(builder->createCylinder(), isection.worldIntersection + vsg::dvec3(30.0, -20.0, 0.0));
+
+    auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, attrib, texture, group, 2);
     auto adapter = route::SceneTrajectory::create(traj);
 
     const_cast<vsg::Switch*>(isection.tile.first)->addChild(route::SceneObjects, adapter);
+
+    auto point = route::RailPoint::create(group, isection.worldIntersection + vsg::dvec3(10.0, -10.0, 0.0));
+
+    traj->add(point);
 }

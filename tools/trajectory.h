@@ -12,7 +12,6 @@
 #include "splines/cubic_hermite_spline.h"
 #include "utils/arclength.h"
 #include "utils/splineinverter.h"
-#include "Compiler.h"
 
 #include "tiny_obj_loader.h"
 
@@ -29,32 +28,50 @@ namespace route
 
     using InterpolationSpline = CubicHermiteSpline<vsg::dvec3, double>;
 
-    struct InterpolatedPTCM : public InterpolationSpline::InterpolatedPTC
+    struct InterpolatedPTM : public InterpolationSpline::InterpolatedPT
     {
-        InterpolatedPTCM(InterpolatedPTC &&ptc) : InterpolatedPTC(std::move(ptc))
+        InterpolatedPTM(InterpolatedPT &&pt, const vsg::dvec3 &offset = {}) : InterpolatedPT(std::move(pt))
         {
-            auto rot = vsg::rotate(vsg::dquat(vsg::dvec3(1.0, 0.0, 0.0), vsg::normalize(ptc.tangent)));
-            auto pos = vsg::translate(ptc.position);
+
+
+            //auto q = mult(vsg::dquat(0.0, 0.0, 1.0, 0.0), t_quat);
+            //return vsg::dvec3(q.x, q.y, q.z);
+
+            auto norm = vsg::normalize(pt.position);
+            vsg::dquat w_quat(vsg::dvec3(0.0, 1.0, 0.0), norm);
+
+            auto t = vsg::inverse(vsg::rotate(w_quat)) * pt.tangent;
+            auto cos = vsg::dot(vsg::normalize(vsg::dvec2(t.x, t.z)), vsg::dvec2(0.0, 1.0));
+            auto hcos = sqrt((1.0 - cos)/2);
+            auto hsin = sqrt((1.0 + cos)/2);
+
+            vsg::dquat t_quat(0.0, hsin, 0.0, hcos);
+
+            //auto tangent = vsg::normalize(pt.tangent) * ;
+            //vsg::dquat t_quat(vsg::dvec3(0.0, 0.0, 1.0), tangent);
+
+            auto rot = vsg::rotate(w_quat) * vsg::rotate(t_quat);
+            auto pos = vsg::translate(pt.position - offset);
             calculated = pos * rot;
         }
 
-        InterpolatedPTCM(InterpolatedPTCM&& ptcm) : InterpolatedPTC(std::move(ptcm)), calculated(std::move(ptcm.calculated)) {}
+        InterpolatedPTM(InterpolatedPTM&& ptm) : InterpolatedPT(std::move(ptm)), calculated(std::move(ptm.calculated)) {}
 
-        InterpolatedPTCM& operator=(InterpolatedPTCM&& x)
+        InterpolatedPTM& operator=(InterpolatedPTM&& x)
         {
-            InterpolatedPTC::operator=(std::move(x));
+            InterpolatedPT::operator=(std::move(x));
             calculated = std::move(x.calculated);
             return *this;
         }
 
         //InterpolatedPTCM(const InterpolatedPTCM& ptcm) : InterpolatedPTC(ptcm), calculated(ptcm.calculated) {}
 
-        InterpolatedPTCM() :InterpolationSpline::InterpolatedPTC() {}
+        InterpolatedPTM() :InterpolationSpline::InterpolatedPT() {}
 
         vsg::dmat4 calculated;
     };
 
-    inline bool operator==(const InterpolatedPTCM& left, const InterpolatedPTCM& right)
+    inline bool operator==(const InterpolatedPTM& left, const InterpolatedPTM& right)
     {
         auto distance = vsg::length(vsg::normalize(left.tangent) - vsg::normalize(right.tangent));
         return distance < 0.1;
@@ -136,17 +153,17 @@ namespace route
         std::pair<Trajectory*, bool> getFwd() const override { return _fwdPoint->getFwd(this); }
         std::pair<Trajectory*, bool> getBwd() const override { return _bwdPoint->getBwd(this); }
 
-        int add(vsg::dvec3 lla);
-        void move(vsg::dvec3 lla, int point);
+        void add(vsg::ref_ptr<RailPoint> rp);
 
         template<class N, class V>
         static void t_traverse(N& node, V& visitor)
         {
             for (auto& child : node._autoPositioned) child->accept(visitor);
+            for (auto& child : node._points) child->accept(visitor);
         }
 
-        void traverse(vsg::Visitor& visitor) override { Trajectory::traverse(visitor); }
-        void traverse(vsg::ConstVisitor& visitor) const override { Trajectory::traverse(visitor); }
+        void traverse(vsg::Visitor& visitor) override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::ConstVisitor& visitor) const override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
         void traverse(vsg::RecordTraversal& visitor) const override
         {
             Trajectory::traverse(visitor);

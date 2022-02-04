@@ -208,7 +208,10 @@ void ObjectPropertiesEditor::intersection(const FindNode& isection)
         clear();
 
     if(isection.objects.empty())
+    {
+        updateData();
         return;
+    }
 
     if((isection.keyModifier & vsg::MODKEY_Shift) == 0)
         toggle(isection.objects.back());

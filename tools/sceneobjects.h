@@ -128,7 +128,7 @@ namespace route
     class RailPoint : public vsg::Inherit<SceneObject, RailPoint>
     {
     public:
-        RailPoint(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled);
+        RailPoint(vsg::ref_ptr<vsg::Node> compiled, const vsg::dvec3 &pos);
         RailPoint();
 
         virtual ~RailPoint();
@@ -147,7 +147,7 @@ namespace route
     class RailConnector : public vsg::Inherit<RailPoint, RailConnector>
     {
     public:
-        RailConnector(const vsg::dvec3 &point, vsg::ref_ptr<vsg::Node> compiled);
+        RailConnector(vsg::ref_ptr<vsg::Node> compiled, const vsg::dvec3 &pos);
         RailConnector();
 
         virtual ~RailConnector();
