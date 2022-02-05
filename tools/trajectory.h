@@ -41,16 +41,16 @@ namespace route
             vsg::dquat w_quat(vsg::dvec3(0.0, 1.0, 0.0), norm);
 
             auto t = vsg::inverse(vsg::rotate(w_quat)) * pt.tangent;
-            auto dot = vsg::dot(vsg::normalize(vsg::dvec2(t.x, t.z)), vsg::dvec2(0.0, -1.0));
-            auto cos = dot;
+            auto cos = vsg::dot(vsg::normalize(vsg::dvec2(t.x, t.z)), vsg::dvec2(0.0, 1.0));
             auto hcos = sqrt((1.0 + cos)/2);
             auto hsin = sqrt((1.0 - cos)/2);
-/*
-            auto angle = -std::acos(cos);
-            if(dot < 0)
-                angle = -angle + vsg::PI;
-*/
-            auto angle = std::acos(cos);
+
+            double angle = vsg::PI;
+            if(t.x < 0)
+                angle -= std::acos(cos);
+            else
+                angle += std::acos(cos);
+
             vsg::dquat t_quat(0.0, hsin, 0.0, hcos);
             vsg::dquat tt_quat(angle, vsg::dvec3(0.0, 1.0, 0.0));
 
