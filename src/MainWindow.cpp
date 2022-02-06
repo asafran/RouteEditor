@@ -88,10 +88,9 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
             auto parent = static_cast<vsg::Node*>(parentIndex.internalPointer());
             Q_ASSERT(parent);
 
-            ParentVisitor pv(parent);
-            pv.traversalMask = route::SceneObjects;
-            database->getRoot()->accept(pv);
-            auto ltw = vsg::computeTransform(pv.pathToChild);
+            auto fp = FindParent::create();
+            fp->apply(database->getRoot(), parent, route::SceneObjects);
+            auto ltw = vsg::computeTransform(fp->pathToChild);
             auto wtl = vsg::inverse(ltw);
 
             auto node = static_cast<vsg::Node*>(front.internalPointer());

@@ -3,71 +3,62 @@
 
 #include <vsg/nodes/Node.h>
 #include <vsg/traversals/ArrayState.h>
+#include <vsg/threading/ActivityStatus.h>
+#include <vsg/threading/OperationThreads.h>
+#include <vsg/threading/OperationQueue.h>
 #include "LambdaVisitor.h"
+
+class FindParent;
 
 class ParentVisitor : public vsg::ConstVisitor
 {
 public:
     using NodePath = std::vector<const vsg::Node*>;
-    NodePath pathToChild;
-    int position;
 
-    explicit ParentVisitor(const vsg::Node* child);
+    ParentVisitor(vsg::observer_ptr<FindParent> op, const vsg::Node *child);
 
-    void apply(const vsg::Node&) override;
-    /*virtual void apply(const vsg::Commands&);
-    virtual void apply(const vsg::Group&);
-    virtual void apply(const vsg::QuadGroup&);
-    virtual void apply(const vsg::LOD&);
-    virtual void apply(const vsg::PagedLOD&);
-    virtual void apply(const vsg::StateGroup&);
-    virtual void apply(const vsg::CullGroup&);
-    virtual void apply(const vsg::CullNode&);
-    virtual void apply(const vsg::MatrixTransform&);
-    virtual void apply(const vsg::Transform&);
-    virtual void apply(const vsg::Geometry&);
-    //virtual void apply(const vsg::VertexIndexDraw&);
-    virtual void apply(const vsg::DepthSorted&);
-    //virtual void apply(const vsg::Bin&);
-    virtual void apply(const vsg::Switch&);*/
+    ParentVisitor(const ParentVisitor &p);
+
+    void apply(const vsg::Group &) override;
+    void apply(const vsg::Node &) override;
+
+    vsg::observer_ptr<FindParent> operation;
+
 protected:
+    const vsg::Node *_child;
 
-    vsg::ref_ptr<const vsg::Node> child;
-
-    NodePath _nodePath;
+    NodePath _stack;
 };
-/*
-class ChildVisitor : public vsg::ConstVisitor
+
+class FindParent : public vsg::Inherit<vsg::Object, FindParent>
 {
 public:
-    ChildVisitor(int in_row)
-        : row(in_row) {}
+    explicit FindParent(vsg::ref_ptr<vsg::ActivityStatus> status = vsg::ActivityStatus::create());
 
-    int row;
-    vsg::Node *child;
+    ParentVisitor::NodePath pathToChild;
 
-    using ConstVisitor::apply;
+    vsg::ref_ptr<vsg::OperationThreads> traverseThreads;
 
-    vsg::Node *operator() (vsg::Node *traversing)
-    {
-        traversing->accept(*this);
-        return child;
-    }
+    void found(const ParentVisitor::NodePath &_stack);
 
-    void apply(const vsg::PagedLOD& plod) override
-    {
-        child = plod.children.at(row).node;
-    }
-    void apply(const vsg::Switch& sw) override
-    {
-        child = sw.children.at(row).node;
-    }
-    void apply(const vsg::Group& group) override
-    {
-        child = group.children.at(row);
-    }
+    void apply(const vsg::Node* node, const vsg::Node *child, uint32_t mask);
+
+protected:
+
+    vsg::ref_ptr<vsg::ActivityStatus> _status;
 };
-*/
+
+struct TraverseOperation : public vsg::Inherit<vsg::Operation, TraverseOperation>
+{
+    TraverseOperation(const ParentVisitor &in_pv, const vsg::Node *in_node);
+
+    const vsg::Node *node;
+    ParentVisitor pv;
+
+    void run() override;
+};
+
+
 class FindPositionVisitor : public vsg::ConstVisitor//ConstSceneObjectsVisitor
 {
 public:
@@ -102,12 +93,4 @@ int findPosInStruct(const T& parent, vsg::ref_ptr<const vsg::Node> child)
     //Q_ASSERT(it != parent.children.end());
     return std::distance(parent.children.begin(), it);
 }
-/*
-int findPosInTraj(SceneTrajectory& node, vsg::ref_ptr<const vsg::Node> child)
-{
-    auto it = std::find(node.traj->getBegin(), node.traj->getEnd(), node);
-    Q_ASSERT(it != node.traj->getEnd());
-    return std::distance(node.traj->getBegin(), it);
-}
-*/
 #endif // PARENTVISITOR_H

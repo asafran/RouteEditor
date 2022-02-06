@@ -32,18 +32,11 @@ namespace route
     {
         InterpolatedPTM(InterpolatedPT &&pt, const vsg::dvec3 &offset = {}) : InterpolatedPT(std::move(pt))
         {
-
-
-            //auto q = mult(vsg::dquat(0.0, 0.0, 1.0, 0.0), t_quat);
-            //return vsg::dvec3(q.x, q.y, q.z);
-
             auto norm = vsg::normalize(pt.position);
             vsg::dquat w_quat(vsg::dvec3(0.0, 1.0, 0.0), norm);
 
             auto t = vsg::inverse(vsg::rotate(w_quat)) * pt.tangent;
             auto cos = vsg::dot(vsg::normalize(vsg::dvec2(t.x, t.z)), vsg::dvec2(0.0, 1.0));
-            auto hcos = sqrt((1.0 + cos)/2);
-            auto hsin = sqrt((1.0 - cos)/2);
 
             double angle = vsg::PI;
             if(t.x < 0)
@@ -51,13 +44,9 @@ namespace route
             else
                 angle += std::acos(cos);
 
-            vsg::dquat t_quat(0.0, hsin, 0.0, hcos);
-            vsg::dquat tt_quat(angle, vsg::dvec3(0.0, 1.0, 0.0));
+            vsg::dquat t_quat(angle, vsg::dvec3(0.0, 1.0, 0.0));
 
-            //auto tangent = vsg::normalize(pt.tangent) * ;
-            //vsg::dquat t_quat(vsg::dvec3(0.0, 0.0, 1.0), tangent);
-
-            auto rot = vsg::rotate(w_quat) * vsg::rotate(tt_quat);
+            auto rot = vsg::rotate(mult(w_quat, t_quat));
             auto pos = vsg::translate(pt.position - offset);
             calculated = pos * rot;
         }
@@ -139,7 +128,7 @@ namespace route
                                   //vsg::ref_ptr<Compiler> compiler,
                                   tinyobj::attrib_t rail,
                                   vsg::ref_ptr<vsg::Data> texture,
-                                  vsg::ref_ptr<vsg::Node> sleeper, double distance);
+                                  vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge);
         SplineTrajectory();
 
         virtual ~SplineTrajectory();
@@ -181,9 +170,13 @@ namespace route
 
     private:
 
-        void assignRails(vsg::DataList list, vsg::ref_ptr<vsg::ushortArray> indices);
+        void assignRails(std::pair<vsg::DataList, vsg::ref_ptr<vsg::ushortArray>> data);
+
+        std::pair<vsg::DataList, vsg::ref_ptr<vsg::ushortArray>> createSingleRail(const vsg::vec3 &offset, const std::vector<InterpolatedPTM> &derivatives) const;
 
         double _sleepersDistance;
+
+        double _gaudge;
 
         std::shared_ptr<CubicHermiteSpline<vsg::dvec3, double>> _railSpline;
 

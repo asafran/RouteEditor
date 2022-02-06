@@ -2,6 +2,7 @@
 #include "ui_AddRails.h"
 #include <vsg/nodes/Switch.h>
 #include <vsg/io/read.h>
+#include "ParentVisitor.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
@@ -49,7 +50,7 @@ void AddRails::intersection(const FindNode &isection)
     }
 
     auto& attrib = reader.GetAttrib();
-    auto& shapes = reader.GetShapes();
+    //auto& shapes = reader.GetShapes();
     auto& materials = reader.GetMaterials();
 
     auto name = materials.front().diffuse_texname;
@@ -60,43 +61,45 @@ void AddRails::intersection(const FindNode &isection)
 
     auto builder = _database->getBuilder();
 
-    auto group = vsg::Group::create();
+    auto marker = vsg::Group::create();
     vsg::GeometryInfo gi;
     gi.dx = vsg::vec3(1.0f, 0.0f, 0.0f);
     gi.dy = vsg::vec3(0.0f, 0.1f, 0.0f);
     gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
     gi.color = vsg::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-    group->addChild(builder->createBox(gi));
+    marker->addChild(builder->createBox(gi));
     gi.dx = vsg::vec3(0.1f, 0.0f, 0.0f);
     gi.dy = vsg::vec3(0.0f, 1.0f, 0.0f);
     gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
     gi.color = vsg::vec4(0.0f, 1.0f, 0.0f, 1.0f);
-    group->addChild(builder->createBox(gi));
+    marker->addChild(builder->createBox(gi));
     gi.dx = vsg::vec3(0.1f, 0.0f, 0.0f);
     gi.dy = vsg::vec3(0.0f, 0.1f, 0.0f);
     gi.dz = vsg::vec3(0.0f, 0.0f, 1.0f);
     gi.color = vsg::vec4(0.0f, 0.0f, 1.0f, 1.0f);
-    group->addChild(builder->createBox(gi));
+    marker->addChild(builder->createBox(gi));
 
-    auto bwd = route::RailConnector::create(group, isection.worldIntersection);
-    auto fwd = route::RailConnector::create(builder->createCylinder(), isection.worldIntersection + vsg::dvec3(30.0, -20.0, 00.0));
+    gi.dx = vsg::vec3(2.0f, 0.0f, 0.0f);
+    gi.dy = vsg::vec3(0.0f, 0.1f, 0.0f);
+    gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
+    gi.color = vsg::vec4(6.0f, 6.0f, 6.0f, 1.0f);
 
-    auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, attrib, texture, group, 2);
+    auto bwd = route::RailConnector::create(marker, isection.worldIntersection);
+
+    auto fwd = route::RailConnector::create(marker, isection.worldIntersection + vsg::dvec3(2.0, 0.0, 0.0));
+
+    auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, attrib, texture, builder->createBox(gi), 2.0, 1.5);
     auto adapter = route::SceneTrajectory::create(traj);
 
-    const_cast<vsg::Switch*>(isection.tile.first)->addChild(route::SceneObjects, adapter);
+    if(!isection.tile.first)
+        return;
 
-    auto point = route::RailPoint::create(group, isection.worldIntersection + vsg::dvec3(10.0, -10.0, 20.0));
-    /*
-    auto bwd = route::RailConnector::create(group, isection.worldIntersection);
-    auto fwd = route::RailConnector::create(builder->createCylinder(), isection.worldIntersection + vsg::dvec3(-30.0, -20.0, 20.0));
+    auto tilesModel = _database->getTilesModel();
+    FindPositionVisitor fpv(isection.tile.first);
+    auto index = tilesModel->index(fpv(tilesModel->getRoot()), 0, QModelIndex());
 
-    auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, attrib, texture, group, 2);
-    auto adapter = route::SceneTrajectory::create(traj);
+    _database->push(new AddSceneObject(_database->getTilesModel(), index, adapter));
 
-    const_cast<vsg::Switch*>(isection.tile.first)->addChild(route::SceneObjects, adapter);
+    //const_cast<vsg::Switch*>(isection.tile.first)->addChild(route::SceneObjects, adapter);
 
-    auto point = route::RailPoint::create(group, isection.worldIntersection + vsg::dvec3(-10.0, -10.0, 20.0));
-    */
-    traj->add(point);
 }

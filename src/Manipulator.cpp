@@ -243,11 +243,10 @@ void Manipulator::moveToObject(const QModelIndex &index)
         setViewpoint(sceneobject->getWorldPosition());
         return;
     }
-    ParentVisitor pv(object);
-    pv.traversalMask = route::SceneObjects | route::Tiles;
-    _database->getRoot()->accept(pv);
-    pv.pathToChild.pop_back();
-    auto ltw = vsg::computeTransform(pv.pathToChild);
+    auto fp = FindParent::create();
+    fp->apply(_database->getRoot(), object, route::SceneObjects);
+    fp->pathToChild.pop_back();
+    auto ltw = vsg::computeTransform(fp->pathToChild);
 
     vsg::ComputeBounds computeBounds;
     object->accept(computeBounds);

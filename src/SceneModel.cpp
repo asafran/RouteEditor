@@ -71,17 +71,17 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
         return QModelIndex();
     }
 
-    auto childInfo = static_cast<vsg::Node*>(child.internalPointer());
+    auto childNode = static_cast<vsg::Node*>(child.internalPointer());
 
-    Q_ASSERT(childInfo != nullptr);
+    Q_ASSERT(childNode != nullptr);
 
-    ParentVisitor parentVisitor(childInfo);
-    parentVisitor.traversalMask = route::SceneObjects;
-    _root->accept(parentVisitor);
-    if (parentVisitor.pathToChild.size() < 3)
+    auto fp = FindParent::create();
+    fp->apply(_root, childNode, route::SceneObjects);
+
+    if (fp->pathToChild.size() < 3)
         return QModelIndex();
-    auto parent = *(parentVisitor.pathToChild.end() - 2);
-    auto grandParent = *(parentVisitor.pathToChild.end() - 3);
+    auto parent = *(fp->pathToChild.end() - 2);
+    auto grandParent = *(fp->pathToChild.end() - 3);
     if (parent && grandParent)
     {
         FindPositionVisitor fpv(parent);
@@ -194,12 +194,11 @@ void SceneModel::removeNode(const QModelIndex &parent, const QModelIndex &index)
 
 QModelIndex SceneModel::index(const vsg::Node *node) const
 {
-    ParentVisitor parentVisitor(node);
-    parentVisitor.traversalMask = route::SceneObjects;
-    _root->accept(parentVisitor);
-    if (parentVisitor.pathToChild.empty() || parentVisitor.pathToChild.size() < 2)
+    auto fp = FindParent::create();
+    fp->apply(_root, node, route::SceneObjects);
+    if (fp->pathToChild.empty() || fp->pathToChild.size() < 2)
         return QModelIndex();
-    auto parent = *(parentVisitor.pathToChild.end() - 2);
+    auto parent = *(fp->pathToChild.end() - 2);
 
     return SceneModel::index(node, parent);
 }

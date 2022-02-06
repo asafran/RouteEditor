@@ -40,10 +40,10 @@ void ContentManager::intersection(const FindNode &isection)
         activeGroup = _activeGroup;
         auto group = static_cast<vsg::Node*>(_activeGroup.internalPointer());
 
-        ParentVisitor pv(group);
-        _database->getRoot()->accept(pv);
-        pv.pathToChild.pop_back();
-        wtl = vsg::inverse(vsg::computeTransform(pv.pathToChild));
+        auto fp = FindParent::create();
+        fp->apply(_database->getRoot(), group, route::SceneObjects);
+        fp->pathToChild.pop_back();
+        wtl = vsg::inverse(vsg::computeTransform(fp->pathToChild));
     } else if(!_activeGroup.isValid() && !activeGroup.isValid())
         return;
 

@@ -22,13 +22,14 @@ namespace route
                                        vsg::ref_ptr<vsg::Builder> builder,
                                        //vsg::ref_ptr<Compiler> compiler,
                                        tinyobj::attrib_t rail, vsg::ref_ptr<vsg::Data> texture,
-                                       vsg::ref_ptr<vsg::Node> sleeper, double distance)
+                                       vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge)
       : vsg::Inherit<Trajectory, SplineTrajectory>(name)
       , _builder(builder)
       //, _compiler(compiler)
       , _texture(texture)
       , _sleeper(sleeper)
       , _sleepersDistance(distance)
+      , _gaudge(gaudge)
       , _fwdPoint(fwdPoint)
       , _bwdPoint(bwdPoint)
     {
@@ -188,25 +189,24 @@ namespace route
             return copy;
         });*/
 
+        assignRails(createSingleRail(vsg::vec3(_gaudge / 2.0, 0.0, 0.0), derivatives));
+        assignRails(createSingleRail(vsg::vec3(-_gaudge / 2.0, 0.0, 0.0), derivatives));
+    }
+
+    std::pair<vsg::DataList, vsg::ref_ptr<vsg::ushortArray>> SplineTrajectory::createSingleRail(const vsg::vec3 &offset, const std::vector<InterpolatedPTM> &derivatives) const
+    {
         std::vector<std::vector<vsg::vec3>> vertexGroups(derivatives.size());
 
-        //auto norm = vsg::normalize(front);
-        //auto w_mat = vsg::rotate(vsg::quat(vsg::vec3(0.0, 0.0, 1.0), vsg::vec3(norm)));
-
         std::transform(std::execution::par_unseq, derivatives.begin(), derivatives.end(), vertexGroups.begin(),
-        [geometry=_geometry](const InterpolatedPTM &ptcm)
+        [geometry=_geometry, offset](const InterpolatedPTM &ptcm)
         {
-            vsg::vec3 offset(0.0, 0.0, 0.0);
-
             auto fmat = static_cast<vsg::mat4>(ptcm.calculated);
-            auto copy = geometry;
+            std::vector<vsg::vec3> out;
 
-            for(auto vec = copy.begin(); vec != copy.end(); ++vec)
-            {
-                *vec = fmat * (*vec + offset);
-            }
+            for(const auto &vec : geometry)
+                out.push_back(fmat * (vec + offset));
 
-            return std::move(copy);
+            return std::move(out);
         });
 
         auto vsize = vertexGroups.size() * _geometry.size();
@@ -259,10 +259,10 @@ namespace route
         auto ind = vsg::ushortArray::create(indices.size());
         std::copy(indices.begin(), indices.end(), ind->begin());
 
-        assignRails(vsg::DataList{vertArray, normalArray, texArray}, ind);
+        return std::make_pair(vsg::DataList{vertArray, normalArray, texArray}, ind);
     }
 
-    void SplineTrajectory::assignRails(vsg::DataList list, vsg::ref_ptr<vsg::ushortArray> indices)
+    void SplineTrajectory::assignRails(std::pair<vsg::DataList, vsg::ref_ptr<vsg::ushortArray>> data)
     {
 /*
         auto stateGroup = vsg::StateGroup::create();
@@ -406,10 +406,10 @@ namespace route
 
         auto vid = vsg::VertexIndexDraw::create();
 
-        vid->assignArrays(list);
+        vid->assignArrays(data.first);
 
-        vid->assignIndices(indices);
-        vid->indexCount = static_cast<uint32_t>(indices->size());
+        vid->assignIndices(data.second);
+        vid->indexCount = static_cast<uint32_t>(data.second->size());
         vid->instanceCount = 1;
 
         vsg::StateInfo si;
