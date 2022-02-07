@@ -22,59 +22,111 @@
       </property>
       <widget class="QWidget" name="gridLayoutWidget">
        <layout class="QGridLayout" name="gridLayout">
-        <item row="1" column="0">
-         <widget class="QLabel" name="label">
+        <item row="8" column="0">
+         <widget class="QPushButton" name="pushButton_2">
           <property name="text">
-           <string>Длинна [м.]</string>
+           <string>Загрузить модель стрелки</string>
           </property>
          </widget>
         </item>
-        <item row="10" column="0">
+        <item row="5" column="0">
+         <widget class="QPushButton" name="loadPntsStB">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Загрузить точки (прямо)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="2">
+         <widget class="QTableView" name="tableView"/>
+        </item>
+        <item row="3" column="0" colspan="2">
+         <widget class="Line" name="line">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1">
+         <widget class="QPushButton" name="loadPntsB">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Загрузить точки (отклонение)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="0">
          <widget class="QLabel" name="label_4">
           <property name="text">
            <string>Вращение на отклонение</string>
           </property>
          </widget>
         </item>
-        <item row="8" column="1">
-         <widget class="QPushButton" name="loadPntsB">
+        <item row="1" column="0">
+         <widget class="QPushButton" name="pushButton_4">
           <property name="text">
-           <string>Загрузить точки (отклонение)</string>
+           <string>Добавить LOD</string>
           </property>
          </widget>
         </item>
         <item row="1" column="1">
-         <widget class="QDoubleSpinBox" name="lenghtSpin">
-          <property name="minimum">
-           <double>1.000000000000000</double>
+         <widget class="QDoubleSpinBox" name="doubleSpinBox_2">
+          <property name="decimals">
+           <number>4</number>
           </property>
           <property name="maximum">
-           <double>10000.000000000000000</double>
+           <double>1.000000000000000</double>
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="label_2">
+        <item row="2" column="0" colspan="2">
+         <widget class="QPushButton" name="pushButton_5">
           <property name="text">
-           <string>Радиус [м.]</string>
+           <string>Удалить LOD</string>
           </property>
          </widget>
         </item>
-        <item row="7" column="0" colspan="2">
-         <widget class="Line" name="line_2">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
+        <item row="8" column="1">
+         <widget class="QPushButton" name="pushButton_3">
+          <property name="text">
+           <string>Загрузить модель остряка</string>
           </property>
          </widget>
         </item>
-        <item row="11" column="0" colspan="2">
+        <item row="9" column="0" colspan="2">
          <widget class="QPushButton" name="genSwButt">
           <property name="text">
            <string>Сгенерировать стрелку</string>
           </property>
          </widget>
         </item>
-        <item row="12" column="0" colspan="2">
+        <item row="7" column="1">
+         <widget class="QDoubleSpinBox" name="doubleSpinBox">
+          <property name="decimals">
+           <number>6</number>
+          </property>
+          <property name="minimum">
+           <double>-90.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>90.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.100000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="10" column="0" colspan="2">
          <spacer name="verticalSpacer">
           <property name="orientation">
            <enum>Qt::Vertical</enum>
@@ -86,44 +138,6 @@
            </size>
           </property>
          </spacer>
-        </item>
-        <item row="2" column="0" colspan="2">
-         <widget class="QPushButton" name="genStButt">
-          <property name="text">
-           <string>Сгенерировать прямую</string>
-          </property>
-         </widget>
-        </item>
-        <item row="8" column="0">
-         <widget class="QPushButton" name="loadPntsStB">
-          <property name="text">
-           <string>Загрузить точки (прямо)</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="1">
-         <widget class="QDoubleSpinBox" name="radiusSpin">
-          <property name="minimum">
-           <double>1.000000000000000</double>
-          </property>
-          <property name="maximum">
-           <double>9000.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0" colspan="2">
-         <widget class="QPushButton" name="genRButt">
-          <property name="text">
-           <string>Сгенерировать кривую</string>
-          </property>
-         </widget>
-        </item>
-        <item row="10" column="1">
-         <widget class="QDoubleSpinBox" name="doubleSpinBox">
-          <property name="maximum">
-           <double>90.000000000000000</double>
-          </property>
-         </widget>
         </item>
        </layout>
       </widget>
@@ -137,7 +151,7 @@
      <x>0</x>
      <y>0</y>
      <width>1307</width>
-     <height>36</height>
+     <height>23</height>
     </rect>
    </property>
   </widget>

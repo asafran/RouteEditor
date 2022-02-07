@@ -1,86 +1,54 @@
 #include "topology.h"
-/*
-TrackVisitor::TrackVisitor()
-{
 
-}
-
-void TrackVisitor::apply(const vsg::Node& node)
+namespace route
 {
-    node.traverse(*this);
-}
-
-void TrackVisitor::apply(const vsg::Group& node)
-{
-    if(auto traj = node.cast<SceneTrajectory>(); traj)
+    Topology::Topology() : vsg::Inherit<vsg::Object, Topology>()
+      , trajectories()
     {
-        auto group = traj->children.front()->cast<vsg::Group>()->children;
-        Sections section;
-        for(const auto &child : group)
-        {
-            //auto track = loader->children.front()->getObject<Track>(META_TRACK); INCREMENT!!!!!
-            auto loader = child->cast<RailLoader>();
-            //const TrackSection sec;
-            section.emplaceBack(loader->children.front()->getObject<Track>(META_TRACK),
-                                loader->inclination,
-                                traj->transform(vsg::dmat4()) * loader->matrix);
-        }
+
+    }
+    Topology::~Topology()
+    {
+
+    }
+
+    STrajectories::iterator Topology::insertTraj(vsg::ref_ptr<Trajectory> traj)
+    {
         std::string name;
         traj->getValue(META_NAME, name);
-        trajectories.insert(name, Trajectory(section, name, traj->lenght, traj->nextReversed));
+        return trajectories.insert_or_assign(name, traj).first; //override if contains
     }
-}
-*/
-Topology::Topology() : vsg::Inherit<vsg::Node, Topology>()
-  , trajectories()
-{
 
-}
-Topology::~Topology()
-{
-
-}
-
-Trajectories::iterator Topology::insertTraj(vsg::ref_ptr<Trajectory> traj)
-{
-    std::string name;
-    traj->getValue(META_NAME, name);
-    return trajectories.insert_or_assign(name, traj).first; //override if contains
-}
-
-/*
-void Topology::bindTrajs()
-{
-    for(auto &traj : trajectories)
+    void Topology::read(vsg::Input& input)
     {
-        traj.second
+        Object::read(input);
+
+        std::vector<vsg::ref_ptr<Trajectory>> trajs;
+        input.read("trajs", trajs);
+
+        for(const auto &traj : trajs)
+        {
+            std::string name;
+            traj->getValue(META_NAME, name);
+            trajectories.insert_or_assign(name, traj);
+        }
     }
-}
-*/
-void Topology::read(vsg::Input& input)
-{
-    Object::read(input);
 
-    std::vector<vsg::ref_ptr<Trajectory>> trajs;
-    input.read("trajs", trajs);
-
-    for(auto it = trajs.begin(); it != trajs.end(); ++it )
+    void Topology::write(vsg::Output& output) const
     {
-        std::string name;
-        (*it)->getValue(META_NAME, name);
-        trajectories.insert_or_assign(name, *it);
+        Object::write(output);
+
+        std::vector<const Trajectory*> trajs;
+        for(const auto &traj : trajectories)
+            trajs.push_back(traj.second.get());
+
+        output.write("trajs", trajs);
+    }
+
+    void Topology::assignBuilder(vsg::ref_ptr<vsg::Builder> builder)
+    {
+        for(const auto &traj : trajectories)
+            traj.second->_builder = builder;
     }
 }
-
-void Topology::write(vsg::Output& output) const
-{
-    Object::write(output);
-
-    std::vector<const Trajectory*> trajs;
-    for(auto it = trajectories.begin(); it != trajectories.end(); ++it )
-        trajs.push_back(it->second.get());
-
-    output.write("trajs", trajs);
-}
-
 

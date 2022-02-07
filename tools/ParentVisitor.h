@@ -3,63 +3,30 @@
 
 #include <vsg/nodes/Node.h>
 #include <vsg/traversals/ArrayState.h>
+#include <vsg/threading/ActivityStatus.h>
+#include <vsg/threading/OperationThreads.h>
+#include <vsg/threading/OperationQueue.h>
 #include "LambdaVisitor.h"
 
-class ParentVisitor : public vsg::ConstVisitor
+class ParentIndexer : public vsg::Visitor
 {
 public:
-    using NodePath = std::vector<const vsg::Node*>;
-    NodePath pathToChild;
-    int position;
+    using NodePath = std::vector<vsg::Node*>;
 
-    explicit ParentVisitor(const vsg::Node* child);
+    void apply(vsg::Node& node) override;
 
-    void apply(const vsg::Node& node) override;
-    /*
-    void apply(const vsg::Switch& sw) override;
-    void apply(const vsg::Group& group) override;
-    void apply(const vsg::LOD& lod) override;
-    void apply(const vsg::PagedLOD& plod) override;
-    void apply(const vsg::CullNode& cn) override;
-    */
 protected:
-
-    vsg::ref_ptr<const vsg::Node> child;
-
-    NodePath _nodePath;
+    NodePath _nodePath = {nullptr};
 };
-/*
-class ChildVisitor : public vsg::ConstVisitor
+
+class ParentTracer : public vsg::Visitor
 {
 public:
-    ChildVisitor(int in_row)
-        : row(in_row) {}
+    void apply(vsg::Object& object) override;
 
-    int row;
-    vsg::Node *child;
-
-    using ConstVisitor::apply;
-
-    vsg::Node *operator() (vsg::Node *traversing)
-    {
-        traversing->accept(*this);
-        return child;
-    }
-
-    void apply(const vsg::PagedLOD& plod) override
-    {
-        child = plod.children.at(row).node;
-    }
-    void apply(const vsg::Switch& sw) override
-    {
-        child = sw.children.at(row).node;
-    }
-    void apply(const vsg::Group& group) override
-    {
-        child = group.children.at(row);
-    }
+    std::list<Object*> nodePath;
 };
-*/
+
 class FindPositionVisitor : public vsg::ConstVisitor//ConstSceneObjectsVisitor
 {
 public:
@@ -94,12 +61,4 @@ int findPosInStruct(const T& parent, vsg::ref_ptr<const vsg::Node> child)
     //Q_ASSERT(it != parent.children.end());
     return std::distance(parent.children.begin(), it);
 }
-/*
-int findPosInTraj(SceneTrajectory& node, vsg::ref_ptr<const vsg::Node> child)
-{
-    auto it = std::find(node.traj->getBegin(), node.traj->getEnd(), node);
-    Q_ASSERT(it != node.traj->getEnd());
-    return std::distance(node.traj->getBegin(), it);
-}
-*/
 #endif // PARENTVISITOR_H

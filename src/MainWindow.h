@@ -9,8 +9,10 @@
 #include <vsgQt/ViewerWindow.h>
 #include <QUndoView>
 #include <QRegularExpression>
-#include "ObjectModel.h"
-#include "tilessorter.h"
+#include <vsg/all.h>
+#include <QToolBox>
+#include "TilesSorter.h"
+#include "ObjectPropertiesEditor.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -25,12 +27,7 @@ public:
     ~MainWindow();
 
 public slots:
-//    void addToRoot(vsg::ref_ptr<vsg::Node> node);
-//    void setTilesModel(SceneModel *model);
-//    void openRoute();
-    void addObject();
-    void pushCommand(QUndoCommand *command);
-    //void receiveData(vsg::ref_ptr<vsg::Data> buffer, vsg::ref_ptr<vsg::BufferInfo> info);
+    void intersection(const FindNode& isection);
 
 private:
     QWindow* initilizeVSGwindow();
@@ -38,19 +35,22 @@ private:
 
     void constructWidgets();
 
-    //DatabaseManager *openDialog();
+    void initializeTools();
 
     Ui::MainWindow *ui;
-    vsg::ref_ptr<vsg::Group> scene;
-    //vsg::ref_ptr<vsg::Options> options;
     vsg::ref_ptr<vsg::Builder> builder;
+
+    ObjectPropertiesEditor *ope;
+
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;
     DatabaseManager *database;
-    //vsg::ref_ptr<Manipulator> manipulator;
 
-    //QFileSystemModel *fsmodel;
+    QString pathDB;
+
     TilesSorter *sorter;
+
+    QToolBox *toolbox;
 
     QUndoStack *undoStack;
     QUndoView *undoView;

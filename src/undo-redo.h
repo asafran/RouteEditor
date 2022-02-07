@@ -5,10 +5,14 @@
 #include "topology.h"
 #include "DatabaseManager.h"
 
-class AddNode : public QUndoCommand
+class AddSceneObject : public QUndoCommand
 {
 public:
-    AddNode(SceneModel *model, const QModelIndex &group, vsg::ref_ptr<vsg::Node> node, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddSceneObject(SceneModel *model,
+            const QModelIndex &group,
+            vsg::ref_ptr<vsg::Node> node,
+            QUndoCommand *parent = nullptr)
+        : QUndoCommand(parent)
         , _model(model)
         , _group(group)
         , _node(node)
@@ -17,19 +21,19 @@ public:
         node->getValue(META_NAME, name);
         if(name.empty())
             name = node->className();
-        setText(QObject::tr("Новый объект %1").arg(name.c_str()).arg(reinterpret_cast<quint64>(node.get()), 0, 16));
+        setText(QObject::tr("Новый объект %1").arg(name.c_str()));
     }
     void undo() override
     {
-        _model->removeRows(row, 1, _group);
+        _model->removeRows(_row, 1, _group);
     }
     void redo() override
     {
-        row = _model->addNode(_group, _node);
+        _row = _model->addNode(_group, _node);
     }
 private:
     SceneModel *_model;
-    int row;
+    int _row;
     const QModelIndex _group;
     vsg::ref_ptr<vsg::Node> _node;
 
@@ -42,57 +46,32 @@ public:
         , _model(model)
         , _node(static_cast<vsg::Node*>(index.internalPointer()))
         , _group(index.parent())
-        , _index(index)
+        , _row(index.row())
     {
         std::string name;
         _node->getValue(META_NAME, name);
         if(name.empty())
             name = _node->className();
-        setText(QObject::tr("Удален объект %1").arg(name.c_str()).arg(reinterpret_cast<quint64>(_node.get()), 0, 16));
+        setText(QObject::tr("Удален объект %1").arg(name.c_str()));
+        if(auto scobj = _node.cast<route::SceneObject>(); scobj)
+            scobj->deselect();
     }
     void undo() override
     {
-        _index = _model->index(_model->addNode(_group, _node), 0, _group);
+        _row = _model->addNode(_group, _node);
     }
     void redo() override
     {
-        _model->removeNode(_group, _index);
+        _model->removeRows(_row, 1, _group);
     }
 private:
     SceneModel *_model;
+    int _row;
     vsg::ref_ptr<vsg::Node> _node;
     const QModelIndex _group;
-    QModelIndex _index;
 
 };
-/*
-class AddObject : public QUndoCommand
-{
-public:
-    AddObject(vsg::Group *group, vsg::SceneObject *object, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
-        , _group(group)
-        , _object(object)
-    {
-        std::string name;
-        object->getValue(META_NAME, name);
-        setText(QObject::tr("Новый объект %1").arg(name.c_str()));
-    }
-    void undo() override
-    {
-        auto position = std::find(_group->children.cbegin(), _group->children.cend(), _object);
-        Q_ASSERT(position != _group->children.end());
-        _group->children.erase(position);
-    }
-    void redo() override
-    {
-        _group->addChild(_object);
-    }
-private:
-    vsg::ref_ptr<vsg::Group> _group;
-    vsg::ref_ptr<vsg::SceneObject> _object;
 
-};
-*/
 class RenameObject : public QUndoCommand
 {
 public:
@@ -117,7 +96,7 @@ private:
     const std::string _newName;
 
 };
-
+/*
 class ChangeIncl : public QUndoCommand
 {
 public:
@@ -144,14 +123,14 @@ private:
     const double _newIncl;
 
 };
-
+*/
 class RotateObject : public QUndoCommand
 {
 public:
-    RotateObject(SceneObject *object, vsg::dquat q, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    RotateObject(route::SceneObject *object, vsg::dquat q, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _object(object)
-        , _oldQ(object->quat)
-        , _newQ(mult(object->quat, q))
+        , _oldQ(object->getRotation())
+        , _newQ(route::mult(object->getRotation(), q))
     {
         std::string name;
         _object->getValue(META_NAME, name);
@@ -159,24 +138,38 @@ public:
     }
     void undo() override
     {
-        _object->quat = _oldQ;
+        _object->setRotation(_oldQ);
     }
     void redo() override
     {
-        _object->quat = _newQ;
+        _object->setRotation(_newQ);
+    }
+    int id() const override
+    {
+        return 2;
+    }
+    bool mergeWith(const QUndoCommand *other) override
+    {
+        if (other->id() != id())
+            return false;
+        auto rcmd = static_cast<const RotateObject*>(other);
+        if(rcmd->_object != _object)
+            return false;
+        _newQ = rcmd->_newQ;
+        return true;
     }
 private:
-    vsg::ref_ptr<SceneObject> _object;
+    vsg::ref_ptr<route::SceneObject> _object;
     const vsg::dquat _oldQ;
-    const vsg::dquat _newQ;
+    vsg::dquat _newQ;
 };
 
 class MoveObject : public QUndoCommand
 {
 public:
-    MoveObject(SceneObject *object, const vsg::dvec3& pos, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    MoveObject(route::SceneObject *object, const vsg::dvec3& pos, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _object(object)
-        , _oldPos(object->position)
+        , _oldPos(object->getPosition())
         , _newPos(pos)
     {
         std::string name;
@@ -187,46 +180,80 @@ public:
     }
     void undo() override
     {
-        _object->position = _oldPos;
+        _object->setPosition(_oldPos);
     }
     void redo() override
     {
-        _object->position = _newPos;
+        _object->setPosition(_newPos);
     }
-private:
-    vsg::ref_ptr<SceneObject> _object;
+    int id() const override
+    {
+        return 1;
+    }
+    bool mergeWith(const QUndoCommand *other) override
+    {
+        if (other->id() != id())
+            return false;
+        auto mcmd = static_cast<const MoveObject*>(other);
+        if(mcmd->_object != _object)
+            return false;
+        _newPos = mcmd->_newPos;
+        return true;
+    }
+
+protected:
+    vsg::ref_ptr<route::SceneObject> _object;
     const vsg::dvec3 _oldPos;
-    const vsg::dvec3 _newPos;
+    vsg::dvec3 _newPos;
 
 };
 
-class AddTrack : public QUndoCommand
+class ApplyTransformCalculation : public MoveObject
 {
 public:
-    AddTrack(Trajectory *traj, const DatabaseManager::Loaded &loaded, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
-        , _traj(traj)
-        , _loaded(loaded)
+    ApplyTransformCalculation(route::SceneObject *object, const vsg::dvec3& pos, const vsg::dmat4& ltw, QUndoCommand *parent = nullptr)
+        : MoveObject(object, pos, parent)
+        , _oldLtw(object->localToWorld)
+        , _newLtw(ltw)
     {
-        setText(QObject::tr("Добавлен участок пути %1").arg(loaded.path));
+        std::string name;
+        object->getValue(META_NAME, name);
+        setText(QObject::tr("Перемещен объект %1, ECEF %2").arg(name.c_str())
+                .arg("X=" + QString::number(pos.x) + " Y=" + QString::number(pos.x) + " Z=" + QString::number(pos.x)));
+
     }
     void undo() override
     {
-        _traj->removeTrack();
+        MoveObject::undo();
+        _object->localToWorld = _oldLtw;
     }
     void redo() override
     {
-        _traj->addTrack(_loaded.node, _loaded.path.toStdString());
+        MoveObject::redo();
+        _object->localToWorld = _newLtw;
     }
-private:
-    Trajectory *_traj;
-    const DatabaseManager::Loaded _loaded;
+    int id() const override
+    {
+        return QUndoCommand::id();
+    }
 
+private:
+    const vsg::dmat4 _oldLtw;
+    const vsg::dmat4 _newLtw;
+};
+/*
+class DeltaMoveObject : public MoveObject
+{
+public:
+    DeltaMoveObject(route::SceneObject *object, const vsg::dvec3& delta, QUndoCommand *parent = nullptr)
+        : MoveObject(object, object->getPosition() + delta)
+    {}
 };
 
 class AddTrajectory : public QUndoCommand
 {
 public:
-    AddTrajectory(Topology *topology, std::string name, Trajectory *prev = nullptr, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    AddTrajectory(route::Topology *topology, std::string name, Trajectory *prev = nullptr, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _topo(topology)
         , _prev(prev)
         , _traj(Trajectory::create(name))
@@ -296,7 +323,7 @@ private:
     vsg::ref_ptr<Trajectory> _traj;
     Trajectories::iterator it;
 };
-
+*/
 /*
 class MoveTilePoint : public QUndoCommand
 {
