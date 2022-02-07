@@ -16,32 +16,33 @@ set(SOURCES
     src/AddDialog.ui
     src/AddDialog.cpp
     src/AddDialog.h
-#    src/sorter.ui
-#    src/sorter.h
-#    src/sorter.cpp
-#    src/metainf.h
-#    src/metainf.cpp
     src/ObjectPropertiesEditor.h
     src/ObjectPropertiesEditor.cpp
     src/ObjectPropertiesEditor.ui
-#    src/typecase.h
-    src/MouseHandler.h
-    src/MouseHandler.cpp
+    src/SceneObjectVisitor.h
+    src/SceneObjectVisitor.cpp
+    src/ContentManager.h
+    src/ContentManager.cpp
+    src/ContentManager.ui
+    src/tool.h
+    src/tool.cpp
+    src/Painter.h
+    src/Painter.cpp
+    src/Painter.ui
     src/StartDialog.h
     src/StartDialog.cpp
     src/StartDialog.ui
+    src/AddRails.cpp
+    src/AddRails.ui
+    src/AddRails.h
     src/DatabaseManager.cpp
     src/DatabaseManager.h
     src/undo-redo.cpp
     src/undo-redo.h
     src/Manipulator.h
     src/Manipulator.cpp
-    src/tilessorter.cpp
-    src/tilessorter.h
-    src/TilesVisitor.cpp
-    src/TilesVisitor.h
-    src/TrajectoryModel.h
-    src/TrajectoryModel.cpp
+    src/TilesSorter.cpp
+    src/TilesSorter.h
     src/SceneModel.h
     src/SceneModel.cpp
     src/main.cpp
@@ -50,22 +51,26 @@ set(SOURCES
 set(TOOLS
     tools/sceneobjects.h
     tools/sceneobjects.cpp
-    tools/trackobjects.h
-    tools/trackobjects.cpp
-    #tools/connector.h
-    #tools/connector.cpp
     tools/topology.h
     tools/topology.cpp
     tools/trajectory.h
     tools/trajectory.cpp
-    #tools/LambdaVisitor.cpp
-    tools/vehicle-controller.h
-    tools/vehicle-controller.cpp
+    #tools/vehicle-controller.h
+    #tools/vehicle-controller.cpp
+    tools/tiny_obj_loader.h
+    #tools/tiny_obj_loader.cc
     tools/LambdaVisitor.h
     tools/ParentVisitor.cpp
     tools/ParentVisitor.h
 )
 
+set(SPLINE
+    spline_library/splines/uniform_cr_spline.h
+    spline_library/splines/cubic_hermite_spline.h
+    spline_library/utils/arclength.h
+    spline_library/utils/splineinverter.h
+    spline_library/utils/spline_common.h
+)
 
 # Change the default build type to Release
 if(NOT CMAKE_BUILD_TYPE)
@@ -83,11 +88,13 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(Qt6 COMPONENTS Xml REQUIRED)
-find_package(Qt6 COMPONENTS Concurrent REQUIRED)
+#find_package(Qt6 COMPONENTS Concurrent REQUIRED)
 
 find_package(vsg REQUIRED)
 find_package(vsgXchange REQUIRED)
 find_package(vsgQt REQUIRED)
+find_package(Boost REQUIRED)
+find_package(TBB REQUIRED)
 
 # set the use of C++17 globally as all examples require it
 set(CMAKE_CXX_STANDARD 17)
@@ -108,7 +115,7 @@ else()
     add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
 endif()
 
-add_subdirectory(RRSConv)
+#add_subdirectory(RRSConv)
 
 add_executable(editor ${SOURCES})
 
@@ -116,12 +123,16 @@ target_include_directories(editor PRIVATE tools)
 
 add_library(tools ${TOOLS})
 
+add_library(spline ${SPLINE})
+
+target_include_directories(spline PUBLIC spline_library)
+
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_compile_definitions(editor PRIVATE META_NAME="MetaName" META_TRACK="TrackInfo" TILE_PATH="Path" TOPOLOGY_KEY="topology" TOPOLOGY_CHILD=1 ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
+target_compile_definitions(editor PRIVATE META_NAME="MetaName" META_PROPERTY="MetaProp" META_PARENT="Parent" TOPOLOGY_KEY="Topology" TOPOLOGY_CHILD=1 ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
-target_compile_definitions(tools PRIVATE META_NAME="MetaName" META_TRACK="TrackInfo" TOPOLOGY_KEY="topology")
+target_compile_definitions(tools PRIVATE META_NAME="MetaName" META_PROPERTY="MetaProp" META_PARENT="Parent" TOPOLOGY_KEY="Topology")
 
-target_link_libraries(tools Qt6::Core)
+target_link_libraries(tools spline Qt6::Core TBB::tbb)
 
-target_link_libraries(editor tools vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange Qt6::Concurrent)
+target_link_libraries(editor tools vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange)

@@ -15,28 +15,33 @@
 #include <vsg/state/GraphicsPipeline.h>
 #include "sceneobjects.h"
 
+#include <execution>
+
 
 struct PushPopNode
 {
-    ParentVisitor::NodePath& nodePath;
+    ParentIndexer::NodePath& nodePath;
 
-    PushPopNode(ParentVisitor::NodePath& np, const vsg::Node* node) :
+    PushPopNode(ParentIndexer::NodePath& np, vsg::Node* node) :
         nodePath(np) { nodePath.push_back(node); }
     ~PushPopNode() { nodePath.pop_back(); }
 };
 
-ParentVisitor::ParentVisitor(const vsg::Node* node) : vsg::ConstVisitor()
-    , child(node)
+void ParentIndexer::apply(vsg::Node& node)
 {
+    node.setObject(META_PARENT, _nodePath.back());
+    PushPopNode ppn(_nodePath, &node);
+    node.traverse(*this);
 }
 
-void ParentVisitor::apply(const vsg::Node& node)
+void ParentTracer::apply(vsg::Object &node)
 {
-    PushPopNode ppn(_nodePath, &node);
-    if(&node == child)
-        pathToChild = _nodePath;
-    else
-        node.traverse(*this);
+    auto parent = node.getObject(META_PARENT);
+    if(parent)
+    {
+        nodePath.push_front(parent);
+        parent->accept(*this);
+    }
 }
 
 FindPositionVisitor::FindPositionVisitor(const vsg::Node* node) : vsg::ConstVisitor()//ConstSceneObjectsVisitor()
@@ -55,7 +60,8 @@ void FindPositionVisitor::apply(const SectionTrajectory &traj)
 void FindPositionVisitor::apply(const vsg::Group& group)
 {
     auto it = std::find(group.children.cbegin(), group.children.cend(), child);
-    Q_ASSERT(it != group.children.end());
+    if(it != group.children.end())
+        return;
     position = std::distance(group.children.cbegin(), it);
 }
 
@@ -71,7 +77,18 @@ void FindPositionVisitor::apply(const vsg::PagedLOD& plod)
 
 void FindPositionVisitor::apply(const vsg::Switch& sw)
 {
-    position = findPosInStruct(sw, child);
+    auto it = sw.children.begin();
+    for ( ;it != sw.children.end(); ++it)
+    {
+        if ((traversalMask & (overrideMask | it->mask)) != 0)
+        {
+            if (it->node == child)
+                break;
+            ++position;
+        }
+        else
+            continue;
+    }
 }
 
 void FindPositionVisitor::apply(const vsg::CullNode& cn)

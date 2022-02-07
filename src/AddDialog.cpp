@@ -21,7 +21,7 @@ vsg::ref_ptr<vsg::Node> AddDialog::constructNode()
     }
     case 1:
     {
-        auto group = SceneObject::create();
+        auto group = route::SceneObject::create();
         group->setValue(META_NAME, ui->lineEdit->text().toStdString());
         return group;
     }

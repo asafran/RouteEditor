@@ -2,144 +2,198 @@
 #define SCENEOBJECTS_H
 
 #include <QFileInfo>
-#include "trackobjects.h"
-//#include "trajectory.h"
-#include "LambdaVisitor.h"
-#include <vsg/all.h>
+#include <vsg/maths/transform.h>
+#include <vsg/nodes/Transform.h>
+#include <vsg/utils/Builder.h>
+#include <vsg/commands/CopyAndReleaseBuffer.h>
 
-class Trajectory;
-
-class SceneObject : public vsg::Inherit<vsg::Transform, SceneObject>
+namespace route
 {
-public:
-    SceneObject();
-    SceneObject(const vsg::dvec3 &pos, const vsg::dquat &w_quat);
-    SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos, const vsg::dquat &w_quat);
-    SceneObject(vsg::ref_ptr<vsg::Node> loaded, Trajectory *traj, double coord);
-    SceneObject(Trajectory *traj, double coord);
+    class Trajectory;
+    class SplineTrajectory;
 
-
-    virtual ~SceneObject();
-
-    void read(vsg::Input& input) override;
-    void write(vsg::Output& output) const override;
-
-    vsg::dmat4 transform(const vsg::dmat4& m) const override;
-
-    //void setRotation(const vsg::dquat &q);
-
-    vsg::dquat quat = {0.0, 0.0, 0.0, 1.0};
-    vsg::dvec3 position = {};
-
-    Trajectory *trajectory;
-    double trajCoord = 0.0;
-
-protected:
-    vsg::dquat world_quat = {0.0, 0.0, 0.0, 1.0};
-};
-
-class SingleLoader : public vsg::Inherit<SceneObject, SingleLoader>
-{
-public:
-    SingleLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, const vsg::dvec3 &pos = {}, const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0});
-    SingleLoader();
-
-    virtual ~SingleLoader();
-
-    void read(vsg::Input& input) override;
-    void write(vsg::Output& output) const override;
-
-    std::string file;
-};
-/*
-class RailLoader : public vsg::Inherit<vsg::Transform, RailLoader>, public TrackSection
-{
-public:
-    RailLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file, const vsg::dmat4 in_matrix);
-    RailLoader();
-
-    virtual ~RailLoader();
-
-    void read(vsg::Input& input) override;
-    void write(vsg::Output& output) const override;
-
-    vsg::dmat4 transform(const vsg::dmat4& m) const override { return m * matrix; }
-
-    std::string file;
-};
-/*
-class SimpleSingleLoader : public vsg::Inherit<vsg::Node, SimpleSingleLoader>
-{
-public:
-    SimpleSingleLoader(vsg::ref_ptr<vsg::Node> loaded, const std::string &in_file);
-    SimpleSingleLoader();
-
-    virtual ~SimpleSingleLoader();
-
-    void read(vsg::Input& input) override;
-    void write(vsg::Output& output) const override;
-
-    std::string file;
-};
-
-class Junction : public vsg::Inherit<SceneObject, Junction>, public Trajectory
-{
-public:
-    explicit Junction(vsg::ref_ptr<vsg::Node> node, const std::string &name, const vsg::dvec3 &pos = {}, const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
-    explicit Junction(const vsg::dvec3 &pos = {}, const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
-
-    virtual ~Junction();
-
-    void read(vsg::Input& input) override;
-    void write(vsg::Output& output) const override;
-
-
-protected:
-
-};
-*/
-template<typename T>
-vsg::t_quat<T> mult(const vsg::t_quat<T>& lhs, const vsg::t_quat<T>& rhs)
-{
-    vsg::t_vec3<T> lhv(lhs.x, lhs.y, lhs.z);
-    vsg::t_vec3<T> rhv(rhs.x, rhs.y, rhs.z);
-    auto vec = vsg::cross(lhv, rhv) + (rhv * lhs[3]) + (lhv * rhs[3]);
-    return vsg::t_quat<T>(vec.x, vec.y, vec.z, lhs[3] * rhs[3] - vsg::dot(lhv, rhv));
-}
-
-template<typename T>
-vsg::t_vec3<T> mult(const vsg::t_quat<T>& lhs, const vsg::t_vec3<T>& rhs)
-{
-    vsg::t_quat<T> rhq(rhs.x, rhs.y, rhs.z, 0.0);
-    auto quat = mult(rhq, lhs);
-    return vsg::t_vec3<T>(quat.x, quat.y, quat.z);
-}
-
-template<typename T>
-constexpr vsg::t_quat<T> inv(const vsg::t_quat<T>& v)
-{
-    vsg::t_quat<T> c = conjugate(v);
-    T inverse_len = static_cast<T>(1.0) / length(v);
-    return vsg::t_quat<T>(c[0] * inverse_len, c[1] * inverse_len, c[2] * inverse_len, c[3] * inverse_len);
-}
-
-inline vsg::ref_ptr<vsg::Group> lowTile(const vsg::LineSegmentIntersector::Intersection &intersection, uint64_t frameCount)
-{
-    /*
-    auto find = std::find_if(intersection.nodePath.crbegin(), intersection.nodePath.crend(), isCompatible<vsg::PagedLOD>);
-    if(find != intersection.nodePath.crend())
-    {*/
-    if(intersection.nodePath.size() > 6)
+    class SceneObject : public vsg::Inherit<vsg::Transform, SceneObject>
     {
-        auto plod = (*(intersection.nodePath.crbegin() + 6))->cast<vsg::PagedLOD>();
-        if(plod)
-            if(plod->highResActive(frameCount))
-                if(plod->children.front().node.cast<vsg::Group>()->children.front()->is_compatible(typeid (vsg::MatrixTransform)))
-                    return plod->children.front().node.cast<vsg::Group>();
+    public:
+        SceneObject();
+        SceneObject(const vsg::dvec3 &pos, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0}, const vsg::dmat4 &ltw = {});
+        SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos = {}, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0}, const vsg::dmat4 &ltw = {});
+
+
+        virtual ~SceneObject();
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
+        vsg::dmat4 transform(const vsg::dmat4& m) const override;
+
+        //void setRotation(const vsg::dquat &q);
+        virtual void setPosition(const vsg::dvec3& pos) { _position = pos; }
+        virtual void setRotation(const vsg::dquat& rot) { _quat = rot; }
+
+        void setWireframe(vsg::ref_ptr<vsg::Builder> builder);
+        void deselect() { _wireframe = nullptr; }
+
+        void traverse(vsg::RecordTraversal& visitor) const override
+        {
+            Group::traverse(visitor);
+            if(_wireframe)
+                _wireframe->accept(visitor);
+        }
+
+        vsg::dvec3 getPosition() const { return _position; }
+        vsg::dvec3 getWorldPosition() const { return localToWorld * _position; }
+        vsg::dquat getWorldQuat() const { return _world_quat; }
+        vsg::dquat getRotation() const { return _quat; }
+        vsg::dquat getWorldRotation() const;
+
+        bool isSelected() const { return _wireframe.valid(); }
+
+        vsg::dmat4 localToWorld;
+
+    protected:
+        vsg::dvec3 _position;
+        vsg::dquat _quat;
+
+        vsg::ref_ptr<vsg::Node> _wireframe;
+
+        vsg::dquat _world_quat;
+    };
+
+    class SingleLoader : public vsg::Inherit<SceneObject, SingleLoader>
+    {
+    public:
+        SingleLoader(vsg::ref_ptr<vsg::Node> loaded,
+                     const std::string &in_file,
+                     const vsg::dvec3 &pos = {},
+                     const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0},
+                     const vsg::dmat4 &wtl = {});
+        SingleLoader();
+
+        virtual ~SingleLoader();
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
+        std::string file;
+    };
+
+    enum Mask : uint64_t
+    {
+        Tiles = 0b1,
+        SceneObjects = 0b10,
+        Points = 0b100,
+        Letters = 0b1000,
+        Tracks = 0b10000
+    };
+
+    /*
+    constexpr const std::type_info& getType(Mask type)
+    {
+        switch (type) {
+        case Tiles:
+            return typeid (vsg::Switch);
+        case  SceneObjects:
+            return typeid (SceneObject);
+        case  Points:
+            return typeid (SceneObject);
+        case  Letters:
+            return typeid (vsg::Switch);
+        case Tracks:
+            return typeid (SceneTrajectory);
+        }
+    }*/
+
+    class TerrainPoint : public vsg::Inherit<SceneObject, TerrainPoint>
+    {
+    public:
+        explicit TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,
+                              vsg::ref_ptr<vsg::BufferInfo> buffer,
+                              const vsg::dmat4 &wtl,
+                              vsg::ref_ptr<vsg::Node> compiled,
+                              vsg::stride_iterator<vsg::vec3> point);
+
+        virtual ~TerrainPoint();
+
+        void setPosition(const vsg::dvec3& position) override;
+
+    private:
+        vsg::dmat4 _worldToLocal;
+
+        vsg::ref_ptr<vsg::BufferInfo> _info;
+        vsg::ref_ptr<vsg::CopyAndReleaseBuffer> _copyBufferCmd;
+        vsg::stride_iterator<vsg::vec3> _vertex;
+    };
+
+    class RailPoint : public vsg::Inherit<SceneObject, RailPoint>
+    {
+    public:
+        RailPoint(vsg::ref_ptr<vsg::Node> compiled, const vsg::dvec3 &pos);
+        RailPoint();
+
+        virtual ~RailPoint();
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
+        void setPosition(const vsg::dvec3& position) override;
+        void setRotation(const vsg::dquat& rotation) override;
+
+        vsg::dvec3 getTangent() const;
+
+        Trajectory *trajectory;
+    };
+
+    class RailConnector : public vsg::Inherit<RailPoint, RailConnector>
+    {
+    public:
+        RailConnector(vsg::ref_ptr<vsg::Node> compiled, const vsg::dvec3 &pos);
+        RailConnector();
+
+        virtual ~RailConnector();
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
+        void setPosition(const vsg::dvec3& position) override;
+        void setRotation(const vsg::dquat& rotation) override;
+
+        std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const;
+
+        std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const;
+
+        void setFwd(Trajectory *caller);
+
+        void setBwd(Trajectory *caller);
+
+        Trajectory *fwdTrajectory;
+    };
+
+
+    template<typename T>
+    vsg::t_quat<T> mult(const vsg::t_quat<T>& lhs, const vsg::t_quat<T>& rhs)
+    {
+        vsg::t_vec3<T> lhv(lhs.x, lhs.y, lhs.z);
+        vsg::t_vec3<T> rhv(rhs.x, rhs.y, rhs.z);
+        auto vec = vsg::cross(lhv, rhv) + (rhv * lhs[3]) + (lhv * rhs[3]);
+        return vsg::t_quat<T>(vec.x, vec.y, vec.z, lhs[3] * rhs[3] - vsg::dot(lhv, rhv));
     }
-    return vsg::ref_ptr<vsg::Group>();
+
+    template<typename T>
+    vsg::t_vec3<T> mult(const vsg::t_quat<T>& lhs, const vsg::t_vec3<T>& rhs)
+    {
+        vsg::t_quat<T> rhq(rhs.x, rhs.y, rhs.z, 0.0);
+        auto quat = mult(rhq, lhs);
+        return vsg::t_vec3<T>(quat.x, quat.y, quat.z);
+    }
+
+    template<typename T>
+    constexpr vsg::t_quat<T> inv(const vsg::t_quat<T>& v)
+    {
+        vsg::t_quat<T> c = conjugate(v);
+        T inverse_len = static_cast<T>(1.0) / length(v);
+        return vsg::t_quat<T>(c[0] * inverse_len, c[1] * inverse_len, c[2] * inverse_len, c[3] * inverse_len);
+    }
 }
-
-
 
 #endif // SCENEOBJECTS_H
