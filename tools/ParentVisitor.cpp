@@ -20,141 +20,30 @@
 
 struct PushPopNode
 {
-    ParentVisitor::NodePath& nodePath;
+    ParentIndexer::NodePath& nodePath;
 
-    PushPopNode(ParentVisitor::NodePath& np, const vsg::Node* node) :
+    PushPopNode(ParentIndexer::NodePath& np, vsg::Node* node) :
         nodePath(np) { nodePath.push_back(node); }
     ~PushPopNode() { nodePath.pop_back(); }
 };
 
-ParentVisitor::ParentVisitor(const ParentVisitor &p)
-    : operation(p.operation)
-    , _child(p._child)
-    , _stack(p._stack)
+void ParentIndexer::apply(vsg::Node& node)
 {
-    traversalMask = p.traversalMask;
+    node.setObject(META_PARENT, _nodePath.back());
+    PushPopNode ppn(_nodePath, &node);
+    node.traverse(*this);
 }
 
-ParentVisitor::ParentVisitor(vsg::observer_ptr<FindParent> op, const vsg::Node *child)
-    : operation(op)
-    , _child(child)
+void ParentTracer::apply(vsg::Object &node)
 {
-}
-
-void ParentVisitor::apply(const vsg::Node& node)
-{
-    PushPopNode ppn(_stack, &node);
-    if(&node == _child)
+    auto parent = node.getObject(META_PARENT);
+    if(parent)
     {
-        vsg::ref_ptr<FindParent> o(operation);
-        o->found(_stack);
-    }
-    else
-        node.traverse(*this);
-}
-void ParentVisitor::apply(const vsg::Group& node)
-{
-    PushPopNode ppn(_stack, &node);
-    if(&node == _child)
-    {
-        vsg::ref_ptr<FindParent> o(operation);
-        o->found(_stack);
-    }
-    else if(node.children.size() == 1)
-    {
-        node.traverse(*this);
-    }
-    else
-    {
-        {
-            vsg::ref_ptr<FindParent> o(operation);
-            std::for_each(std::next(node.children.begin()), node.children.end(), [o, this](auto child)
-            {
-                o->traverseThreads->add(TraverseOperation::create(ParentVisitor(*this), child.get()));
-            });
-        }
-        node.children.front()->accept(*this);
+        nodePath.push_front(parent);
+        parent->accept(*this);
     }
 }
 
-FindParent::FindParent(vsg::ref_ptr<vsg::ActivityStatus> status)
-    : _status(status)
-{
-    traverseThreads = vsg::OperationThreads::create(16, status);
-}
-
-void FindParent::found(const ParentVisitor::NodePath &_stack)
-{
-    pathToChild = _stack;
-    _status->set(false);
-}
-
-void FindParent::apply(const vsg::Node *node, const vsg::Node *child, uint32_t mask)
-{
-    ParentVisitor pv(vsg::observer_ptr<FindParent>(this), child);
-    pv.traversalMask = mask;
-    node->accept(pv);
-
-    while(_status->active());
-
-    traverseThreads->stop();
-}
-/*
-ParentVisitor::TraverseOperation::TraverseOperation(const TraverseOperation &to, const vsg::Node *in_node)
-    : child(to.child)
-    , node(in_node)
-    , pv(to.pv)
-    , nodePath(to.nodePath)
-{
-}
-*/
-TraverseOperation::TraverseOperation(const ParentVisitor &in_pv, const vsg::Node *in_node)
-    : node(in_node)
-    , pv(in_pv)
-
-{
-}
-
-void TraverseOperation::run()
-{
-    node->accept(pv);
-}
-/*
-void ParentVisitor::TraverseOperation::apply(const vsg::Node& node)
-{
-    PushPopNode ppn(nodePath, &node);
-    if(&node == child)
-    {
-        vsg::ref_ptr<ParentVisitor> pvisitor(pv);
-        pvisitor->found(nodePath);
-    }
-    else
-        node.traverse(*this);
-}
-
-void ParentVisitor::TraverseOperation::apply(const vsg::Group& node)
-{
-    PushPopNode ppn(nodePath, &node);
-    if(&node == child)
-    {
-        vsg::ref_ptr<ParentVisitor> pvisitor(pv);
-        pvisitor->found(nodePath);
-    }
-    else if(node.children.size() == 1)
-    {
-        node.traverse(*this);
-    }
-    else
-    {
-        vsg::ref_ptr<ParentVisitor> pvisitor(pv);
-        std::for_each(std::next(node.children.begin()), node.children.end(), [pvisitor, this](auto child)
-        {
-            pvisitor->traverseThreads->add(TraverseOperation::create(*this, child.get()));
-        });
-        node.children.front()->accept(*this);
-    }
-}
-*/
 FindPositionVisitor::FindPositionVisitor(const vsg::Node* node) : vsg::ConstVisitor()//ConstSceneObjectsVisitor()
     , child(node)
 {

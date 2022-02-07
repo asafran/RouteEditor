@@ -22,8 +22,6 @@ public slots:
     void activeGroupChanged(const QModelIndex &index);
 
 private:
-    QModelIndex findGroup(const FindNode& isection);
-
     bool addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &isection);
 
     Ui::ContentManager *ui;

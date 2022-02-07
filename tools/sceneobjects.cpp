@@ -214,14 +214,14 @@ namespace route
     {
         RailPoint::read(input);
 
-        input.read("fwdTraj", fwdTrajectory);
+        input.read("sndTraj", fwdTrajectory);
     }
 
     void RailConnector::write(vsg::Output &output) const
     {
         RailPoint::write(output);
 
-        output.write("fwdTraj", fwdTrajectory);
+        output.write("sndTraj", fwdTrajectory);
     }
 
     void RailConnector::setPosition(const vsg::dvec3& position)

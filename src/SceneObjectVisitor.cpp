@@ -114,41 +114,32 @@
             apply(*traj);
         else if(auto point = node.cast<route::RailPoint>(); point)
             apply(*point);
-        prev = &node;
     }
 
     void FindNode::apply(const route::SceneObject &object)
     {
-        if(prev != nullptr)
-            objects.push_back(std::make_pair(&object, prev));
-        prev = &object;
+        objects.push_back(&object);
     }
 
     void FindNode::apply(const route::Trajectory &traj)
     {
-        if(prev != nullptr)
-            track = std::make_pair(&traj, prev);
-        prev = &traj;
+        track = &traj;
     }
 
     void FindNode::apply(const route::RailPoint &point)
     {
-        if(prev != nullptr)
-            trackpoint = std::make_pair(&point, prev);
-        prev = &point;
+        trackpoint = &point;
     }
 
     void FindNode::apply(const vsg::MatrixTransform &transform)
     {
         terrain = &transform;
-        prev = &transform;
     }
 
     void FindNode::apply(const vsg::Switch &sw)
     {
-        if(prev != nullptr && sw.children.front().mask == route::Tiles)
-            tile = std::make_pair(&sw, prev);
-        prev = &sw;
+        if(sw.children.front().mask == route::Tiles)
+            tile = &sw;
     }
 /*
 CreateAddCommand::CreateAddCommand(const vsg::LineSegmentIntersector::Intersection &lsi,

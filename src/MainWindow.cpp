@@ -88,9 +88,9 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
             auto parent = static_cast<vsg::Node*>(parentIndex.internalPointer());
             Q_ASSERT(parent);
 
-            auto fp = FindParent::create();
-            fp->apply(database->getRoot(), parent, route::SceneObjects);
-            auto ltw = vsg::computeTransform(fp->pathToChild);
+            ParentTracer pt;
+            parent->accept(pt);
+            auto ltw = vsg::computeTransform(pt.nodePath);
             auto wtl = vsg::inverse(ltw);
 
             auto node = static_cast<vsg::Node*>(front.internalPointer());
@@ -208,9 +208,9 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         viewer->addWindow(window);
 
-        auto memoryBufferPools = vsg::MemoryBufferPools::create("Staging_MemoryBufferPool", vsg::ref_ptr<vsg::Device>(window->getOrCreateDevice()));
-        auto copyBufferCmd = vsg::CopyAndReleaseBuffer::create(memoryBufferPools);
-        auto copyImageCmd = vsg::CopyAndReleaseImage::create(memoryBufferPools);
+        //auto memoryBufferPools = vsg::MemoryBufferPools::create("Staging_MemoryBufferPool", vsg::ref_ptr<vsg::Device>(window->getOrCreateDevice()));
+        auto copyBufferCmd = vsg::CopyAndReleaseBuffer::create();
+        auto copyImageCmd = vsg::CopyAndReleaseImage::create();
 
         QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
@@ -250,7 +250,6 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
 
-        builder->setup(window, camera->viewportState);
         //compiler->setup(window, camera->viewportState);
 
         // add close handler to respond the close window button and pressing escape
@@ -259,7 +258,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         // setup command graph to copy the image data each frame then rendering the scene graph
         auto grahics_commandGraph = vsg::CommandGraph::create(window);
-        grahics_commandGraph->addChild(copyBufferCmd);
+        //grahics_commandGraph->addChild(copyBufferCmd);
         grahics_commandGraph->addChild(vsg::createRenderGraphForView(window, camera, database->getRoot()));
 
         auto addBins = [&](vsg::View& view)
@@ -269,19 +268,18 @@ QWindow* MainWindow::initilizeVSGwindow()
         };
         LambdaVisitor<decltype(addBins), vsg::View> lv(addBins);
 
-        grahics_commandGraph->accept(lv);
+        //grahics_commandGraph->accept(lv);
 
         // add trackball to enable mouse driven camera view control.
         auto manipulator = Manipulator::create(camera, ellipsoidModel, database, this);
 
+        builder->setup(window, camera->viewportState);
+
         viewer->addEventHandler(manipulator);
 
-        viewer->assignRecordAndSubmitTaskAndPresentation({grahics_commandGraph});
+        viewer->assignRecordAndSubmitTaskAndPresentation({vsg::createCommandGraphForView(window, camera, database->getRoot())});
 
-        auto resourceHints = vsg::ResourceHints::create();
-        resourceHints->maxSlot = 1;
-
-        viewer->compile(resourceHints);
+        viewer->compile();
 
         connect(ui->actionSave, &QAction::triggered, database, &DatabaseManager::writeTiles);
 

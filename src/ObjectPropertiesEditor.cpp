@@ -220,10 +220,10 @@ void ObjectPropertiesEditor::intersection(const FindNode& isection)
 
     updateData();
 }
-void ObjectPropertiesEditor::toggle(std::pair<const route::SceneObject *, const vsg::Node *> object)
+void ObjectPropertiesEditor::toggle(const route::SceneObject *object)
 {
-    auto casted = const_cast<route::SceneObject*>(object.first);
-    auto index = _database->getTilesModel()->index(object.first, object.second);
+    auto casted = const_cast<route::SceneObject*>(object);
+    auto index = _database->getTilesModel()->index(object);
     if(auto selectedIt = _selectedObjects.find(index); selectedIt != _selectedObjects.end())
     {
         auto selected = selectedIt->second;

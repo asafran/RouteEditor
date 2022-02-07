@@ -8,56 +8,24 @@
 #include <vsg/threading/OperationQueue.h>
 #include "LambdaVisitor.h"
 
-class FindParent;
-
-class ParentVisitor : public vsg::ConstVisitor
+class ParentIndexer : public vsg::Visitor
 {
 public:
-    using NodePath = std::vector<const vsg::Node*>;
+    using NodePath = std::vector<vsg::Node*>;
 
-    ParentVisitor(vsg::observer_ptr<FindParent> op, const vsg::Node *child);
-
-    ParentVisitor(const ParentVisitor &p);
-
-    void apply(const vsg::Group &) override;
-    void apply(const vsg::Node &) override;
-
-    vsg::observer_ptr<FindParent> operation;
+    void apply(vsg::Node& node) override;
 
 protected:
-    const vsg::Node *_child;
-
-    NodePath _stack;
+    NodePath _nodePath = {nullptr};
 };
 
-class FindParent : public vsg::Inherit<vsg::Object, FindParent>
+class ParentTracer : public vsg::Visitor
 {
 public:
-    explicit FindParent(vsg::ref_ptr<vsg::ActivityStatus> status = vsg::ActivityStatus::create());
+    void apply(vsg::Object& object) override;
 
-    ParentVisitor::NodePath pathToChild;
-
-    vsg::ref_ptr<vsg::OperationThreads> traverseThreads;
-
-    void found(const ParentVisitor::NodePath &_stack);
-
-    void apply(const vsg::Node* node, const vsg::Node *child, uint32_t mask);
-
-protected:
-
-    vsg::ref_ptr<vsg::ActivityStatus> _status;
+    std::list<Object*> nodePath;
 };
-
-struct TraverseOperation : public vsg::Inherit<vsg::Operation, TraverseOperation>
-{
-    TraverseOperation(const ParentVisitor &in_pv, const vsg::Node *in_node);
-
-    const vsg::Node *node;
-    ParentVisitor pv;
-
-    void run() override;
-};
-
 
 class FindPositionVisitor : public vsg::ConstVisitor//ConstSceneObjectsVisitor
 {

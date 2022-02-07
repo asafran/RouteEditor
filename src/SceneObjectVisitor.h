@@ -103,10 +103,10 @@ namespace route {
         FindNode(const vsg::LineSegmentIntersector::Intersection &lsi);
         FindNode();
 
-        std::vector<std::pair<const route::SceneObject*, const vsg::Node*>> objects;
-        std::pair<const route::Trajectory*, const vsg::Node*> track;
-        std::pair<const route::RailPoint*, const vsg::Node*> trackpoint;
-        std::pair<const vsg::Switch*, const vsg::Node*> tile;
+        std::vector<const route::SceneObject*> objects;
+        const route::Trajectory* track;
+        const route::RailPoint* trackpoint;
+        const vsg::Switch* tile;
         const vsg::MatrixTransform* terrain;
 
         uint16_t keyModifier;
@@ -122,9 +122,6 @@ namespace route {
         void apply(const vsg::MatrixTransform &transform) override;
 
         void apply(const vsg::Switch &sw) override;
-
-    private:
-        const vsg::Node *prev = nullptr;
     };
 /*
     class CreateAddCommand : public vsg::ConstVisitor, public vsg::LineSegmentIntersector::Intersection

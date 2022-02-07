@@ -34,7 +34,7 @@ signals:
 private:
 
     void clear();
-    void toggle(std::pair<const route::SceneObject*, const vsg::Node*> object);
+    void toggle(const route::SceneObject* object);
     void select(const QModelIndex &index, route::SceneObject *object);
 
     Ui::ObjectPropertiesEditor *ui;

@@ -91,14 +91,10 @@ void AddRails::intersection(const FindNode &isection)
     auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, attrib, texture, builder->createBox(gi), 2.0, 1.5);
     auto adapter = route::SceneTrajectory::create(traj);
 
-    if(!isection.tile.first)
+    if(!isection.tile)
         return;
 
-    auto tilesModel = _database->getTilesModel();
-    FindPositionVisitor fpv(isection.tile.first);
-    auto index = tilesModel->index(fpv(tilesModel->getRoot()), 0, QModelIndex());
-
-    _database->push(new AddSceneObject(_database->getTilesModel(), index, adapter));
+    _database->push(new AddSceneObject(_database->getTilesModel(), _database->getTilesModel()->index(isection.tile), adapter));
 
     //const_cast<vsg::Switch*>(isection.tile.first)->addChild(route::SceneObjects, adapter);
 

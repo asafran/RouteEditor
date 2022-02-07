@@ -107,7 +107,7 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         _updateMode = INACTIVE;
 
         auto isection = intersectedObjects(route::Tiles, buttonPress);
-        if(isection.tile.first == nullptr)
+        if(isection.tile == nullptr)
             return;
         setViewpoint(isection.worldIntersection);
         //FindPositionVisitor fpv(isection.tile.first);
@@ -243,10 +243,9 @@ void Manipulator::moveToObject(const QModelIndex &index)
         setViewpoint(sceneobject->getWorldPosition());
         return;
     }
-    auto fp = FindParent::create();
-    fp->apply(_database->getRoot(), object, route::SceneObjects);
-    fp->pathToChild.pop_back();
-    auto ltw = vsg::computeTransform(fp->pathToChild);
+    ParentTracer pt;
+    object->accept(pt);
+    auto ltw = vsg::computeTransform(pt.nodePath);
 
     vsg::ComputeBounds computeBounds;
     object->accept(computeBounds);

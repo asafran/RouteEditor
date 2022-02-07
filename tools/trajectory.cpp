@@ -7,7 +7,10 @@
 #include    <vsg/io/read.h>
 #include    "topology.h"
 #include    "sceneobjects.h"
-#include    <vsg/all.h>
+#include    "LambdaVisitor.h"
+#include    <vsg/nodes/VertexIndexDraw.h>
+#include    <vsg/nodes/StateGroup.h>
+#include    <vsg/io/ObjectCache.h>
 
 
 //------------------------------------------------------------------------------
@@ -41,9 +44,6 @@ namespace route
             it += 3;
         }
 
-        _points.push_back(fwdPoint);
-        _points.push_back(bwdPoint);
-
         fwdPoint->setBwd(this);
         bwdPoint->setFwd(this);
 
@@ -56,7 +56,7 @@ namespace route
         while (it < end)
             _uv2.push_back(vsg::vec2(*it++, *it++));
 
-        recalculate();
+        SplineTrajectory::recalculate();
     }
 
     SplineTrajectory::SplineTrajectory()
@@ -74,30 +74,44 @@ namespace route
 
     void SplineTrajectory::read(vsg::Input& input)
     {
-        /*
-        Object::read(input);
+        Group::read(input);
 
-        input.read("sections", sections);
-        input.read("lenght", lenght);
-        input.read("frontReversed", frontReversed);
-        input.read("matrixStack", matrixStack);
+        input.read("sleepersDistance", _sleepersDistance);
+        input.read("gaudge", _gaudge);
+        input.read("autoPositioned", _autoPositioned);
+        input.read("points", _points);
+        input.read("geometry", _geometry);
+        input.read("uv1", _uv1);
+        input.read("uv2", _uv2);
+        input.read("texture", _texture);
+        input.read("sleeper", _sleeper);
 
-        input.read("fwd", fwdTraj);
-        */
+        input.read("fwdPoint", _fwdPoint);
+        input.read("bwdPoint", _bwdPoint);
+
+        input.read("track", _track);
+
+        updateSpline();
     }
 
     void SplineTrajectory::write(vsg::Output& output) const
     {
-        /*
-        Object::write(output);
+        Group::write(output);
 
-        output.write("sections", sections);
-        output.write("lenght", lenght);
-        output.write("frontReversed", frontReversed);
-        output.write("matrixStack", matrixStack);
+        output.write("sleepersDistance", _sleepersDistance);
+        output.write("gaudge", _gaudge);
+        output.write("autoPositioned", _autoPositioned);
+        output.write("points", _points);
+        output.write("geometry", _geometry);
+        output.write("uv1", _uv1);
+        output.write("uv2", _uv2);
+        output.write("texture", _texture);
+        output.write("sleeper", _sleeper);
 
-        output.write("fwd", fwdTraj);
-        */
+        output.write("fwdPoint", _fwdPoint);
+        output.write("bwdPoint", _bwdPoint);
+
+        output.write("track", _track);
     }
 
     vsg::dvec3 SplineTrajectory::getPosition(double x) const
@@ -120,13 +134,15 @@ namespace route
         return InterpolatedPTM(std::move(pt)).calculated;
     }
 
-    void SplineTrajectory::recalculate()
+    void SplineTrajectory::updateSpline()
     {
-
         std::vector<vsg::dvec3> points;
         std::vector<vsg::dvec3> tangents;
 
-        auto front = _points.front()->getPosition();
+        auto front = _fwdPoint->getPosition();
+
+        points.push_back(front);
+        tangents.push_back(_fwdPoint->getTangent());
 
         std::transform(_points.begin(), _points.end(), std::back_insert_iterator(points),
                        [](const vsg::ref_ptr<RailPoint> sp)
@@ -139,12 +155,19 @@ namespace route
             return sp->getTangent();
         });
 
-        //points.push_back(_fwdPoint->getPosition() - front);
-        //tangents.push_back(_fwdPoint->getTangent());
+        points.push_back(_bwdPoint->getPosition() - front);
+        tangents.push_back(_bwdPoint->getTangent());
 
         _railSpline.reset(new InterpolationSpline(points, tangents));
+    }
+
+    void SplineTrajectory::recalculate()
+    {
+        updateSpline();
 
         auto partitionBoundaries = ArcLength::partition(*_railSpline, _sleepersDistance);
+
+        auto front = _fwdPoint->getPosition();
 
         std::vector<InterpolatedPTM> derivatives(partitionBoundaries.size());
         std::transform(std::execution::par_unseq, partitionBoundaries.begin(), partitionBoundaries.end(), derivatives.begin(),
@@ -153,44 +176,21 @@ namespace route
             return std::move(InterpolatedPTM(railSpline->getTangent(T), front));
         });
 
-        //std::mutex m;
         _track = vsg::MatrixTransform::create(vsg::translate(front));
         std::for_each(derivatives.begin(), derivatives.end(), [ sleeper=_sleeper, group=_track](const InterpolatedPTM &ptcm)
         {
             auto transform = vsg::MatrixTransform::create(ptcm.calculated);
             transform->addChild(sleeper);
-            //std::lock_guard<std::mutex> guard(m);
             group->addChild(transform);
         });
 
         //auto last = std::unique(std::execution::par, derivatives.begin(), derivatives.end()); //vectorization is not supported
         //derivatives.erase(last, derivatives.end());
-/*
-        auto vertices = std::transform_reduce(derivatives.begin(), derivatives.end(), std::vector<vsg::vec3>(),
-        [](auto vertices, auto transformed)
-        {
-            if(vertices.empty())
-                return transformed;
-            vertices.insert(std::end(vertices), std::begin(transformed), std::end(transformed));
-            return vertices;
-        },
-        [geometry=_geometry](const InterpolatedPTCM &ptcm)
-        {
-            vsg::vec3 offset(1.0, 0.0, 0.0);
-
-            auto fmat = static_cast<vsg::mat4>(ptcm.calculated);
-            auto copy = geometry;
-
-            for(auto vec = copy.begin(); vec != copy.end(); ++vec)
-            {
-                *vec = fmat * (*vec + offset);
-            }
-
-            return copy;
-        });*/
 
         assignRails(createSingleRail(vsg::vec3(_gaudge / 2.0, 0.0, 0.0), derivatives));
         assignRails(createSingleRail(vsg::vec3(-_gaudge / 2.0, 0.0, 0.0), derivatives));
+
+        updateAttached();
     }
 
     std::pair<vsg::DataList, vsg::ref_ptr<vsg::ushortArray>> SplineTrajectory::createSingleRail(const vsg::vec3 &offset, const std::vector<InterpolatedPTM> &derivatives) const
@@ -264,146 +264,6 @@ namespace route
 
     void SplineTrajectory::assignRails(std::pair<vsg::DataList, vsg::ref_ptr<vsg::ushortArray>> data)
     {
-/*
-        auto stateGroup = vsg::StateGroup::create();
-
-        // load shaders
-        auto vertexShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp.vert", _builder->options);
-        //if (!vertexShader) vertexShader = assimp_vert(); // fallback to shaders/assimp_vert.cppp
-
-        auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp_phong.frag", _builder->options);
-        //if (!fragmentShader) fragmentShader = assimp_phong_frag();
-
-
-        if (!vertexShader || !fragmentShader)
-        {
-            std::cout << "Could not create shaders." << std::endl;
-            return;
-        }
-
-        auto shaderHints = vsg::ShaderCompileSettings::create();
-        std::vector<std::string>& defines = shaderHints->defines;
-
-        vertexShader->module->hints = shaderHints;
-        vertexShader->module->code = {};
-
-        fragmentShader->module->hints = shaderHints;
-        fragmentShader->module->code = {};
-
-        // set up graphics pipeline
-        vsg::DescriptorSetLayoutBindings descriptorBindings;
-        if (image)
-        {
-            // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
-            descriptorBindings.push_back(VkDescriptorSetLayoutBinding{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr});
-            defines.push_back("VSG_DIFFUSE_MAP");
-        }
-
-        if (stateInfo.displacementMap)
-        {
-            // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
-            descriptorBindings.push_back(VkDescriptorSetLayoutBinding{6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr});
-            defines.push_back("VSG_DISPLACEMENT_MAP");
-        }
-
-        {
-            descriptorBindings.push_back(VkDescriptorSetLayoutBinding{10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr});
-        }
-
-        auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
-
-        vsg::DescriptorSetLayouts descriptorSetLayouts{descriptorSetLayout};
-
-        vsg::PushConstantRanges pushConstantRanges{
-            {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls automatically provided by the VSG's DispatchTraversal
-        };
-
-        auto pipelineLayout = vsg::PipelineLayout::create(descriptorSetLayouts, pushConstantRanges);
-
-    //#if FLOAT_COLORS
-        uint32_t colorSize = sizeof(vsg::vec4);
-        VkFormat colorFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
-    #else
-        uint32_t colorSize = sizeof(ubvec4);
-        VkFormat colorFormat = VK_FORMAT_R8G8B8A8_UNORM;
-    #endif
-
-        vsg::VertexInputState::Bindings vertexBindingsDescriptions{
-            VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // vertex data
-            VkVertexInputBindingDescription{1, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // normal data
-            VkVertexInputBindingDescription{2, sizeof(vsg::vec2), VK_VERTEX_INPUT_RATE_VERTEX}  // tex coord data
-        };
-
-        vsg::VertexInputState::Attributes vertexAttributeDescriptions{
-            VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0}, // vertex data
-            VkVertexInputAttributeDescription{1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0}, // normal data
-            VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R32G32_SFLOAT, 0}     // tex coord data
-        };
-
-        if (stateInfo.instancce_colors_vec4)
-        {
-            uint32_t colorBinding = static_cast<uint32_t>(vertexBindingsDescriptions.size());
-            vertexBindingsDescriptions.push_back(VkVertexInputBindingDescription{colorBinding, colorSize, VK_VERTEX_INPUT_RATE_INSTANCE}); // color data
-            vertexAttributeDescriptions.push_back(VkVertexInputAttributeDescription{3, colorBinding, colorFormat, 0});                     // color data
-
-        auto rasterState = vsg::RasterizationState::create();
-        rasterState->cullMode = VK_CULL_MODE_BACK_BIT;
-
-        auto colorBlendState = vsg::ColorBlendState::create();
-        colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
-            {true, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
-
-        auto inputAssemblyState = vsg::InputAssemblyState::create();
-
-        vsg::GraphicsPipelineStates pipelineStates{
-            vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
-            inputAssemblyState,
-            rasterState,
-            vsg::MultisampleState::create(),
-            colorBlendState,
-            vsg::DepthStencilState::create()};
-
-        auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, vsg::ShaderStages{vertexShader, fragmentShader}, pipelineStates);
-
-        auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
-
-        stateGroup->add(bindGraphicsPipeline);
-
-        //auto displacementMap = stateInfo.displacementMap;
-
-        // create texture image and associated DescriptorSets and binding
-        auto mat = vsg::PhongMaterialValue::create();
-        auto material = vsg::DescriptorBuffer::create(mat, 10);
-
-        vsg::Descriptors descriptors;
-        if (image)
-        {
-            auto sampler = vsg::Sampler::create();
-            sampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-
-            auto texture = vsg::DescriptorImage::create(sampler, image, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-            descriptors.push_back(texture);
-        }
-
-        if (displacementMap)
-        {
-            auto sampler = Sampler::create();
-            sampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-
-            auto texture = DescriptorImage::create(sampler, displacementMap, 6, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-            descriptors.push_back(texture);
-        }
-
-        descriptors.push_back(material);
-
-        auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descriptors);
-        auto bindDescriptorSets = vsg::BindDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, vsg::DescriptorSets{descriptorSet});
-
-        stateGroup->add(bindDescriptorSets);
-        */
-
         auto vid = vsg::VertexIndexDraw::create();
 
         vid->assignArrays(data.first);
@@ -425,6 +285,18 @@ namespace route
         _track->addChild(stateGroup);
 
         //_builder->compile(_track);
+    }
+
+    void SplineTrajectory::updateAttached()
+    {
+        auto computeTransform = [this](vsg::MatrixTransform& transform)
+        {
+            double coord = 0.0;
+            transform.getValue(META_PROPERTY, coord);
+            transform.matrix = getMatrixAt(coord);
+        };
+        LambdaVisitor<decltype (computeTransform), vsg::MatrixTransform> ct(computeTransform);
+        Trajectory::accept(ct);
     }
 
     void SplineTrajectory::add(vsg::ref_ptr<RailPoint> rp)

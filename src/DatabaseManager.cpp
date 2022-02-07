@@ -5,6 +5,7 @@
 #include <QInputDialog>
 #include "undo-redo.h"
 #include "topology.h"
+#include "ParentVisitor.h"
 #include <QRegularExpression>
 
 #include <execution>
@@ -21,6 +22,7 @@ DatabaseManager::DatabaseManager(QString path, QUndoStack *stack, vsg::ref_ptr<v
         throw (DatabaseException(path));
     try {
         _topology = _database->children.at(TOPOLOGY_CHILD).cast<route::Topology>();
+        _topology->assignBuilder(builder);
     }  catch (std::out_of_range) {
         _topology = route::Topology::create();
         _database->addChild(_topology);
@@ -172,9 +174,10 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
 
     _root->addChild(scene);
 
+    ParentIndexer pi;
+    tiles->accept(pi);
+
     _tilesModel = new SceneModel(tiles, _builder, _undoStack, this);
-
-
 
     return _tilesModel;
 }
@@ -186,6 +189,12 @@ void DatabaseManager::writeTiles() noexcept
         object.removeObject("bound");
     };
     LambdaVisitor<decltype (removeBounds), vsg::VertexIndexDraw> lv(removeBounds);
+
+    auto removeParents = [](vsg::Node& node)
+    {
+        node.removeObject(META_PARENT);
+    };
+    LambdaVisitor<decltype (removeParents), vsg::Node> lvmp(removeParents);
 
     auto removePoints = [](vsg::Switch& sw)
     {
@@ -207,6 +216,8 @@ void DatabaseManager::writeTiles() noexcept
     };
     LambdaVisitor<decltype (removePoints), vsg::Switch> lvp(removePoints);
     _tilesModel->getRoot()->accept(lvp);
+    _tilesModel->getRoot()->accept(lv);
+    _tilesModel->getRoot()->accept(lvmp);
 
 
     vsg::write(_database, _databasePath.toStdString(), _builder->options);

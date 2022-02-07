@@ -156,6 +156,8 @@ namespace route
         {
             for (auto& child : node._autoPositioned) child->accept(visitor);
             for (auto& child : node._points) child->accept(visitor);
+            node._fwdPoint->accept(visitor);
+            node._bwdPoint->accept(visitor);
         }
 
         void traverse(vsg::Visitor& visitor) override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
@@ -170,9 +172,13 @@ namespace route
 
     private:
 
+        void updateSpline();
+
         void assignRails(std::pair<vsg::DataList, vsg::ref_ptr<vsg::ushortArray>> data);
 
         std::pair<vsg::DataList, vsg::ref_ptr<vsg::ushortArray>> createSingleRail(const vsg::vec3 &offset, const std::vector<InterpolatedPTM> &derivatives) const;
+
+        void updateAttached();
 
         double _sleepersDistance;
 
@@ -199,6 +205,8 @@ namespace route
 
         vsg::ref_ptr<RailConnector>     _fwdPoint;
         vsg::ref_ptr<RailConnector>     _bwdPoint;
+
+        friend class Topology;
     };
 
     class SceneTrajectory : public vsg::Inherit<vsg::Group, SceneTrajectory>
