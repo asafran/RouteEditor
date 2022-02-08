@@ -13,7 +13,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 
     setEnabled(false);
 
-    auto stack = _database->getUndoStack();
+    auto stack = _database->undoStack;
 
     connect(stack, &QUndoStack::indexChanged, this, &ObjectPropertiesEditor::updateData);
 
@@ -115,7 +115,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
     connect(ui->rotXspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
         auto rad = qDegreesToRadians(d);
-        _database->push(new RotateObject(_firstObject, vsg::dquat(rad - _xrot, vsg::dvec3(1.0, 0.0, 0.0))));
+        stack->push(new RotateObject(_firstObject, vsg::dquat(rad - _xrot, vsg::dvec3(1.0, 0.0, 0.0))));
         _xrot = rad;
         if(_selectedObjects.size() != 1)
             emit sendStatusText(tr("Вращение нескольких объектов не поддерживается"), 2000);
@@ -123,7 +123,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
     connect(ui->rotYspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
         auto rad = qDegreesToRadians(d);
-        _database->push(new RotateObject(_firstObject, vsg::dquat(rad - _yrot, vsg::dvec3(0.0, 1.0, 0.0))));
+        stack->push(new RotateObject(_firstObject, vsg::dquat(rad - _yrot, vsg::dvec3(0.0, 1.0, 0.0))));
         _yrot = rad;
         if(_selectedObjects.size() != 1)
             emit sendStatusText(tr("Вращение нескольких объектов не поддерживается"), 2000);
@@ -131,7 +131,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
     connect(ui->rotZspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
         auto rad = qDegreesToRadians(d);
-        _database->push(new RotateObject(_firstObject, vsg::dquat(rad - _zrot, vsg::dvec3(0.0, 0.0, 1.0))));
+        stack->push(new RotateObject(_firstObject, vsg::dquat(rad - _zrot, vsg::dvec3(0.0, 0.0, 1.0))));
         _zrot = rad;
         if(_selectedObjects.size() != 1)
             emit sendStatusText(tr("Вращение нескольких объектов не поддерживается"), 2000);
@@ -168,7 +168,7 @@ void ObjectPropertiesEditor::move(const vsg::dvec3 &delta)
     for(auto &index : _selectedObjects)
     {
         auto object = index.second;
-        _database->push(new MoveObject(object, object->getPosition() + delta));
+        _database->undoStack->push(new MoveObject(object, object->getPosition() + delta));
     }
 }
 
@@ -178,7 +178,7 @@ void ObjectPropertiesEditor::selectObject(const QItemSelection &selected, const 
         if(!selected.contains(index) && (_selectedObjects.find(index) != _selectedObjects.end()))
         {
             auto deselectObject = _selectedObjects.at(index);
-            deselectObject->deselect();
+            deselectObject->setSelection(false);
             _selectedObjects.erase(index);
             if(deselectObject == _firstObject)
                 _firstObject = _selectedObjects.empty() ? nullptr : _selectedObjects.begin()->second;
@@ -223,11 +223,11 @@ void ObjectPropertiesEditor::intersection(const FindNode& isection)
 void ObjectPropertiesEditor::toggle(const route::SceneObject *object)
 {
     auto casted = const_cast<route::SceneObject*>(object);
-    auto index = _database->getTilesModel()->index(object);
+    auto index = _database->tilesModel->index(object);
     if(auto selectedIt = _selectedObjects.find(index); selectedIt != _selectedObjects.end())
     {
         auto selected = selectedIt->second;
-        selected->deselect();
+        selected->setSelection(false);
 
         //_selectedObjects.erase(selectedIt);
         emit deselectItem(selectedIt->first);
@@ -248,7 +248,7 @@ void ObjectPropertiesEditor::clear()
     _firstObject = nullptr;
     emit sendFirst(_firstObject);
     for (auto &object : _selectedObjects) {
-        object.second->deselect();
+        object.second->setSelection(false);
     }
     _selectedObjects.clear();
     emit deselect();
@@ -260,7 +260,7 @@ void ObjectPropertiesEditor::select(const QModelIndex &index, route::SceneObject
         _firstObject = object;
         emit sendFirst(_firstObject);
     }
-    object->setWireframe(_database->getBuilder());
+    object->setSelection(true);
     _selectedObjects.insert({index, object});
 }
 

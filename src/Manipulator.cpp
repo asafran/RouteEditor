@@ -21,7 +21,7 @@ Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera,
     supportsThrow = false;
 
     createPointer();
-    manager->getRoot()->addChild(_pointer);
+    manager->root->addChild(_pointer);
 }
 Manipulator::~Manipulator()
 {
@@ -38,7 +38,7 @@ void Manipulator::createPointer()
     info.dy.set(0.0f, 1.0f * size, 0.0f);
     info.dz.set(0.0f, 0.0f, 1.0f * size);
     info.position = {0.0f, 0.0f, -1.0f * size / 2};
-    auto cone = _database->getBuilder()->createCone(info);
+    auto cone = _database->builder->createCone(info);
     _pointer->addChild(cone);
 }
 
@@ -95,7 +95,7 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         _updateMode = INACTIVE;
         if(_isMoving)
         {
-            _database->getUndoStack()->endMacro();
+            _database->undoStack->endMacro();
             _isMoving = false;
         }
         emit sendIntersection(intersectedObjects(_mask, buttonPress));
@@ -262,7 +262,7 @@ void Manipulator::startMoving()
     if(!_isMoving)
     {
         _isMoving = true;
-        _database->getUndoStack()->beginMacro(tr("Перемещены объекты"));
+        _database->undoStack->beginMacro(tr("Перемещены объекты"));
     }
 }
 
@@ -283,7 +283,8 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
 
 
         vsg::dvec3 delta;
-        delta = isection.worldIntersection - _movingObject->getWorldPosition();
+        delta = isection.worldIntersection - _prev;
+        _prev = isection.worldIntersection;
 
         emit sendMovingDelta(delta);
     }
@@ -341,7 +342,7 @@ vsg::LineSegmentIntersector::Intersections Manipulator::intersections(uint32_t m
 {
     auto intersector = vsg::LineSegmentIntersector::create(*_camera, pointerEvent.x, pointerEvent.y);
     intersector->traversalMask = mask;
-    _database->getRoot()->accept(*intersector);
+    _database->root->accept(*intersector);
 
     if (intersector->intersections.empty()) return vsg::LineSegmentIntersector::Intersections();
 

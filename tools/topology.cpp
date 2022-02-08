@@ -12,7 +12,7 @@ namespace route
 
     }
 
-    STrajectories::iterator Topology::insertTraj(vsg::ref_ptr<Trajectory> traj)
+    STrajectories::iterator Topology::insertTraj(vsg::ref_ptr<SplineTrajectory> traj)
     {
         std::string name;
         traj->getValue(META_NAME, name);
@@ -23,7 +23,7 @@ namespace route
     {
         Object::read(input);
 
-        std::vector<vsg::ref_ptr<Trajectory>> trajs;
+        std::vector<vsg::ref_ptr<SplineTrajectory>> trajs;
         input.read("trajs", trajs);
 
         for(const auto &traj : trajs)

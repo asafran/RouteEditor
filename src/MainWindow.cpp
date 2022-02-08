@@ -26,16 +26,18 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
 
     constructWidgets();
 
-    undoStack = new QUndoStack(this);
-    database = new DatabaseManager(pathDB, undoStack, builder, this);
+
+    database = new DatabaseManager(pathDB, builder->options, this);
+    database->undoStack = new QUndoStack(this);
+    database->setUpBuilder(builder);
 
     initializeTools();
 
-    undoView = new QUndoView(undoStack, ui->tabWidget);
+    undoView = new QUndoView(database->undoStack, ui->tabWidget);
     ui->tabWidget->addTab(undoView, tr("Действия"));
 
-    connect(ui->actionUndo, &QAction::triggered, undoStack, &QUndoStack::undo);
-    connect(ui->actionRedo, &QAction::triggered, undoStack, &QUndoStack::redo);
+    connect(ui->actionUndo, &QAction::triggered, database->undoStack, &QUndoStack::undo);
+    connect(ui->actionRedo, &QAction::triggered, database->undoStack, &QUndoStack::redo);
 
     connect(ui->removeButt, &QPushButton::pressed, this, [this]()
     {
@@ -45,14 +47,14 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
             if(selected.size() != 1)
             {
                 std::sort(selected.begin(), selected.end(), [](auto lhs, auto rhs){ return lhs.row() > rhs.row(); });
-                undoStack->beginMacro("Удалены объекты");
+                database->undoStack->beginMacro("Удалены объекты");
             }
 
             for (const auto &index : selected)
-                    undoStack->push(new RemoveNode(database->getTilesModel(), index));
+                    database->undoStack->push(new RemoveNode(database->tilesModel, index));
 
             if(selected.size() != 1)
-                undoStack->endMacro();
+                database->undoStack->endMacro();
         }
         else
             ui->statusbar->showMessage(tr("Выберите объекты, которые нужно удалить"), 3000);
@@ -62,17 +64,17 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
         auto selected = sorter->mapSelectionToSource(ui->tilesView->selectionModel()->selection()).indexes();
         if(!selected.empty())
         {
-            undoStack->beginMacro(tr("Создан слой"));
+            database->undoStack->beginMacro(tr("Создан слой"));
             auto group = vsg::Group::create();
             auto parent = selected.front().parent();
             for (const auto &index : selected)
             {
                 Q_ASSERT(index.isValid());
                 group->children.emplace_back(static_cast<vsg::Node*>(index.internalPointer()));
-                undoStack->push(new RemoveNode(database->getTilesModel(), index));
+                database->undoStack->push(new RemoveNode(database->tilesModel, index));
             }
-            undoStack->push(new AddSceneObject(database->getTilesModel(), parent, group));
-            undoStack->endMacro();
+            database->undoStack->push(new AddSceneObject(database->tilesModel, parent, group));
+            database->undoStack->endMacro();
         }
         else
             ui->statusbar->showMessage(tr("Выберите объекты для создания слоя"), 3000);
@@ -104,9 +106,9 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
             auto world = object->getWorldPosition();
             auto norm = vsg::normalize(world);
             //vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
-            auto group = route::SceneObject::create(world * wtl, vsg::dquat(), wtl);
+            auto group = route::SceneObject::create(database->getStdWireBox(), world * wtl, vsg::dquat(), wtl);
 
-            undoStack->beginMacro(tr("Создана группа объектов"));
+            database->undoStack->beginMacro(tr("Создана группа объектов"));
 
             std::sort(selected.begin(), selected.end(), [](auto lhs, auto rhs){ return lhs.row() > rhs.row(); });
 
@@ -115,17 +117,17 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
                 Q_ASSERT(index.isValid());
                 auto object = static_cast<vsg::Node*>(index.internalPointer());
                 group->children.emplace_back(object);
-                undoStack->push(new RemoveNode(database->getTilesModel(), index));
+                database->undoStack->push(new RemoveNode(database->tilesModel, index));
             }
 
-            undoStack->push(new AddSceneObject(database->getTilesModel(), parentIndex, group));
+            database->undoStack->push(new AddSceneObject(database->tilesModel, parentIndex, group));
 
             CalculateTransform ct;
-            ct.undoStack = undoStack;
+            ct.undoStack = database->undoStack;
             ct.stack.push(ltw);
             group->accept(ct);
 
-            undoStack->endMacro();
+            database->undoStack->endMacro();
         }
         else
             ui->statusbar->showMessage(tr("Выберите объекты для создания слоя"), 3000);
@@ -214,12 +216,14 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
-        sorter->setSourceModel(database->loadTiles(copyBufferCmd, copyImageCmd));
+        database->loadTiles(copyBufferCmd, copyImageCmd);
+
+        sorter->setSourceModel(database->tilesModel);
 
         // compute the bounds of the scene graph to help position camera
         vsg::ComputeBounds computeBounds;
         computeBounds.traversalMask = route::SceneObjects | route::Tiles;
-        database->getRoot()->accept(computeBounds);
+        database->root->accept(computeBounds);
         vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
         //double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
 
@@ -259,7 +263,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         // setup command graph to copy the image data each frame then rendering the scene graph
         auto grahics_commandGraph = vsg::CommandGraph::create(window);
         //grahics_commandGraph->addChild(copyBufferCmd);
-        grahics_commandGraph->addChild(vsg::createRenderGraphForView(window, camera, database->getRoot()));
+        grahics_commandGraph->addChild(vsg::createRenderGraphForView(window, camera, database->root));
 
         auto addBins = [&](vsg::View& view)
         {
@@ -277,7 +281,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         viewer->addEventHandler(manipulator);
 
-        viewer->assignRecordAndSubmitTaskAndPresentation({vsg::createCommandGraphForView(window, camera, database->getRoot())});
+        viewer->assignRecordAndSubmitTaskAndPresentation({vsg::createCommandGraphForView(window, camera, database->root)});
 
         viewer->compile();
 

@@ -52,7 +52,6 @@ private:
 
     QToolBox *toolbox;
 
-    QUndoStack *undoStack;
     QUndoView *undoView;
 
 };

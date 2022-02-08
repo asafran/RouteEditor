@@ -47,19 +47,25 @@ class DatabaseManager : public QObject
 {
     Q_OBJECT
 public:
-    DatabaseManager(QString path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> builder, QObject *parent = nullptr);
+    DatabaseManager(QString path, vsg::ref_ptr<vsg::Options> options, QObject *parent = nullptr);
     virtual ~DatabaseManager();
 
-    vsg::ref_ptr<vsg::Group> getRoot() const noexcept { return _root; }
-    vsg::ref_ptr<vsg::Builder> getBuilder() const noexcept { return _builder; }
-    //vsg::ref_ptr<Compiler> getCompiler() const noexcept { return _compiler; }
-    void compile(vsg::ref_ptr<vsg::Node> subgraph) { _builder->compile(subgraph); }
-    void push(QUndoCommand *cmd) { _undoStack->push(cmd); }
-    vsg::ref_ptr<vsg::Group> getDatabase() const noexcept { return _database; }
-    SceneModel *loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, vsg::ref_ptr<vsg::CopyAndReleaseImage> copyImage);
-    SceneModel *getTilesModel() noexcept { return _tilesModel; }
-    QUndoStack *getUndoStack() noexcept { return _undoStack; }
+    vsg::ref_ptr<vsg::Group> getDatabase() const noexcept;
+    void loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, vsg::ref_ptr<vsg::CopyAndReleaseImage> copyImage);
+    void setUpBuilder(vsg::ref_ptr<vsg::Builder> in_builder);
+    vsg::ref_ptr<vsg::Node> getStdWireBox();
+
     vsg::ref_ptr<vsg::CopyAndReleaseImage> getImageCmd() noexcept { return _copyImageCmd; }
+
+    QUndoStack *undoStack;
+
+    vsg::ref_ptr<vsg::Builder> builder;
+
+    vsg::ref_ptr<route::Topology> topology;
+
+    vsg::ref_ptr<vsg::Group> root;
+
+    SceneModel *tilesModel;
 
 public slots:
     void writeTiles() noexcept;
@@ -70,23 +76,14 @@ signals:
 private:
     void addPoints(const vsg::Node *tile, vsg::ref_ptr<vsg::Node> sphere, vsg::ref_ptr<vsg::Group> points);
 
-    vsg::ref_ptr<vsg::Builder> _builder;
-    //vsg::ref_ptr<Compiler> _compiler;
-
-    vsg::ref_ptr<vsg::Group> _root;
     vsg::ref_ptr<vsg::Group> _database;
-    //vsg::ref_ptr<vsg::Group> tiles;
     std::map<vsg::Node*, const QString> _files;
+
+    vsg::ref_ptr<vsg::Node> _stdWireBox;
 
     vsg::ref_ptr<vsg::CopyAndReleaseBuffer> _copyBufferCmd;
     vsg::ref_ptr<vsg::CopyAndReleaseImage> _copyImageCmd;
     QString _databasePath;
-
-    vsg::ref_ptr<route::Topology> _topology;
-
-    SceneModel *_tilesModel;
-
-    QUndoStack *_undoStack;
 };
 
 #endif // DATABASEMANAGER_H

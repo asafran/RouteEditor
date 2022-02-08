@@ -65,8 +65,8 @@ namespace route
     }
     SplineTrajectory::~SplineTrajectory()
     {
-        _bwdPoint->setFwd(nullptr);
-        _fwdPoint->setBwd(nullptr);
+        _bwdPoint->setNull(this);
+        _fwdPoint->setNull(this);
     }
     //------------------------------------------------------------------------------
     //
@@ -114,7 +114,7 @@ namespace route
         output.write("track", _track);
     }
 
-    vsg::dvec3 SplineTrajectory::getPosition(double x) const
+    vsg::dvec3 SplineTrajectory::getCoordinate(double x) const
     {
         double T = ArcLength::solveLength(*_railSpline, 0.0, x);
         return _railSpline->getPosition(T);
@@ -167,16 +167,16 @@ namespace route
 
         auto partitionBoundaries = ArcLength::partition(*_railSpline, _sleepersDistance);
 
-        auto front = _fwdPoint->getPosition();
+        _position = _fwdPoint->getPosition();
 
         std::vector<InterpolatedPTM> derivatives(partitionBoundaries.size());
         std::transform(std::execution::par_unseq, partitionBoundaries.begin(), partitionBoundaries.end(), derivatives.begin(),
-                       [railSpline=_railSpline, front](const double T)
+                       [railSpline=_railSpline, front=_position](const double T)
         {
             return std::move(InterpolatedPTM(railSpline->getTangent(T), front));
         });
 
-        _track = vsg::MatrixTransform::create(vsg::translate(front));
+        _track = vsg::Group::create();
         std::for_each(derivatives.begin(), derivatives.end(), [ sleeper=_sleeper, group=_track](const InterpolatedPTM &ptcm)
         {
             auto transform = vsg::MatrixTransform::create(ptcm.calculated);
@@ -310,6 +310,105 @@ namespace route
         rp->trajectory = this;
 
         recalculate();
+    }
+
+    Junction::Junction(std::string name,
+                       vsg::ref_ptr<RailConnector> bwdPoint,
+                       vsg::ref_ptr<RailConnector> fwdPoint,
+                       vsg::ref_ptr<RailConnector> fwd2Point,
+                       vsg::ref_ptr<vsg::AnimationPath> strait,
+                       vsg::ref_ptr<vsg::AnimationPath> side,
+                       vsg::ref_ptr<vsg::AnimationPath> switcherPath,
+                       vsg::ref_ptr<vsg::Node> rails,
+                       vsg::ref_ptr<vsg::MatrixTransform> switcher)
+      : vsg::Inherit<Trajectory, Junction>(name)
+      , _strait(strait)
+      , _side(side)
+      , _fwdPoint(fwdPoint)
+      , _fwd2Point(fwd2Point)
+      , _bwdPoint(bwdPoint)
+    {
+        Q_ASSERT(_side->locations.size() > 1);
+        Q_ASSERT(_strait->locations.size() > 1);
+
+
+        fwdPoint->setBwd(this);
+        fwd2Point->setBwd(this);
+        bwdPoint->setFwd(this);
+    }
+
+    Junction::Junction()
+      : vsg::Inherit<Trajectory, Junction>()
+    {
+    }
+    Junction::~Junction()
+    {
+        _bwdPoint->setFwd(nullptr);
+        _fwdPoint->setBwd(nullptr);
+    }
+    //------------------------------------------------------------------------------
+    //
+    //------------------------------------------------------------------------------
+
+    void Junction::read(vsg::Input& input)
+    {
+        Group::read(input);
+
+        input.read("straitTrajecory", _strait);
+        input.read("sideTrajecory", _side);
+        input.read("switcher", _switcher);
+
+        input.read("fwdPoint", _fwdPoint);
+        input.read("fwd2Point", _fwd2Point);
+        input.read("bwdPoint", _bwdPoint);
+    }
+
+    void Junction::write(vsg::Output& output) const
+    {
+        Group::write(output);
+
+        output.write("straitTrajecory", _strait);
+        output.write("sideTrajecory", _side);
+        output.write("switcher", _switcher);
+
+        output.write("fwdPoint", _fwdPoint);
+        output.write("fwd2Point", _fwd2Point);
+        output.write("bwdPoint", _bwdPoint);
+    }
+
+    void Junction::setPosition(const vsg::dvec3 &pos)
+    {
+        _position = pos;
+        auto mat = transform(vsg::dmat4());
+        _fwdPoint->localToWorld = mat;
+        _fwd2Point->localToWorld = mat;
+        _bwdPoint->localToWorld = mat;
+    }
+
+    void Junction::setRotation(const vsg::dquat &rot)
+    {
+        _quat = rot;
+        auto mat = transform(vsg::dmat4());
+        _fwdPoint->localToWorld = mat;
+        _fwd2Point->localToWorld = mat;
+        _bwdPoint->localToWorld = mat;
+    }
+
+    vsg::dvec3 Junction::getCoordinate(double x) const
+    {
+        auto &path = _state ? _side : _strait;
+        return transform(vsg::dmat4()) * path->computeLocation(x).position;
+    }
+
+    double Junction::invert(const vsg::dvec3 vec) const
+    {
+        return 0.0;
+    }
+
+    vsg::dmat4 Junction::getMatrixAt(double x) const
+    {
+        auto &path = _state ? _side : _strait;
+        return transform(path->computeMatrix(x));
     }
 
     SceneTrajectory::SceneTrajectory()

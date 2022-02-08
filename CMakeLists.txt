@@ -129,7 +129,7 @@ target_include_directories(spline PUBLIC spline_library)
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_compile_definitions(editor PRIVATE META_NAME="MetaName" META_PROPERTY="MetaProp" META_PARENT="Parent" TOPOLOGY_KEY="Topology" TOPOLOGY_CHILD=1 ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
+target_compile_definitions(editor PRIVATE META_NAME="MetaName" META_PROPERTY="MetaProp" META_PARENT="Parent" TOPOLOGY_KEY="Topology" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
 target_compile_definitions(tools PRIVATE META_NAME="MetaName" META_PROPERTY="MetaProp" META_PARENT="Parent" TOPOLOGY_KEY="Topology")
 

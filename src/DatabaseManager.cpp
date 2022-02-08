@@ -10,28 +10,32 @@
 
 #include <execution>
 
-DatabaseManager::DatabaseManager(QString path, QUndoStack *stack, vsg::ref_ptr<vsg::Builder> builder, QObject *parent) : QObject(parent)
-  , _root(vsg::Group::create())
+DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Options> options, QObject *parent) : QObject(parent)
+  , root(vsg::Group::create())
   , _databasePath(path)
-  , _builder(builder)
+  //, _builder(builder)
   //, _compiler(compiler)
-  , _undoStack(stack)
+  //, _undoStack(stack)
 {
-    _database = vsg::read_cast<vsg::Group>(_databasePath.toStdString(), _builder->options);
+    _database = vsg::read_cast<vsg::Group>(_databasePath.toStdString(), options);
     if (!_database)
         throw (DatabaseException(path));
-    try {
-        _topology = _database->children.at(TOPOLOGY_CHILD).cast<route::Topology>();
-        _topology->assignBuilder(builder);
-    }  catch (std::out_of_range) {
-        _topology = route::Topology::create();
-        _database->addChild(_topology);
-    }
-    _builder->options->objectCache->add(_topology, TOPOLOGY_KEY);
+
+        topology = _database->getObject<route::Topology>(TOPOLOGY_KEY);
+        if(!topology)
+        {
+            topology = route::Topology::create();
+            _database->setObject(TOPOLOGY_KEY, topology);
+        }
+        topology->assignBuilder(builder);
+
+    options->objectCache->add(topology, TOPOLOGY_KEY);
 }
 DatabaseManager::~DatabaseManager()
 {
 }
+
+vsg::ref_ptr<vsg::Group> DatabaseManager::getDatabase() const noexcept { return _database; }
 
 void DatabaseManager::addPoints(const vsg::Node *tile, vsg::ref_ptr<vsg::Node> sphere, vsg::ref_ptr<vsg::Group> points)
 {
@@ -54,7 +58,7 @@ void DatabaseManager::addPoints(const vsg::Node *tile, vsg::ref_ptr<vsg::Node> s
     tile->accept(lv);
 }
 
-SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, vsg::ref_ptr<vsg::CopyAndReleaseImage> copyImage)
+void DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, vsg::ref_ptr<vsg::CopyAndReleaseImage> copyImage)
 {
     _copyBufferCmd = copyBuffer;
     _copyImageCmd = copyImage;
@@ -93,12 +97,12 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
 
     state.lighting = false;
 
-    auto sphere = _builder->createSphere(info, state);
+    auto sphere = builder->createSphere(info, state);
 
     std::mutex m;
     auto load = [tiles, scene, lodt, this, &m, lodp, sphere](const QString &tilepath)
     {
-        auto file = vsg::read_cast<vsg::Node>(tilepath.toStdString(), _builder->options);
+        auto file = vsg::read_cast<vsg::Node>(tilepath.toStdString(), builder->options);
         if (file)
         {
             vsg::ref_ptr<vsg::Switch> tile(file->cast<vsg::Switch>());
@@ -172,14 +176,29 @@ SceneModel *DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> c
     };
     std::for_each(std::execution::par, tileFiles.begin(), tileFiles.end(), load);
 
-    _root->addChild(scene);
+    root->addChild(scene);
 
     ParentIndexer pi;
     tiles->accept(pi);
 
-    _tilesModel = new SceneModel(tiles, _builder, _undoStack, this);
+    tilesModel = new SceneModel(tiles, builder, undoStack, this);
 
-    return _tilesModel;
+    //return tilesModel;
+}
+
+void DatabaseManager::setUpBuilder(vsg::ref_ptr<vsg::Builder> in_builder)
+{
+    builder = in_builder;
+    vsg::StateInfo si;
+    si.lighting = false;
+    si.wireframe = true;
+    vsg::GeometryInfo gi;
+    _stdWireBox = builder->createBox(gi, si);
+}
+
+vsg::ref_ptr<vsg::Node> DatabaseManager::getStdWireBox()
+{
+    return _stdWireBox;
 }
 
 void DatabaseManager::writeTiles() noexcept
@@ -215,14 +234,14 @@ void DatabaseManager::writeTiles() noexcept
         }*/
     };
     LambdaVisitor<decltype (removePoints), vsg::Switch> lvp(removePoints);
-    _tilesModel->getRoot()->accept(lvp);
-    _tilesModel->getRoot()->accept(lv);
-    _tilesModel->getRoot()->accept(lvmp);
+    tilesModel->getRoot()->accept(lvp);
+    tilesModel->getRoot()->accept(lv);
+    tilesModel->getRoot()->accept(lvmp);
 
 
-    vsg::write(_database, _databasePath.toStdString(), _builder->options);
+    vsg::write(_database, _databasePath.toStdString(), builder->options);
 
-    auto write = [options=_builder->options](const auto node)
+    auto write = [options=builder->options](const auto node)
     {
         auto filename = node.second.toStdString();
         auto ext = vsg::lowerCaseFileExtension(filename);
@@ -234,7 +253,10 @@ void DatabaseManager::writeTiles() noexcept
     };
 
     std::for_each(std::execution::par, _files.begin(), _files.end(), write);
-    _undoStack->setClean();
+    undoStack->setClean();
+
+    ParentIndexer pi;
+    tilesModel->getRoot()->accept(pi);
 }
 
 

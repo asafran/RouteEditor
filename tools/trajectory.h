@@ -8,6 +8,7 @@
 #include "sceneobjects.h"
 #include <vsg/maths/transform.h>
 #include <vsg/nodes/MatrixTransform.h>
+#include <vsg/utils/AnimationPath.h>
 #include "splines/uniform_cr_spline.h"
 #include "splines/cubic_hermite_spline.h"
 #include "utils/arclength.h"
@@ -74,11 +75,11 @@ namespace route
     }
 
 
-    class Trajectory : public vsg::Inherit<vsg::Group, Trajectory>
+    class Trajectory : public vsg::Inherit<SceneObject, Trajectory>
     {
     public:
 
-        explicit Trajectory(std::string name) { setValue(META_NAME, name); }
+        explicit Trajectory(std::string name) : vsg::Inherit<SceneObject, Trajectory>() { setValue(META_NAME, name); }
         Trajectory() {}
 
         virtual ~Trajectory() {}
@@ -86,7 +87,7 @@ namespace route
         //void read(vsg::Input& input) override;
         //void write(vsg::Output& output) const override;
 
-        virtual vsg::dvec3 getPosition(double x) const = 0;
+        virtual vsg::dvec3 getCoordinate(double x) const = 0;
 
         virtual double invert(const vsg::dvec3 vec) const = 0;
 
@@ -121,19 +122,19 @@ namespace route
     {
     public:
 
-        explicit SplineTrajectory(std::string name,
-                                  vsg::ref_ptr<RailConnector> bwdPoint,
-                                  vsg::ref_ptr<RailConnector> fwdPoint,
-                                  vsg::ref_ptr<vsg::Builder> builder,
-                                  //vsg::ref_ptr<Compiler> compiler,
-                                  tinyobj::attrib_t rail,
-                                  vsg::ref_ptr<vsg::Data> texture,
-                                  vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge);
+        SplineTrajectory(std::string name,
+                         vsg::ref_ptr<RailConnector> bwdPoint,
+                         vsg::ref_ptr<RailConnector> fwdPoint,
+                         vsg::ref_ptr<vsg::Builder> builder,
+                         //vsg::ref_ptr<Compiler> compiler,
+                         tinyobj::attrib_t rail,
+                         vsg::ref_ptr<vsg::Data> texture,
+                         vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge);
         SplineTrajectory();
 
         virtual ~SplineTrajectory();
 
-        vsg::dvec3 getPosition(double x) const override;
+        vsg::dvec3 getCoordinate(double x) const override;
 
         double invert(const vsg::dvec3 vec) const override;
 
@@ -146,6 +147,9 @@ namespace route
 
         void recalculate() override;
 
+        void setPosition(const vsg::dvec3& pos) override { }
+        void setRotation(const vsg::dquat& rot) override { }
+
         std::pair<Trajectory*, bool> getFwd() const override { return _fwdPoint->getFwd(this); }
         std::pair<Trajectory*, bool> getBwd() const override { return _bwdPoint->getBwd(this); }
 
@@ -156,12 +160,12 @@ namespace route
         {
             for (auto& child : node._autoPositioned) child->accept(visitor);
             for (auto& child : node._points) child->accept(visitor);
-            node._fwdPoint->accept(visitor);
             node._bwdPoint->accept(visitor);
+            node._fwdPoint->accept(visitor);
         }
 
-        void traverse(vsg::Visitor& visitor) override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
-        void traverse(vsg::ConstVisitor& visitor) const override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::Visitor& visitor) override { Transform::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::ConstVisitor& visitor) const override { Transform::traverse(visitor); t_traverse(*this, visitor); }
         void traverse(vsg::RecordTraversal& visitor) const override
         {
             Trajectory::traverse(visitor);
@@ -192,7 +196,7 @@ namespace route
 
         vsg::ref_ptr<vsg::Builder> _builder;
 
-        vsg::ref_ptr<vsg::MatrixTransform> _track;
+        vsg::ref_ptr<vsg::Group> _track;
 
         std::vector<vsg::vec3> _geometry;
 
@@ -207,6 +211,72 @@ namespace route
         vsg::ref_ptr<RailConnector>     _bwdPoint;
 
         friend class Topology;
+    };
+
+    class Junction : public vsg::Inherit<Trajectory, Junction>
+    {
+        explicit Junction(std::string name,
+                          vsg::ref_ptr<RailConnector> bwdPoint,
+                          vsg::ref_ptr<RailConnector> fwdPoint,
+                          vsg::ref_ptr<RailConnector> fwd2Point,
+                          vsg::ref_ptr<vsg::AnimationPath> strait,
+                          vsg::ref_ptr<vsg::AnimationPath> side,
+                          vsg::ref_ptr<vsg::AnimationPath> switcherPath,
+                          vsg::ref_ptr<vsg::Node> rails,
+                          vsg::ref_ptr<vsg::MatrixTransform> switcher);
+        Junction();
+
+        virtual ~Junction();
+
+        vsg::dvec3 getCoordinate(double x) const override;
+
+        double invert(const vsg::dvec3 vec) const override;
+
+        vsg::dmat4 getMatrixAt(double x) const override;
+
+        double getLength() const override { return _state ? _side->locations.rbegin()->first : _strait->locations.rbegin()->first; }
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
+        void recalculate() override {};
+
+        void setPosition(const vsg::dvec3& pos) override;
+        void setRotation(const vsg::dquat& rot) override;
+
+        std::pair<Trajectory*, bool> getFwd() const override { return _state ? _fwd2Point->getFwd(this) : _fwdPoint->getFwd(this); }
+        std::pair<Trajectory*, bool> getBwd() const override { return _bwdPoint->getBwd(this); }
+
+        template<class N, class V>
+        static void t_traverse(N& node, V& visitor)
+        {
+            node._fwdPoint->accept(visitor);
+            node._fwd2Point->accept(visitor);
+            node._bwdPoint->accept(visitor);
+        }
+
+        void traverse(vsg::Visitor& visitor) override { Transform::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::ConstVisitor& visitor) const override { Transform::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::RecordTraversal& visitor) const override
+        {
+            Trajectory::traverse(visitor);
+            _switcher->accept(visitor);
+            t_traverse(*this, visitor);
+        }
+
+        void setState(bool state) { _state = state; }
+
+    private:
+        vsg::ref_ptr<vsg::AnimationPath> _strait;
+        vsg::ref_ptr<vsg::AnimationPath> _side;
+
+        vsg::ref_ptr<vsg::MatrixTransform> _switcher;
+
+        RailConnector     *_fwdPoint;
+        RailConnector     *_fwd2Point;
+        RailConnector     *_bwdPoint;
+
+        bool _state; //true if switched
     };
 
     class SceneTrajectory : public vsg::Inherit<vsg::Group, SceneTrajectory>

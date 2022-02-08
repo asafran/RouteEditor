@@ -54,7 +54,7 @@ public:
             name = _node->className();
         setText(QObject::tr("Удален объект %1").arg(name.c_str()));
         if(auto scobj = _node.cast<route::SceneObject>(); scobj)
-            scobj->deselect();
+            scobj->setSelection(false);
     }
     void undo() override
     {

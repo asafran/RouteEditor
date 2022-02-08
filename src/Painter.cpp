@@ -60,7 +60,7 @@ void Painter::intersection(const FindNode &isection)
     if(!textureImageInfo)
     {
         vsg::Path textureFile("textures/lz.vsgb");
-        auto textureData = vsg::read_cast<vsg::Data>(textureFile, _database->getBuilder()->options);
+        auto textureData = vsg::read_cast<vsg::Data>(textureFile, _database->builder->options);
         if (!textureData)
             return;
 

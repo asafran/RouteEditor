@@ -16,7 +16,7 @@ namespace route
 
         virtual ~Topology();
 
-        STrajectories::iterator insertTraj(vsg::ref_ptr<Trajectory> traj);
+        STrajectories::iterator insertTraj(vsg::ref_ptr<SplineTrajectory> traj);
 
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;

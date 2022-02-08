@@ -6,6 +6,7 @@
 #include <vsg/nodes/Transform.h>
 #include <vsg/utils/Builder.h>
 #include <vsg/commands/CopyAndReleaseBuffer.h>
+#include <vsg/nodes/MatrixTransform.h>
 
 namespace route
 {
@@ -16,8 +17,14 @@ namespace route
     {
     public:
         SceneObject();
-        SceneObject(const vsg::dvec3 &pos, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0}, const vsg::dmat4 &ltw = {});
-        SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos = {}, const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0}, const vsg::dmat4 &ltw = {});
+        SceneObject(vsg::ref_ptr<vsg::Node> box,
+                    const vsg::dvec3 &pos,
+                    const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0},
+                    const vsg::dmat4 &ltw = {});
+        SceneObject(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box,
+                    const vsg::dvec3 &pos = {},
+                    const vsg::dquat &w_quat = {0.0, 0.0, 0.0, 1.0},
+                    const vsg::dmat4 &ltw = {});
 
 
         virtual ~SceneObject();
@@ -31,13 +38,13 @@ namespace route
         virtual void setPosition(const vsg::dvec3& pos) { _position = pos; }
         virtual void setRotation(const vsg::dquat& rot) { _quat = rot; }
 
-        void setWireframe(vsg::ref_ptr<vsg::Builder> builder);
-        void deselect() { _wireframe = nullptr; }
+        void recalculateWireframe();
+        void setSelection(bool selected) { _selected = selected; }
 
         void traverse(vsg::RecordTraversal& visitor) const override
         {
             Group::traverse(visitor);
-            if(_wireframe)
+            if(_selected)
                 _wireframe->accept(visitor);
         }
 
@@ -49,21 +56,23 @@ namespace route
 
         bool isSelected() const { return _wireframe.valid(); }
 
-        vsg::dmat4 localToWorld;
+        vsg::dmat4 localToWorld = {};
 
     protected:
-        vsg::dvec3 _position;
-        vsg::dquat _quat;
+        vsg::dvec3 _position = {};
+        vsg::dquat _quat = {0.0, 0.0, 0.0, 1.0};
 
-        vsg::ref_ptr<vsg::Node> _wireframe;
+        vsg::ref_ptr<vsg::MatrixTransform> _wireframe = vsg::MatrixTransform::create();
+        bool _selected;
 
-        vsg::dquat _world_quat;
+        vsg::dquat _world_quat = {};
     };
 
     class SingleLoader : public vsg::Inherit<SceneObject, SingleLoader>
     {
     public:
         SingleLoader(vsg::ref_ptr<vsg::Node> loaded,
+                     vsg::ref_ptr<vsg::Node> box,
                      const std::string &in_file,
                      const vsg::dvec3 &pos = {},
                      const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0},
@@ -128,7 +137,10 @@ namespace route
     class RailPoint : public vsg::Inherit<SceneObject, RailPoint>
     {
     public:
-        RailPoint(vsg::ref_ptr<vsg::Node> compiled, const vsg::dvec3 &pos);
+        RailPoint(vsg::ref_ptr<vsg::Node> loaded,
+                  vsg::ref_ptr<vsg::Node> box,
+                  const vsg::dvec3 &pos,
+                  const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
         RailPoint();
 
         virtual ~RailPoint();
@@ -147,7 +159,10 @@ namespace route
     class RailConnector : public vsg::Inherit<RailPoint, RailConnector>
     {
     public:
-        RailConnector(vsg::ref_ptr<vsg::Node> compiled, const vsg::dvec3 &pos);
+        RailConnector(vsg::ref_ptr<vsg::Node> loaded,
+                      vsg::ref_ptr<vsg::Node> box,
+                      const vsg::dvec3 &pos,
+                      const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
         RailConnector();
 
         virtual ~RailConnector();
@@ -166,7 +181,24 @@ namespace route
 
         void setBwd(Trajectory *caller);
 
+        void setNull(Trajectory *caller);
+
         Trajectory *fwdTrajectory;
+    };
+
+    class StaticConnector : public vsg::Inherit<RailConnector, StaticConnector>
+    {
+    public:
+        StaticConnector(vsg::ref_ptr<vsg::Node> loaded,
+                        vsg::ref_ptr<vsg::Node> box,
+                        const vsg::dvec3 &pos,
+                        const vsg::dquat &quat = {0.0, 0.0, 0.0, 1.0});
+        StaticConnector();
+
+        virtual ~StaticConnector();
+
+        void setPosition(const vsg::dvec3& position) override;
+        void setRotation(const vsg::dquat& rotation) override;
     };
 
 

@@ -4,28 +4,37 @@
 #include <QDir>
 #include <vsg/io/read.h>
 #include <vsg/traversals/ComputeBounds.h>
-#include <vsg/nodes/MatrixTransform.h>
 #include <vsg/nodes/LOD.h>
 #include "topology.h"
 
 namespace route
 {
-    SceneObject::SceneObject(const vsg::dvec3& pos, const vsg::dquat& w_quat, const vsg::dmat4 &ltw)
+    SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> box,
+                             const vsg::dvec3& pos,
+                             const vsg::dquat& w_quat,
+                             const vsg::dmat4 &ltw)
         : vsg::Inherit<vsg::Transform, SceneObject>()
         , _position(pos)
         , _quat(0.0, 0.0, 0.0, 1.0)
+        , _selected(false)
         , _world_quat(w_quat)
         , localToWorld(ltw)
     {
+        _wireframe = vsg::MatrixTransform::create();
+        _wireframe->addChild(box);
     }
 
-    SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> loaded, const vsg::dvec3 &pos, const vsg::dquat& w_quat, const vsg::dmat4 &ltw)
-        : SceneObject(pos, w_quat, ltw)
+    SceneObject::SceneObject(vsg::ref_ptr<vsg::Node> loaded,
+                             vsg::ref_ptr<vsg::Node> box,
+                             const vsg::dvec3 &pos,
+                             const vsg::dquat& w_quat,
+                             const vsg::dmat4 &ltw)
+        : SceneObject(box, pos, w_quat, ltw)
     {
         addChild(loaded);
     }
 
-    SceneObject::SceneObject() : vsg::Inherit<vsg::Transform, SceneObject>() {}
+    SceneObject::SceneObject() : vsg::Inherit<vsg::Transform, SceneObject>() , _selected(false) {}
 
     SceneObject::~SceneObject() {}
 
@@ -35,6 +44,7 @@ namespace route
 
         input.read("quat", _quat);
         input.read("world_quat", _world_quat);
+        input.read("wireframe", _wireframe);
         input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
         input.read("ltw", localToWorld);
         input.read("coord", _position);
@@ -46,6 +56,7 @@ namespace route
 
         output.write("quat", _quat);
         output.write("world_quat", _world_quat);
+        output.write("wireframe", _wireframe);
         output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
         output.write("ltw", localToWorld);
 
@@ -56,28 +67,16 @@ namespace route
         return mult(_world_quat, _quat);
     }
 
-    void SceneObject::setWireframe(vsg::ref_ptr<vsg::Builder> builder)
+    void SceneObject::recalculateWireframe()
     {
         vsg::ComputeBounds cb;
         t_traverse(*this, cb);
 
-        vsg::vec3 centre((cb.bounds.min + cb.bounds.max) * 0.5);
-
-        vsg::GeometryInfo info;
-        vsg::StateInfo state;
-
-        state.wireframe = true;
-        state.lighting = false;
+        vsg::dvec3 centre((cb.bounds.min + cb.bounds.max) * 0.5);
 
         auto delta = cb.bounds.max - cb.bounds.min;
 
-        info.dx.set(delta.x, 0.0f, 0.0f);
-        info.dy.set(0.0f, delta.y, 0.0f);
-        info.dz.set(0.0f, 0.0f, delta.z);
-        info.position = centre;
-        info.transform = vsg::rotate(vsg::quat(_world_quat));
-
-        _wireframe = builder->createBox(info, state);
+        _wireframe->matrix = vsg::scale(delta) * vsg::translate(centre);
     }
 
     vsg::dmat4 SceneObject::transform(const vsg::dmat4& m) const
@@ -91,11 +90,12 @@ namespace route
     }
 
     SingleLoader::SingleLoader(vsg::ref_ptr<vsg::Node> loaded,
+                               vsg::ref_ptr<vsg::Node> box,
                                const std::string &in_file,
                                const vsg::dvec3 &pos,
                                const vsg::dquat &in_quat,
                                const vsg::dmat4 &wtl)
-        : vsg::Inherit<SceneObject, SingleLoader>(loaded, pos, in_quat, wtl)
+        : vsg::Inherit<SceneObject, SingleLoader>(loaded, box, pos, in_quat, wtl)
         , file(in_file)
     {
     }
@@ -156,12 +156,13 @@ namespace route
         _copyBufferCmd->copy(_info->data, _info);
     }
 
-    RailPoint::RailPoint(vsg::ref_ptr<vsg::Node> compiled, const vsg::dvec3 &pos)
-        : vsg::Inherit<SceneObject, RailPoint>(compiled, pos)
+    RailPoint::RailPoint(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, const vsg::dvec3 &pos, const vsg::dquat &quat)
+        : vsg::Inherit<SceneObject, RailPoint>(loaded, box, pos)
     {
         auto norm = vsg::normalize(pos);
         _world_quat = vsg::dquat(vsg::dvec3(0.0, 0.0, 1.0), norm);
         //always in world coordinates
+        _quat = quat;
     }
     RailPoint::RailPoint()
         : vsg::Inherit<SceneObject, RailPoint>()
@@ -200,14 +201,15 @@ namespace route
         return vsg::dvec3(q.x, q.y, q.z);
     }
 
-    RailConnector::RailConnector(vsg::ref_ptr<vsg::Node> compiled, const vsg::dvec3 &pos)
-        : vsg::Inherit<RailPoint, RailConnector>(compiled, pos)
+    RailConnector::RailConnector(vsg::ref_ptr<vsg::Node> loaded,
+                                 vsg::ref_ptr<vsg::Node> box,
+                                 const vsg::dvec3 &pos,
+                                 const vsg::dquat &quat)
+        : vsg::Inherit<RailPoint, RailConnector>(loaded, box, pos, quat)
     {
     }
     RailConnector::RailConnector()
-        : vsg::Inherit<RailPoint, RailConnector>()
-    {
-    }
+        : vsg::Inherit<RailPoint, RailConnector>() {}
     RailConnector::~RailConnector() {}
 
     void RailConnector::read(vsg::Input &input)
@@ -264,4 +266,29 @@ namespace route
         else
             trajectory = caller;
     }
+    void RailConnector::setNull(Trajectory *caller)
+    {
+        if(caller == trajectory)
+            trajectory = nullptr;
+        else if(caller == fwdTrajectory)
+            fwdTrajectory = nullptr;
+    }
+
+    StaticConnector::StaticConnector(vsg::ref_ptr<vsg::Node> loaded,
+                                     vsg::ref_ptr<vsg::Node> box,
+                                     const vsg::dvec3 &pos,
+                                     const vsg::dquat &quat)
+        : vsg::Inherit<RailConnector, StaticConnector>(loaded, box, pos, quat)
+    {
+        _world_quat = {0.0, 0.0, 0.0, 1.0};
+    }
+
+    StaticConnector::StaticConnector() : vsg::Inherit<RailConnector, StaticConnector>() {}
+
+    StaticConnector::~StaticConnector() {}
+
+    void StaticConnector::setPosition(const vsg::dvec3 &position) {}
+
+    void StaticConnector::setRotation(const vsg::dquat &rotation) {}
+
 }

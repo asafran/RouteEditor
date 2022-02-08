@@ -55,11 +55,11 @@ void AddRails::intersection(const FindNode &isection)
 
     auto name = materials.front().diffuse_texname;
 
-    auto texture = vsg::read_cast<vsg::Data>(path + "/" + name, _database->getBuilder()->options);
+    auto texture = vsg::read_cast<vsg::Data>(path + "/" + name, _database->builder->options);
 
     std::vector<vsg::ref_ptr<route::RailPoint>> points;
 
-    auto builder = _database->getBuilder();
+    auto builder = _database->builder;
 
     auto marker = vsg::Group::create();
     vsg::GeometryInfo gi;
@@ -84,17 +84,21 @@ void AddRails::intersection(const FindNode &isection)
     gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
     gi.color = vsg::vec4(6.0f, 6.0f, 6.0f, 1.0f);
 
-    auto bwd = route::RailConnector::create(marker, isection.worldIntersection);
+    auto bwd = route::RailConnector::create(marker, _database->getStdWireBox(), isection.worldIntersection);
 
-    auto fwd = route::RailConnector::create(marker, isection.worldIntersection + vsg::dvec3(2.0, 0.0, 0.0));
+    auto fwd = route::RailConnector::create(marker, _database->getStdWireBox(), isection.worldIntersection + vsg::dvec3(2.0, 0.0, 0.0));
 
     auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, attrib, texture, builder->createBox(gi), 2.0, 1.5);
     auto adapter = route::SceneTrajectory::create(traj);
 
     if(!isection.tile)
         return;
+    auto tilesModel = _database->tilesModel;
+    auto index = tilesModel->index(isection.tile);
 
-    _database->push(new AddSceneObject(_database->getTilesModel(), _database->getTilesModel()->index(isection.tile), adapter));
+    _database->topology->insertTraj(traj);
+
+    _database->undoStack->push(new AddSceneObject(tilesModel, index, adapter));
 
     //const_cast<vsg::Switch*>(isection.tile.first)->addChild(route::SceneObjects, adapter);
 
