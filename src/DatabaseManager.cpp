@@ -86,7 +86,7 @@ void DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuff
     auto lodt = settings.value("LOD_TILES", 0.5).toDouble();
 
     auto size = settings.value("POINTSIZE", 3).toInt();
-    auto lodp = settings.value("LOD_POINTS", 0.1).toDouble();
+    auto lodp = settings.value("LOD_POINTS", 0.8).toDouble();
 
     vsg::GeometryInfo info;
     vsg::StateInfo state;

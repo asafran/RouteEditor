@@ -7,6 +7,8 @@ namespace Ui {
 class AddRails;
 }
 
+struct attrib_t;
+
 class AddRails : public Tool
 {
     Q_OBJECT
@@ -18,6 +20,8 @@ public:
     void intersection(const FindNode& isection) override;
 
 private:
+    //tinyobj::ObjReader loadObj(std::string path);
+
     Ui::AddRails *ui;
 
     std::vector<vsg::vec3> _geometry;

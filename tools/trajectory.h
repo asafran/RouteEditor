@@ -66,6 +66,7 @@ namespace route
         InterpolatedPTM() :InterpolationSpline::InterpolatedPT() {}
 
         vsg::dmat4 calculated;
+        size_t index;
     };
 
     inline bool operator==(const InterpolatedPTM& left, const InterpolatedPTM& right)
@@ -126,9 +127,10 @@ namespace route
                          vsg::ref_ptr<RailConnector> bwdPoint,
                          vsg::ref_ptr<RailConnector> fwdPoint,
                          vsg::ref_ptr<vsg::Builder> builder,
-                         //vsg::ref_ptr<Compiler> compiler,
                          tinyobj::attrib_t rail,
-                         vsg::ref_ptr<vsg::Data> texture,
+                         tinyobj::attrib_t fill,
+                         vsg::ref_ptr<vsg::Data> rtexture,
+                         vsg::ref_ptr<vsg::Data> ftexture,
                          vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge);
         SplineTrajectory();
 
@@ -173,14 +175,24 @@ namespace route
             t_traverse(*this, visitor);
         }
 
+        struct ModelData
+        {
+            std::vector<vsg::vec3> vertices;
+
+            std::vector<vsg::vec2> uv;
+
+            vsg::ref_ptr<vsg::Data> texture;
+        };
 
     private:
 
         void updateSpline();
 
-        void assignRails(std::pair<vsg::DataList, vsg::ref_ptr<vsg::ushortArray>> data);
+        void assignRails(const std::vector<InterpolatedPTM> &derivatives);
 
-        std::pair<vsg::DataList, vsg::ref_ptr<vsg::ushortArray>> createSingleRail(const vsg::vec3 &offset, const std::vector<InterpolatedPTM> &derivatives) const;
+        vsg::ref_ptr<vsg::VertexIndexDraw> createGeometry(const vsg::vec3 &offset,
+                                                          const std::vector<InterpolatedPTM> &derivatives,
+                                                          ModelData geometry) const;
 
         void updateAttached();
 
@@ -198,12 +210,9 @@ namespace route
 
         vsg::ref_ptr<vsg::Group> _track;
 
-        std::vector<vsg::vec3> _geometry;
+        ModelData _rail;
 
-        std::vector<vsg::vec2> _uv1;
-        std::vector<vsg::vec2> _uv2;
-
-        vsg::ref_ptr<vsg::Data> _texture;
+        ModelData _fill;
 
         vsg::ref_ptr<vsg::Node> _sleeper;
 

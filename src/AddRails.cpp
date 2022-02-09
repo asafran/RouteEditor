@@ -14,48 +14,84 @@ AddRails::AddRails(DatabaseManager *database, QString root, QWidget *parent) : T
     ui->setupUi(this);
     _fsmodel = new QFileSystemModel(this);
     _fsmodel->setRootPath(root);
-    ui->fileView->setModel(_fsmodel);
-    ui->fileView->setRootIndex(_fsmodel->index(root));
+    ui->railView->setModel(_fsmodel);
+    ui->sleeperView->setModel(_fsmodel);
+    ui->fillView->setModel(_fsmodel);
+    ui->railView->setRootIndex(_fsmodel->index(root + "/rails"));
+    ui->sleeperView->setRootIndex(_fsmodel->index(root + "/sleepers"));
+    ui->fillView->setRootIndex(_fsmodel->index(root + "fill"));
 }
 
 AddRails::~AddRails()
 {
     delete ui;
 }
-
-void AddRails::intersection(const FindNode &isection)
+/*
+tinyobj::ObjReader AddRails::loadObj(std::string path)
 {
-    auto activeFile = ui->fileView->selectionModel()->selectedIndexes().front();
-    if(ui->fileView->selectionModel()->selection().empty() || !activeFile.isValid())
-        return;
-
-    auto filepath = _fsmodel->filePath(activeFile);
-    QFileInfo fi(filepath);
-    auto path = fi.absolutePath().toStdString();
-
     tinyobj::ObjReaderConfig reader_config;
     reader_config.mtl_search_path = path; // Path to material files
 
     tinyobj::ObjReader reader;
 
-    if (!reader.ParseFromFile(filepath.toStdString(), reader_config)) {
-      if (!reader.Error().empty()) {
-          std::cerr << "TinyObjReader: " << reader.Error();
-      }
-      return;
-    }
+    reader.ParseFromFile(path, reader_config);
+    //if (!reader.ParseFromFile(railFilepath.toStdString(), reader_config))
+    //{
+      //if (!reader.Error().empty())
+          //return std::pair<attrib_t, std::string>();
+    //}
 
-    if (!reader.Warning().empty()) {
-      std::cout << "TinyObjReader: " << reader.Warning();
-    }
 
-    auto& attrib = reader.GetAttrib();
+    //auto& attrib = reader.GetAttrib();
     //auto& shapes = reader.GetShapes();
-    auto& materials = reader.GetMaterials();
+    //auto& materials = reader.GetMaterials();
 
-    auto name = materials.front().diffuse_texname;
+    //auto name = materials.front().diffuse_texname;
 
-    auto texture = vsg::read_cast<vsg::Data>(path + "/" + name, _database->builder->options);
+    return reader;
+}*/
+
+void AddRails::intersection(const FindNode &isection)
+{
+    if(ui->railView->selectionModel()->selection().empty() ||
+       ui->sleeperView->selectionModel()->selection().empty() ||
+       ui->fillView->selectionModel()->selection().empty() )
+        return;
+
+    auto activeRail = ui->railView->selectionModel()->selectedIndexes().front();
+    auto activeSleeper = ui->sleeperView->selectionModel()->selectedIndexes().front();
+    auto activeFill = ui->fillView->selectionModel()->selectedIndexes().front();
+
+    if(!activeRail.isValid() || !activeSleeper.isValid() || !activeFill.isValid())
+        return;
+
+    auto railFilepath = _fsmodel->filePath(activeRail);
+    auto fillFilepath = _fsmodel->filePath(activeRail);
+    QFileInfo fir(railFilepath);
+    QFileInfo fif(fillFilepath);
+
+    tinyobj::ObjReaderConfig reader_config;
+    reader_config.mtl_search_path = fir.absolutePath().toStdString(); // Path to material files
+
+    tinyobj::ObjReader readerRail;
+    tinyobj::ObjReader readerFill;
+
+    readerRail.ParseFromFile(railFilepath.toStdString(), reader_config);
+    reader_config.mtl_search_path = fif.absolutePath().toStdString();
+    readerFill.ParseFromFile(fillFilepath.toStdString(), reader_config);
+    //if (!reader.ParseFromFile(railFilepath.toStdString(), reader_config))
+    //{
+      //if (!reader.Error().empty())
+          //return std::pair<attrib_t, std::string>();
+    //}
+
+
+    auto& rmaterials = readerRail.GetMaterials();
+    auto& fmaterials = readerFill.GetMaterials();
+
+    auto railsTexture = vsg::read_cast<vsg::Data>(fir.absolutePath().toStdString() + "/" + rmaterials.front().diffuse_texname, _database->builder->options);
+
+    auto fillTexture = vsg::read_cast<vsg::Data>(fif.absolutePath().toStdString() + "/" + fmaterials.front().diffuse_texname, _database->builder->options);
 
     std::vector<vsg::ref_ptr<route::RailPoint>> points;
 
@@ -88,7 +124,7 @@ void AddRails::intersection(const FindNode &isection)
 
     auto fwd = route::RailConnector::create(marker, _database->getStdWireBox(), isection.worldIntersection + vsg::dvec3(2.0, 0.0, 0.0));
 
-    auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, attrib, texture, builder->createBox(gi), 2.0, 1.5);
+    auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, readerRail.GetAttrib(), readerFill.GetAttrib(), railsTexture, fillTexture, builder->createBox(gi), 2.0, 1.5);
     auto adapter = route::SceneTrajectory::create(traj);
 
     if(!isection.tile)
