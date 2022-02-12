@@ -13,9 +13,6 @@ set(SOURCES
     src/MainWindow.cpp
     src/MainWindow.h
     src/MainWindow.ui
-    src/AddDialog.ui
-    src/AddDialog.cpp
-    src/AddDialog.h
     src/ObjectPropertiesEditor.h
     src/ObjectPropertiesEditor.cpp
     src/ObjectPropertiesEditor.ui
@@ -90,7 +87,7 @@ find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(Qt6 COMPONENTS Xml REQUIRED)
 #find_package(Qt6 COMPONENTS Concurrent REQUIRED)
 
-find_package(vsg REQUIRED)
+find_package(vsg 0.2.9 REQUIRED)
 find_package(vsgXchange REQUIRED)
 find_package(vsgQt REQUIRED)
 find_package(Boost REQUIRED)

@@ -156,6 +156,11 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
         ui->rotYspin->setSingleStep(step);
         ui->rotZspin->setSingleStep(step);
     });
+
+    connect(ui->trjCoordspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
+    {
+        stack->push(new MoveObjectOnTraj(_firstObject->getObject<vsg::MatrixTransform>(META_PARENT), d));
+    });
 }
 
 ObjectPropertiesEditor::~ObjectPropertiesEditor()
@@ -213,13 +218,38 @@ void ObjectPropertiesEditor::intersection(const FindNode& isection)
         return;
     }
 
-    if((isection.keyModifier & vsg::MODKEY_Shift) == 0)
-        toggle(isection.objects.back());
+    if(ui->trajAddPButt->isChecked() && isection.track && isection.track->is_compatible(typeid(route::SplineTrajectory)))
+    {
+        clear();
+        toggle(isection.track);
+        auto point = route::RailPoint::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
+        _database->undoStack->push(new AddRailPoint(const_cast<route::Trajectory*>(isection.track)->cast<route::SplineTrajectory>(), point));
+    }
+    else if(ui->trajRemPButt->isChecked() && isection.trackpoint)
+    {
+        clear();
+        toggle(isection.track);
+        _database->undoStack->push(new RemoveRailPoint(const_cast<route::Trajectory*>(isection.track)->cast<route::SplineTrajectory>(),
+                                                       const_cast<route::RailPoint*>(isection.trackpoint)));
+    }
     else
-        toggle(isection.objects.front());
+    {
+        if((isection.keyModifier & vsg::MODKEY_Shift) == 0)
+            toggle(isection.objects.back());
+        else
+            toggle(isection.objects.front());
+    }
 
     updateData();
 }
+
+void ObjectPropertiesEditor::selectNode(route::SceneObject *object)
+{
+    clear();
+    toggle(object);
+    updateData();
+}
+
 void ObjectPropertiesEditor::toggle(const route::SceneObject *object)
 {
     auto casted = const_cast<route::SceneObject*>(object);
@@ -275,10 +305,13 @@ void ObjectPropertiesEditor::updateData()
     QSignalBlocker l7(ui->rotXspin);
     QSignalBlocker l8(ui->rotYspin);
     QSignalBlocker l9(ui->rotZspin);
+    QSignalBlocker l10(ui->trjCoordspin);
 
     setEnabled(_firstObject);
     if(!_firstObject)
         return;
+
+    ui->trjCoordspin->setEnabled(_firstObject->getObject<vsg::MatrixTransform>(META_PARENT) != nullptr);
 
     auto position = _firstObject->getPosition();
     ui->ecefXspin->setValue(position.x);

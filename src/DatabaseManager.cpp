@@ -10,14 +10,15 @@
 
 #include <execution>
 
-DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Options> options, QObject *parent) : QObject(parent)
+DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Builder> in_builder, QObject *parent) : QObject(parent)
   , root(vsg::Group::create())
+  , builder(in_builder)
   , _databasePath(path)
   //, _builder(builder)
   //, _compiler(compiler)
   //, _undoStack(stack)
 {
-    _database = vsg::read_cast<vsg::Group>(_databasePath.toStdString(), options);
+    _database = vsg::read_cast<vsg::Group>(_databasePath.toStdString(), builder->options);
     if (!_database)
         throw (DatabaseException(path));
 
@@ -29,7 +30,34 @@ DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Options> option
         }
         topology->assignBuilder(builder);
 
-    options->objectCache->add(topology, TOPOLOGY_KEY);
+    builder->options->objectCache->add(topology, TOPOLOGY_KEY);
+
+    vsg::StateInfo si;
+    si.lighting = false;
+    si.wireframe = true;
+    vsg::GeometryInfo gi;
+    stdWireBox = builder->createBox(gi, si);
+
+    stdAxis = vsg::Group::create();
+
+    gi.dx = vsg::vec3(1.0f, 0.0f, 0.0f);
+    gi.dy = vsg::vec3(0.0f, 0.1f, 0.0f);
+    gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
+    gi.color = vsg::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    stdAxis->addChild(builder->createBox(gi));
+    gi.dx = vsg::vec3(0.1f, 0.0f, 0.0f);
+    gi.dy = vsg::vec3(0.0f, 1.0f, 0.0f);
+    gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
+    gi.color = vsg::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+    stdAxis->addChild(builder->createBox(gi));
+    gi.dx = vsg::vec3(0.1f, 0.0f, 0.0f);
+    gi.dy = vsg::vec3(0.0f, 0.1f, 0.0f);
+    gi.dz = vsg::vec3(0.0f, 0.0f, 1.0f);
+    gi.color = vsg::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+    stdAxis->addChild(builder->createBox(gi));
+
+    root->addChild(stdWireBox);
+    root->addChild(stdAxis);
 }
 DatabaseManager::~DatabaseManager()
 {
@@ -186,19 +214,14 @@ void DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuff
     //return tilesModel;
 }
 
-void DatabaseManager::setUpBuilder(vsg::ref_ptr<vsg::Builder> in_builder)
-{
-    builder = in_builder;
-    vsg::StateInfo si;
-    si.lighting = false;
-    si.wireframe = true;
-    vsg::GeometryInfo gi;
-    _stdWireBox = builder->createBox(gi, si);
-}
-
 vsg::ref_ptr<vsg::Node> DatabaseManager::getStdWireBox()
 {
-    return _stdWireBox;
+    return stdWireBox;
+}
+
+vsg::ref_ptr<vsg::Node> DatabaseManager::getStdAxis()
+{
+    return stdAxis;
 }
 
 void DatabaseManager::writeTiles() noexcept

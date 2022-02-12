@@ -155,7 +155,9 @@ namespace route
         std::pair<Trajectory*, bool> getFwd() const override { return _fwdPoint->getFwd(this); }
         std::pair<Trajectory*, bool> getBwd() const override { return _bwdPoint->getBwd(this); }
 
-        void add(vsg::ref_ptr<RailPoint> rp);
+        size_t add(vsg::ref_ptr<RailPoint> rp);
+        void remove(size_t index);
+        void remove(vsg::ref_ptr<RailPoint> rp);
 
         template<class N, class V>
         static void t_traverse(N& node, V& visitor)
@@ -208,7 +210,7 @@ namespace route
 
         vsg::ref_ptr<vsg::Builder> _builder;
 
-        vsg::ref_ptr<vsg::Group> _track;
+        vsg::ref_ptr<vsg::MatrixTransform> _track;
 
         ModelData _rail;
 

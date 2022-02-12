@@ -46,11 +46,11 @@ public:
     int operator()(const vsg::Node* node) { node->accept(*this); return position; }
 
 protected:
-    vsg::ref_ptr<const vsg::Node> child;
+    const vsg::Node *child;
 };
 
 template<class T>
-int findPosInStruct(const T& parent, vsg::ref_ptr<const vsg::Node> child)
+int findPosInStruct(const T& parent, const vsg::Node *child)
 {
     auto it = parent.children.begin();
     for ( ;it != parent.children.end(); ++it)

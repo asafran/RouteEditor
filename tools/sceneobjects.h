@@ -153,7 +153,7 @@ namespace route
 
         vsg::dvec3 getTangent() const;
 
-        Trajectory *trajectory;
+        Trajectory *trajectory = nullptr;
     };
 
     class RailConnector : public vsg::Inherit<RailPoint, RailConnector>
@@ -183,7 +183,7 @@ namespace route
 
         void setNull(Trajectory *caller);
 
-        Trajectory *fwdTrajectory;
+        Trajectory *fwdTrajectory = nullptr;
     };
 
     class StaticConnector : public vsg::Inherit<RailConnector, StaticConnector>

@@ -6,7 +6,6 @@
 #include <QColorDialog>
 #include <QErrorMessage>
 #include <QMessageBox>
-#include "AddDialog.h"
 #include "undo-redo.h"
 #include "LambdaVisitor.h"
 #include "ParentVisitor.h"
@@ -27,9 +26,8 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
     constructWidgets();
 
 
-    database = new DatabaseManager(pathDB, builder->options, this);
+    database = new DatabaseManager(pathDB, builder, this);
     database->undoStack = new QUndoStack(this);
-    database->setUpBuilder(builder);
 
     initializeTools();
 
@@ -210,9 +208,9 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         viewer->addWindow(window);
 
-        //auto memoryBufferPools = vsg::MemoryBufferPools::create("Staging_MemoryBufferPool", vsg::ref_ptr<vsg::Device>(window->getOrCreateDevice()));
-        auto copyBufferCmd = vsg::CopyAndReleaseBuffer::create();
-        auto copyImageCmd = vsg::CopyAndReleaseImage::create();
+        auto memoryBufferPools = vsg::MemoryBufferPools::create("Staging_MemoryBufferPool", vsg::ref_ptr<vsg::Device>(window->getOrCreateDevice()));
+        auto copyBufferCmd = vsg::CopyAndReleaseBuffer::create(memoryBufferPools);
+        auto copyImageCmd = vsg::CopyAndReleaseImage::create(memoryBufferPools);
 
         QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
@@ -223,10 +221,9 @@ QWindow* MainWindow::initilizeVSGwindow()
         // compute the bounds of the scene graph to help position camera
         vsg::ComputeBounds computeBounds;
         computeBounds.traversalMask = route::SceneObjects | route::Tiles;
-        database->root->accept(computeBounds);
+        database->tilesModel->getRoot()->accept(computeBounds);
         vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
         //double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
-
 
         auto horizonMountainHeight = settings.value("HMH", 0.0).toDouble();
         auto nearFarRatio = settings.value("NFR", 0.0001).toDouble();
@@ -254,16 +251,25 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
 
-        //compiler->setup(window, camera->viewportState);
-
         // add close handler to respond the close window button and pressing escape
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
+        auto view = vsg::View::create(camera);
+        view->addChild(vsg::createHeadlight());
+        view->addChild(database->root);
 
         // setup command graph to copy the image data each frame then rendering the scene graph
         auto grahics_commandGraph = vsg::CommandGraph::create(window);
-        //grahics_commandGraph->addChild(copyBufferCmd);
-        grahics_commandGraph->addChild(vsg::createRenderGraphForView(window, camera, database->root));
+        grahics_commandGraph->addChild(copyBufferCmd);
+        grahics_commandGraph->addChild(vsg::RenderGraph::create(window, view));
+
+        // add trackball to enable mouse driven camera view control.
+        auto manipulator = Manipulator::create(camera, ellipsoidModel, database, this);
+
+        // TODO have Viewer provide the required CompileTraversal.
+        auto ct = vsg::CompileTraversal::create();
+        ct->add(window, view);
+        builder->assignCompileTraversal(ct);
 
         auto addBins = [&](vsg::View& view)
         {
@@ -272,16 +278,11 @@ QWindow* MainWindow::initilizeVSGwindow()
         };
         LambdaVisitor<decltype(addBins), vsg::View> lv(addBins);
 
-        //grahics_commandGraph->accept(lv);
-
-        // add trackball to enable mouse driven camera view control.
-        auto manipulator = Manipulator::create(camera, ellipsoidModel, database, this);
-
-        builder->setup(window, camera->viewportState);
+        grahics_commandGraph->accept(lv);
 
         viewer->addEventHandler(manipulator);
 
-        viewer->assignRecordAndSubmitTaskAndPresentation({vsg::createCommandGraphForView(window, camera, database->root)});
+        viewer->assignRecordAndSubmitTaskAndPresentation({grahics_commandGraph});
 
         viewer->compile();
 

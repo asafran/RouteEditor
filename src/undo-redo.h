@@ -25,7 +25,7 @@ public:
     }
     void undo() override
     {
-        _model->removeRows(_row, 1, _group);
+        _model->removeNode(_model->index(_row, 0, _group));
     }
     void redo() override
     {
@@ -62,7 +62,7 @@ public:
     }
     void redo() override
     {
-        _model->removeRows(_row, 1, _group);
+        _model->removeNode(_model->index(_row, 0, _group));
     }
 private:
     SceneModel *_model;
@@ -206,6 +206,111 @@ protected:
     const vsg::dvec3 _oldPos;
     vsg::dvec3 _newPos;
 
+};
+
+class MoveObjectOnTraj : public QUndoCommand
+{
+public:
+    MoveObjectOnTraj(vsg::MatrixTransform *object, double coord, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _object(object)
+        , _newPos(coord)
+    {
+        std::string name;
+        object->getValue(META_NAME, name);
+        setText(QObject::tr("Перемещен объект %1, путевая коодината %2").arg(name.c_str()).arg(QString::number(coord)));
+
+        if(!object->getValue(META_PROPERTY, _oldPos))
+            _oldPos = 0.0;
+
+        _parent = object->getObject<route::SplineTrajectory>(META_PARENT);
+
+    }
+    void undo() override
+    {
+        if(!_parent)
+            return;
+
+        _object->matrix = _parent->getMatrixAt(_oldPos);
+        _object->setValue(META_PROPERTY, _oldPos);
+    }
+    void redo() override
+    {
+        if(!_parent)
+            return;
+
+        _object->matrix = _parent->getMatrixAt(_newPos);
+        _object->setValue(META_PROPERTY, _oldPos);
+    }
+    int id() const override
+    {
+        return 1;
+    }
+    bool mergeWith(const QUndoCommand *other) override
+    {
+        if (other->id() != id())
+            return false;
+        auto mcmd = static_cast<const MoveObjectOnTraj*>(other);
+        if(mcmd->_object != _object || mcmd->_parent != _parent)
+            return false;
+        _newPos = mcmd->_newPos;
+        return true;
+    }
+
+protected:
+    vsg::ref_ptr<route::SplineTrajectory> _parent;
+    vsg::ref_ptr<vsg::MatrixTransform> _object;
+    double _oldPos;
+    double _newPos;
+};
+
+class AddRailPoint : public QUndoCommand
+{
+public:
+    AddRailPoint(route::SplineTrajectory *trajectory, vsg::ref_ptr<route::RailPoint> point, QUndoCommand *parent = nullptr)
+        : QUndoCommand(parent)
+        , _trajectory(trajectory)
+        , _point(point)
+    {
+        std::string name;
+        trajectory->getValue(META_NAME, name);
+        setText(QObject::tr("Добавлена точка в траекторию %1").arg(name.c_str()));
+    }
+    void undo() override
+    {
+        _trajectory->remove(_point);
+    }
+    void redo() override
+    {
+        _trajectory->add(_point);
+    }
+private:
+    vsg::ref_ptr<route::SplineTrajectory> _trajectory;
+    vsg::ref_ptr<route::RailPoint> _point;
+};
+
+class RemoveRailPoint : public QUndoCommand
+{
+public:
+    RemoveRailPoint(route::SplineTrajectory *trajectory, route::RailPoint *point, QUndoCommand *parent = nullptr)
+        : QUndoCommand(parent)
+        , _trajectory(trajectory)
+        , _point(point)
+    {
+        std::string name;
+        trajectory->getValue(META_NAME, name);
+        setText(QObject::tr("Добавлена точка в траекторию %1").arg(name.c_str()));
+    }
+    void undo() override
+    {
+        _trajectory->add(_point);
+    }
+    void redo() override
+    {
+        _trajectory->remove(_point);
+    }
+private:
+    vsg::ref_ptr<route::SplineTrajectory> _trajectory;
+    vsg::ref_ptr<route::RailPoint> _point;
 };
 
 class ApplyTransformCalculation : public MoveObject

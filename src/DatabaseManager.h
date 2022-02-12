@@ -47,13 +47,13 @@ class DatabaseManager : public QObject
 {
     Q_OBJECT
 public:
-    DatabaseManager(QString path, vsg::ref_ptr<vsg::Options> options, QObject *parent = nullptr);
+    DatabaseManager(QString path, vsg::ref_ptr<vsg::Builder> in_builder, QObject *parent = nullptr);
     virtual ~DatabaseManager();
 
     vsg::ref_ptr<vsg::Group> getDatabase() const noexcept;
     void loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuffer, vsg::ref_ptr<vsg::CopyAndReleaseImage> copyImage);
-    void setUpBuilder(vsg::ref_ptr<vsg::Builder> in_builder);
     vsg::ref_ptr<vsg::Node> getStdWireBox();
+    vsg::ref_ptr<vsg::Node> getStdAxis();
 
     vsg::ref_ptr<vsg::CopyAndReleaseImage> getImageCmd() noexcept { return _copyImageCmd; }
 
@@ -64,6 +64,9 @@ public:
     vsg::ref_ptr<route::Topology> topology;
 
     vsg::ref_ptr<vsg::Group> root;
+
+    vsg::ref_ptr<vsg::Node> stdWireBox;
+    vsg::ref_ptr<vsg::Group> stdAxis;
 
     SceneModel *tilesModel;
 
@@ -78,8 +81,6 @@ private:
 
     vsg::ref_ptr<vsg::Group> _database;
     std::map<vsg::Node*, const QString> _files;
-
-    vsg::ref_ptr<vsg::Node> _stdWireBox;
 
     vsg::ref_ptr<vsg::CopyAndReleaseBuffer> _copyBufferCmd;
     vsg::ref_ptr<vsg::CopyAndReleaseImage> _copyImageCmd;

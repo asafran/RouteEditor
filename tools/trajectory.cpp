@@ -30,7 +30,7 @@ namespace route
                                        vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge)
       : vsg::Inherit<Trajectory, SplineTrajectory>(name)
       , _builder(builder)
-      , _track(vsg::Group::create())
+      , _track(vsg::MatrixTransform::create())
       , _sleeper(sleeper)
       , _sleepersDistance(distance)
       , _gaudge(gaudge)
@@ -70,6 +70,8 @@ namespace route
 
         _rail.texture = rtexture;
         _fill.texture = ftexture;
+
+        subgraphRequiresLocalFrustum = false;
 
         SplineTrajectory::recalculate();
     }
@@ -174,7 +176,7 @@ namespace route
             return sp->getTangent();
         });
 
-        points.push_back(_bwdPoint->getPosition() - front);
+        points.push_back(_bwdPoint->getPosition());
         tangents.push_back(_bwdPoint->getTangent());
 
         _railSpline.reset(new InterpolationSpline(points, tangents));
@@ -188,11 +190,12 @@ namespace route
 
         auto partitionBoundaries = ArcLength::partitionN(*_railSpline, static_cast<size_t>(n));
 
-        _position = _fwdPoint->getPosition();
+        auto front = _fwdPoint->getPosition();
+        _track->matrix = vsg::translate(front);
 
         std::vector<InterpolatedPTM> derivatives(partitionBoundaries.size());
         std::transform(std::execution::par_unseq, partitionBoundaries.begin(), partitionBoundaries.end(), derivatives.begin(),
-                       [railSpline=_railSpline, front=_position](double T)
+                       [railSpline=_railSpline, front](double T)
         {
             return std::move(InterpolatedPTM(railSpline->getTangent(T), front));
         });
@@ -302,7 +305,7 @@ namespace route
 
         vsg::StateInfo si;
         si.image = _rail.texture;
-        si.lighting = false;
+        //si.lighting = false;
 
         auto rstateGroup = _builder->createStateGroup(si);
 
@@ -318,7 +321,7 @@ namespace route
         _track->addChild(rstateGroup);
         _track->addChild(fstateGroup);
 
-        //_builder->compile(_track);
+        _builder->compileTraversal->compile(_track);
     }
 
     void SplineTrajectory::updateAttached()
@@ -326,14 +329,14 @@ namespace route
         auto computeTransform = [this](vsg::MatrixTransform& transform)
         {
             double coord = 0.0;
-            transform.getValue(META_PROPERTY, coord);
-            transform.matrix = getMatrixAt(coord);
+            if(transform.getValue(META_PROPERTY, coord))
+                transform.matrix = getMatrixAt(coord);
         };
         LambdaVisitor<decltype (computeTransform), vsg::MatrixTransform> ct(computeTransform);
         Trajectory::accept(ct);
     }
 
-    void SplineTrajectory::add(vsg::ref_ptr<RailPoint> rp)
+    size_t SplineTrajectory::add(vsg::ref_ptr<RailPoint> rp)
     {
         SplineInverter<vsg::dvec3, double> inverter(*_railSpline);
         double t = inverter.findClosestT(rp->getPosition());
@@ -344,6 +347,21 @@ namespace route
         rp->trajectory = this;
 
         recalculate();
+
+        return index;
+    }
+
+    void SplineTrajectory::remove(size_t index)
+    {
+        auto it = _points.begin() + index;
+        Q_ASSERT(it < _points.end());
+        _points.erase(it);
+    }
+
+    void SplineTrajectory::remove(vsg::ref_ptr<RailPoint> rp)
+    {
+        auto it = std::find(_points.begin(), _points.end(), rp);
+        _points.erase(it);
     }
 
     Junction::Junction(std::string name,

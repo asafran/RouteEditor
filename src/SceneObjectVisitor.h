@@ -104,12 +104,12 @@ namespace route {
         FindNode();
 
         std::vector<const route::SceneObject*> objects;
-        const route::Trajectory* track;
-        const route::RailPoint* trackpoint;
-        const vsg::Switch* tile;
-        const vsg::MatrixTransform* terrain;
+        const route::Trajectory* track = nullptr;
+        const route::RailPoint* trackpoint = nullptr;
+        const vsg::Switch* tile = nullptr;
+        const vsg::MatrixTransform* terrain = nullptr;
 
-        uint16_t keyModifier;
+        uint16_t keyModifier = 0;
 
         void apply(const vsg::Node &node) override;
 

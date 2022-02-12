@@ -24,6 +24,7 @@ public slots:
     void updateData();
     void selectObject(const QItemSelection &selected, const QItemSelection &deselected);
     void move(const vsg::dvec3 &delta);
+    void selectNode(route::SceneObject *object);
 
 signals:
     void objectClicked(const QModelIndex &index);

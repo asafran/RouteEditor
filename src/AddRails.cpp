@@ -19,7 +19,7 @@ AddRails::AddRails(DatabaseManager *database, QString root, QWidget *parent) : T
     ui->fillView->setModel(_fsmodel);
     ui->railView->setRootIndex(_fsmodel->index(root + "/rails"));
     ui->sleeperView->setRootIndex(_fsmodel->index(root + "/sleepers"));
-    ui->fillView->setRootIndex(_fsmodel->index(root + "fill"));
+    ui->fillView->setRootIndex(_fsmodel->index(root + "/fill"));
 }
 
 AddRails::~AddRails()
@@ -66,7 +66,8 @@ void AddRails::intersection(const FindNode &isection)
         return;
 
     auto railFilepath = _fsmodel->filePath(activeRail);
-    auto fillFilepath = _fsmodel->filePath(activeRail);
+    auto sleeperFilepath = _fsmodel->filePath(activeSleeper).toStdString();
+    auto fillFilepath = _fsmodel->filePath(activeFill);
     QFileInfo fir(railFilepath);
     QFileInfo fif(fillFilepath);
 
@@ -93,38 +94,28 @@ void AddRails::intersection(const FindNode &isection)
 
     auto fillTexture = vsg::read_cast<vsg::Data>(fif.absolutePath().toStdString() + "/" + fmaterials.front().diffuse_texname, _database->builder->options);
 
-    std::vector<vsg::ref_ptr<route::RailPoint>> points;
-
     auto builder = _database->builder;
 
-    auto marker = vsg::Group::create();
-    vsg::GeometryInfo gi;
-    gi.dx = vsg::vec3(1.0f, 0.0f, 0.0f);
-    gi.dy = vsg::vec3(0.0f, 0.1f, 0.0f);
-    gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
-    gi.color = vsg::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-    marker->addChild(builder->createBox(gi));
-    gi.dx = vsg::vec3(0.1f, 0.0f, 0.0f);
-    gi.dy = vsg::vec3(0.0f, 1.0f, 0.0f);
-    gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
-    gi.color = vsg::vec4(0.0f, 1.0f, 0.0f, 1.0f);
-    marker->addChild(builder->createBox(gi));
-    gi.dx = vsg::vec3(0.1f, 0.0f, 0.0f);
-    gi.dy = vsg::vec3(0.0f, 0.1f, 0.0f);
-    gi.dz = vsg::vec3(0.0f, 0.0f, 1.0f);
-    gi.color = vsg::vec4(0.0f, 0.0f, 1.0f, 1.0f);
-    marker->addChild(builder->createBox(gi));
+    vsg::ref_ptr<route::RailConnector> bwd;
 
-    gi.dx = vsg::vec3(2.0f, 0.0f, 0.0f);
-    gi.dy = vsg::vec3(0.0f, 0.1f, 0.0f);
-    gi.dz = vsg::vec3(0.0f, 0.0f, 0.1f);
-    gi.color = vsg::vec4(6.0f, 6.0f, 6.0f, 1.0f);
+    if(isection.trackpoint && isection.trackpoint->is_compatible(typeid (route::RailConnector)))
+        bwd = const_cast<route::RailConnector*>(isection.trackpoint->cast<route::RailConnector>());
+    else
+        bwd = route::RailConnector::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
 
-    auto bwd = route::RailConnector::create(marker, _database->getStdWireBox(), isection.worldIntersection);
+    auto fwd = route::RailConnector::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection + vsg::dvec3(20.0, 0.0, 0.0));
 
-    auto fwd = route::RailConnector::create(marker, _database->getStdWireBox(), isection.worldIntersection + vsg::dvec3(2.0, 0.0, 0.0));
+    auto sleeper = vsg::read_cast<vsg::Node>(sleeperFilepath, _database->builder->options);
 
-    auto traj = route::SplineTrajectory::create("trj", bwd, fwd, builder, readerRail.GetAttrib(), readerFill.GetAttrib(), railsTexture, fillTexture, builder->createBox(gi), 2.0, 1.5);
+    auto traj = route::SplineTrajectory::create("trj",
+                                                bwd,
+                                                fwd,
+                                                builder,
+                                                readerRail.GetAttrib(),
+                                                readerFill.GetAttrib(),
+                                                railsTexture,
+                                                fillTexture,
+                                                sleeper, 2.0, 1.5);
     auto adapter = route::SceneTrajectory::create(traj);
 
     if(!isection.tile)
@@ -133,6 +124,9 @@ void AddRails::intersection(const FindNode &isection)
     auto index = tilesModel->index(isection.tile);
 
     _database->topology->insertTraj(traj);
+
+    ParentIndexer pi;
+    adapter->accept(pi);
 
     _database->undoStack->push(new AddSceneObject(tilesModel, index, adapter));
 

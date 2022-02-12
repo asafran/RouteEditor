@@ -10,10 +10,11 @@
 #include <vsg/traversals/CompileTraversal.h>
 #include <vsg/io/VSG.h>
 
-SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> compile, QUndoStack *stack, QObject *parent) :
+SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QUndoStack *stack, QObject *parent) :
     QAbstractItemModel(parent)
   , _root(group)
-  , _compile(compile)
+  , _compile(builder->compileTraversal)
+  , _options(builder->options)
   , _undoStack(stack)
 {
 }
@@ -210,14 +211,14 @@ QMimeData *SceneModel::mimeData(const QModelIndexList &indexes) const
         return 0;
 
     vsg::VSG io;
-    _compile->options->extensionHint = "vsgt";
+    _options->extensionHint = "vsgt";
 
     std::ostringstream oss;
 
     if (indexes.at(0).isValid()) {
         if(auto node = static_cast<vsg::Node*>(indexes.at(0).internalPointer()); node)
         {
-            io.write(node, oss, _compile->options);
+            io.write(node, oss, _options);
         }
     } else
         return 0;
@@ -239,12 +240,12 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
 
     vsg::VSG io;
 
-    auto object = io.read(iss, _compile->options);
+    auto object = io.read(iss, _options);
     auto node = object.cast<vsg::Node>();
     if(!node)
         return false;
 
-    _compile->compile(node);
+    node->accept(*_compile);
 
     CalculateTransform ct;
     node->accept(ct);

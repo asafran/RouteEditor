@@ -12,7 +12,7 @@ class SceneModel : public QAbstractItemModel
 public:
 
     explicit SceneModel(vsg::ref_ptr<vsg::Group> group, QObject* parent = 0);
-    SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> compile, QUndoStack *stack, QObject* parent = 0);
+    SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QUndoStack *stack, QObject* parent = 0);
 
     ~SceneModel();
 
@@ -92,7 +92,9 @@ private:
         };
 
     vsg::ref_ptr<vsg::Group> _root;
-    vsg::ref_ptr<vsg::Builder> _compile;
+    vsg::ref_ptr<vsg::CompileTraversal> _compile;
+    vsg::ref_ptr<vsg::Options> _options;
+
     QUndoStack *_undoStack;
 };
 

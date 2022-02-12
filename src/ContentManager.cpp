@@ -25,8 +25,11 @@ void ContentManager::intersection(const FindNode &isection)
         return;
 
     auto path = _fsmodel->filePath(activeFile).toStdString();
-    auto node = vsg::read_cast<vsg::Node>(path);
-    _database->builder->compile(node);
+    auto node = vsg::read_cast<vsg::Node>(path, _database->builder->options);
+    if(!node)
+        return;
+
+    _database->builder->compileTraversal->compile(node);
 
     if(addToTrack(node, isection))
         return;
