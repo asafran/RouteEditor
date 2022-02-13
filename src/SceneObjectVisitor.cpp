@@ -110,9 +110,9 @@
     {
         if(auto object = node.cast<route::SceneObject>(); object)
             apply(*object);
-        else if(auto traj = node.cast<route::Trajectory>(); traj)
+        if(auto traj = node.cast<route::Trajectory>(); traj)
             apply(*traj);
-        else if(auto point = node.cast<route::RailPoint>(); point)
+        if(auto point = node.cast<route::RailPoint>(); point)
             apply(*point);
     }
 

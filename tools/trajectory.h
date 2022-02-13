@@ -127,8 +127,8 @@ namespace route
                          vsg::ref_ptr<RailConnector> bwdPoint,
                          vsg::ref_ptr<RailConnector> fwdPoint,
                          vsg::ref_ptr<vsg::Builder> builder,
-                         tinyobj::attrib_t rail,
-                         tinyobj::attrib_t fill,
+                         const tinyobj::attrib_t &rail, const std::vector<tinyobj::index_t> &railPoints,
+                         const tinyobj::attrib_t &fill, const std::vector<tinyobj::index_t> &fillPoints,
                          vsg::ref_ptr<vsg::Data> rtexture,
                          vsg::ref_ptr<vsg::Data> ftexture,
                          vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge);
@@ -181,7 +181,7 @@ namespace route
         {
             std::vector<vsg::vec3> vertices;
 
-            std::vector<vsg::vec2> uv;
+            std::vector<float> uv;
 
             vsg::ref_ptr<vsg::Data> texture;
         };
@@ -197,6 +197,8 @@ namespace route
                                                           ModelData geometry) const;
 
         void updateAttached();
+
+        vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<vsg::Data> texture);
 
         double _sleepersDistance;
 

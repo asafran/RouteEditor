@@ -9,6 +9,8 @@
 #include    "sceneobjects.h"
 #include    "LambdaVisitor.h"
 #include    <vsg/nodes/VertexIndexDraw.h>
+#include    <vsg/state/VertexInputState.h>
+#include    <vsg/all.h>
 #include    <vsg/nodes/StateGroup.h>
 #include    <vsg/io/ObjectCache.h>
 
@@ -23,8 +25,10 @@ namespace route
                                        vsg::ref_ptr<RailConnector> bwdPoint,
                                        vsg::ref_ptr<RailConnector> fwdPoint,
                                        vsg::ref_ptr<vsg::Builder> builder,
-                                       tinyobj::attrib_t rail,
-                                       tinyobj::attrib_t fill,
+                                       const tinyobj::attrib_t &rail,
+                                       const std::vector<tinyobj::index_t> &railPoints,
+                                       const tinyobj::attrib_t &fill,
+                                       const std::vector<tinyobj::index_t> &fillPoints,
                                        vsg::ref_ptr<vsg::Data> rtexture,
                                        vsg::ref_ptr<vsg::Data> ftexture,
                                        vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge)
@@ -44,12 +48,13 @@ namespace route
             _rail.vertices.push_back(vsg::vec3(*it, *(it + 1), *(it + 2)));
             it += 3;
         }
+        _rail.uv.resize(_rail.vertices.size());
 
-        it = rail.texcoords.begin();
-        end = rail.texcoords.end() - (rail.texcoords.size()/2);
-        while (it < end)
-            _rail.uv.push_back(vsg::vec2(*it++, *it++));
-
+        for(const auto &index : railPoints)
+        {
+            if(index.vertex_index < _rail.vertices.size())
+                _rail.uv[index.vertex_index] = rail.texcoords.at((index.texcoord_index * 2) + 1);
+        }
 
         it = fill.vertices.begin();
         end = fill.vertices.end() - (fill.vertices.size()/2);
@@ -58,12 +63,13 @@ namespace route
             _fill.vertices.push_back(vsg::vec3(*it, *(it + 1), *(it + 2)));
             it += 3;
         }
+        _fill.uv.resize(_fill.vertices.size());
 
-        it = fill.texcoords.begin();
-        end = fill.texcoords.end() - (fill.texcoords.size()/2);
-        while (it < end)
-            _fill.uv.push_back(vsg::vec2(*it++, *it++));
-
+        for(const auto &index : fillPoints)
+        {
+            if(index.vertex_index < _fill.vertices.size())
+                _fill.uv[index.vertex_index] = fill.texcoords.at((index.texcoord_index * 2) + 1);
+        }
 
         fwdPoint->setBwd(this);
         bwdPoint->setFwd(this);
@@ -71,7 +77,7 @@ namespace route
         _rail.texture = rtexture;
         _fill.texture = ftexture;
 
-        subgraphRequiresLocalFrustum = false;
+        //subgraphRequiresLocalFrustum = false;
 
         SplineTrajectory::recalculate();
     }
@@ -160,9 +166,7 @@ namespace route
         std::vector<vsg::dvec3> points;
         std::vector<vsg::dvec3> tangents;
 
-        auto front = _fwdPoint->getPosition();
-
-        points.push_back(front);
+        points.push_back(_fwdPoint->getPosition());
         tangents.push_back(_fwdPoint->getTangent());
 
         std::transform(_points.begin(), _points.end(), std::back_insert_iterator(points),
@@ -234,8 +238,6 @@ namespace route
             for(const auto &vec : geometry.vertices)
                 out.push_back(fmat * (vec + offset));
 
-
-
             return std::make_pair(std::move(out), ptcm.index);
         });
 
@@ -254,7 +256,7 @@ namespace route
                 Q_ASSERT(vertIt != vertArray->end());
                 Q_ASSERT(uv < end);
                 *vertIt = vertex;
-                *texIt = vsg::vec2(vertexGroup.second, uv->y);
+                *texIt = vsg::vec2(vertexGroup.second, *uv);
                 texIt++;
                 uv++;
                 vertIt++;
@@ -288,7 +290,7 @@ namespace route
 
         auto vid = vsg::VertexIndexDraw::create();
 
-        vid->assignArrays(vsg::DataList{vertArray, normalArray, texArray});
+        vid->assignArrays(vsg::DataList{vertArray, normalArray, texArray, colorArray});
 
         vid->assignIndices(ind);
         vid->indexCount = static_cast<uint32_t>(ind->size());
@@ -303,25 +305,21 @@ namespace route
         auto right = createGeometry(vsg::vec3(-_gaudge / 2.0, 0.0, 0.0), derivatives, _rail);
         auto fill = createGeometry(vsg::vec3(), derivatives, _fill);
 
-        vsg::StateInfo si;
-        si.image = _rail.texture;
-        //si.lighting = false;
 
-        auto rstateGroup = _builder->createStateGroup(si);
-
+        auto rstateGroup = createStateGroup(_rail.texture);
         rstateGroup->addChild(left);
         rstateGroup->addChild(right);
 
-        si.image = _fill.texture;
-
-        auto fstateGroup = _builder->createStateGroup(si);
+        auto fstateGroup = createStateGroup(_fill.texture);
 
         fstateGroup->addChild(fill);
 
         _track->addChild(rstateGroup);
         _track->addChild(fstateGroup);
+        //_track->addChild(_builder->createBox());
 
-        _builder->compileTraversal->compile(_track);
+        _builder->compileTraversal->compile(rstateGroup);
+        _builder->compileTraversal->compile(fstateGroup);
     }
 
     void SplineTrajectory::updateAttached()
@@ -334,6 +332,67 @@ namespace route
         };
         LambdaVisitor<decltype (computeTransform), vsg::MatrixTransform> ct(computeTransform);
         Trajectory::accept(ct);
+    }
+
+    vsg::ref_ptr<vsg::StateGroup> SplineTrajectory::createStateGroup(vsg::ref_ptr<vsg::Data> texture)
+    {
+        vsg::Paths searchPaths = vsg::getEnvPaths("RRS2_ROOT");
+
+        vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("shaders/vert_PushConstants.spv", searchPaths));
+        vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("shaders/frag_PushConstants.spv", searchPaths));
+        if (!vertexShader || !fragmentShader)
+        {
+            std::cout << "Could not create shaders." << std::endl;
+            return vsg::ref_ptr<vsg::StateGroup>();
+        }
+
+        // set up graphics pipeline
+        vsg::DescriptorSetLayoutBindings descriptorBindings{
+            {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
+        };
+
+        auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
+
+        vsg::PushConstantRanges pushConstantRanges{
+            {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls automatically provided by the VSG's DispatchTraversal
+        };
+
+        vsg::VertexInputState::Bindings vertexBindingsDescriptions{
+            VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // vertex data
+            VkVertexInputBindingDescription{1, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // colour data
+            VkVertexInputBindingDescription{2, sizeof(vsg::vec2), VK_VERTEX_INPUT_RATE_VERTEX}  // tex coord data
+        };
+
+        vsg::VertexInputState::Attributes vertexAttributeDescriptions{
+            VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0}, // vertex data
+            VkVertexInputAttributeDescription{1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0}, // colour data
+            VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R32G32_SFLOAT, 0}     // tex coord data
+        };
+
+        vsg::GraphicsPipelineStates pipelineStates{
+            vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
+            vsg::InputAssemblyState::create(),
+            vsg::RasterizationState::create(),
+            vsg::MultisampleState::create(),
+            vsg::ColorBlendState::create(),
+            vsg::DepthStencilState::create()};
+
+        auto pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout}, pushConstantRanges);
+        auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, vsg::ShaderStages{vertexShader, fragmentShader}, pipelineStates);
+        auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
+
+        // create texture image and associated DescriptorSets and binding
+        auto descriptorTexture = vsg::DescriptorImage::create(vsg::Sampler::create(), texture, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+        auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{descriptorTexture});
+        auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
+
+        // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
+        auto stateGroup = vsg::StateGroup::create();
+        stateGroup->add(bindGraphicsPipeline);
+        stateGroup->add(bindDescriptorSet);
+
+        return stateGroup;
     }
 
     size_t SplineTrajectory::add(vsg::ref_ptr<RailPoint> rp)

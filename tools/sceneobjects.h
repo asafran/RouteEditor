@@ -153,7 +153,12 @@ namespace route
 
         vsg::dvec3 getTangent() const;
 
+        void setTangent(double t) { _tangent = t; }
+
         Trajectory *trajectory = nullptr;
+
+    protected:
+        double _tangent = 20.0;
     };
 
     class RailConnector : public vsg::Inherit<RailPoint, RailConnector>

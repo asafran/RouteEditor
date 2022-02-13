@@ -96,6 +96,7 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         if(_isMoving)
         {
             _database->undoStack->endMacro();
+            _prev = vsg::dvec3();
             _isMoving = false;
         }
         emit sendIntersection(intersectedObjects(_mask, buttonPress));
@@ -283,40 +284,37 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
 
 
         vsg::dvec3 delta;
-        delta = isection.worldIntersection - _prev;
-        _prev = isection.worldIntersection;
+
+        delta = isection.worldIntersection - _movingObject->getWorldPosition();
 
         emit sendMovingDelta(delta);
     }
     case MovingAxis::X:
     {
-        auto delta = pointerEvent.y - _previousPointerEvent->y;
+        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 2;
         auto quat = _movingObject->getWorldQuat();
 
-        vsg::dquat vec(delta, 0.0, 0.0, 0.0);
-        auto rotated = route::mult(route::mult(quat, vec), vsg::dquat(-quat.x, -quat.y, -quat.z, quat.w));
+        auto rotated = vsg::rotate(quat) * vsg::dvec3(delta, 0.0, 0.0);
 
-        emit sendMovingDelta(vsg::dvec3(rotated.x, rotated.y, rotated.z));
+        emit sendMovingDelta(rotated);
     }
     case MovingAxis::Y:
     {
-        auto delta = pointerEvent.y - _previousPointerEvent->y;
+        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 2;
         auto quat = _movingObject->getWorldQuat();
 
-        vsg::dquat vec(0.0, delta, 0.0, 0.0);
-        auto rotated = route::mult(route::mult(quat, vec), vsg::dquat(-quat.x, -quat.y, -quat.z, quat.w));
+        auto rotated = vsg::rotate(quat) * vsg::dvec3(0.0, delta, 0.0);
 
-        emit sendMovingDelta(vsg::dvec3(rotated.x, rotated.y, rotated.z));
+        emit sendMovingDelta(rotated);
     }
     case MovingAxis::Z:
     {
-        auto delta = pointerEvent.y - _previousPointerEvent->y;
+        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 2;
         auto quat = _movingObject->getWorldQuat();
 
-        vsg::dquat vec(0.0, 0.0, delta, 0.0);
-        auto rotated = route::mult(route::mult(quat, vec), vsg::dquat(-quat.x, -quat.y, -quat.z, quat.w));
+        auto rotated = vsg::rotate(quat) * vsg::dvec3(0.0, 0.0, delta);
 
-        emit sendMovingDelta(vsg::dvec3(rotated.x, rotated.y, rotated.z));
+        emit sendMovingDelta(rotated);
     }
 
     }

@@ -187,18 +187,17 @@ namespace route
     void RailPoint::setPosition(const vsg::dvec3& position)
     {
         SceneObject::setPosition(position);
-        trajectory->recalculate();
+        if(trajectory) trajectory->recalculate();
     }
     void RailPoint::setRotation(const vsg::dquat &rotation)
     {
         SceneObject::setRotation(rotation);
-        trajectory->recalculate();
+        if(trajectory) trajectory->recalculate();
     }
 
     vsg::dvec3 RailPoint::getTangent() const
     {
-        auto q = mult(vsg::dquat(0.0, 0.0, 20.0, 0.0), mult(_world_quat, _quat));
-        return vsg::dvec3(q.x, q.y, q.z);
+        return vsg::rotate(mult(_world_quat, _quat)) * vsg::dvec3(_tangent, 0.0, 0.0);
     }
 
     RailConnector::RailConnector(vsg::ref_ptr<vsg::Node> loaded,
@@ -229,12 +228,12 @@ namespace route
     void RailConnector::setPosition(const vsg::dvec3& position)
     {
         RailPoint::setPosition(position);
-        fwdTrajectory->recalculate();
+        if(fwdTrajectory) fwdTrajectory->recalculate();
     }
     void RailConnector::setRotation(const vsg::dquat &rotation)
     {
         RailPoint::setRotation(rotation);
-        fwdTrajectory->recalculate();
+        if(fwdTrajectory) fwdTrajectory->recalculate();
     }
 
     std::pair<Trajectory*, bool> RailConnector::getFwd(const Trajectory *caller) const

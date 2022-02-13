@@ -112,10 +112,12 @@ void AddRails::intersection(const FindNode &isection)
                                                 fwd,
                                                 builder,
                                                 readerRail.GetAttrib(),
+                                                readerRail.GetShapes().front().mesh.indices,
                                                 readerFill.GetAttrib(),
+                                                readerFill.GetShapes().front().mesh.indices,
                                                 railsTexture,
                                                 fillTexture,
-                                                sleeper, 2.0, 1.5);
+                                                vsg::Node::create(), 2.0, 1.5);
     auto adapter = route::SceneTrajectory::create(traj);
 
     if(!isection.tile)

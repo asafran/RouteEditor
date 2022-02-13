@@ -71,7 +71,7 @@ protected:
 
     bool _isMoving;
     vsg::ref_ptr<route::SceneObject> _movingObject;
-    vsg::dvec3 _prev = {};
+    //vsg::dvec3 _prev = {};
 
     uint32_t _mask = 0xFFFFFF;
 
