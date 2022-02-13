@@ -96,7 +96,6 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         if(_isMoving)
         {
             _database->undoStack->endMacro();
-            _prev = vsg::dvec3();
             _isMoving = false;
         }
         emit sendIntersection(intersectedObjects(_mask, buttonPress));
@@ -281,7 +280,6 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
         if(isections.empty())
             return;
         auto isection = isections.front();
-
 
         vsg::dvec3 delta;
 

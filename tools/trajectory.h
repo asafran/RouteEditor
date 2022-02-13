@@ -127,10 +127,7 @@ namespace route
                          vsg::ref_ptr<RailConnector> bwdPoint,
                          vsg::ref_ptr<RailConnector> fwdPoint,
                          vsg::ref_ptr<vsg::Builder> builder,
-                         const tinyobj::attrib_t &rail, const std::vector<tinyobj::index_t> &railPoints,
-                         const tinyobj::attrib_t &fill, const std::vector<tinyobj::index_t> &fillPoints,
-                         vsg::ref_ptr<vsg::Data> rtexture,
-                         vsg::ref_ptr<vsg::Data> ftexture,
+                         std::string railPath, std::string fillPath,
                          vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge);
         SplineTrajectory();
 
@@ -177,14 +174,21 @@ namespace route
             t_traverse(*this, visitor);
         }
 
-        struct ModelData
+        struct VertexData
         {
-            std::vector<vsg::vec3> vertices;
+            VertexData(const vsg::vec3 &vert)
+            {
+                verticle = vert;
+            }
 
-            std::vector<float> uv;
+            vsg::vec3 verticle = {};
 
-            vsg::ref_ptr<vsg::Data> texture;
+            float uv = 0.0;
+
+            vsg::vec3 normal = {};
         };
+
+        void reloadData();
 
     private:
 
@@ -194,11 +198,13 @@ namespace route
 
         vsg::ref_ptr<vsg::VertexIndexDraw> createGeometry(const vsg::vec3 &offset,
                                                           const std::vector<InterpolatedPTM> &derivatives,
-                                                          ModelData geometry) const;
+                                                          const std::vector<VertexData> &geometry) const;
 
         void updateAttached();
 
-        vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<vsg::Data> texture);
+        std::pair<std::vector<VertexData>, vsg::ref_ptr<vsg::Data>> loadData(std::string path);
+
+        vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<vsg::Data> textureData);
 
         double _sleepersDistance;
 
@@ -214,9 +220,13 @@ namespace route
 
         vsg::ref_ptr<vsg::MatrixTransform> _track;
 
-        ModelData _rail;
+        std::string _railPath;
+        std::vector<VertexData> _rail;
+        vsg::ref_ptr<vsg::Data> _railTexture;
 
-        ModelData _fill;
+        std::string _fillPath;
+        std::vector<VertexData> _fill;
+        vsg::ref_ptr<vsg::Data> _fillTexture;
 
         vsg::ref_ptr<vsg::Node> _sleeper;
 

@@ -68,31 +68,6 @@ void AddRails::intersection(const FindNode &isection)
     auto railFilepath = _fsmodel->filePath(activeRail);
     auto sleeperFilepath = _fsmodel->filePath(activeSleeper).toStdString();
     auto fillFilepath = _fsmodel->filePath(activeFill);
-    QFileInfo fir(railFilepath);
-    QFileInfo fif(fillFilepath);
-
-    tinyobj::ObjReaderConfig reader_config;
-    reader_config.mtl_search_path = fir.absolutePath().toStdString(); // Path to material files
-
-    tinyobj::ObjReader readerRail;
-    tinyobj::ObjReader readerFill;
-
-    readerRail.ParseFromFile(railFilepath.toStdString(), reader_config);
-    reader_config.mtl_search_path = fif.absolutePath().toStdString();
-    readerFill.ParseFromFile(fillFilepath.toStdString(), reader_config);
-    //if (!reader.ParseFromFile(railFilepath.toStdString(), reader_config))
-    //{
-      //if (!reader.Error().empty())
-          //return std::pair<attrib_t, std::string>();
-    //}
-
-
-    auto& rmaterials = readerRail.GetMaterials();
-    auto& fmaterials = readerFill.GetMaterials();
-
-    auto railsTexture = vsg::read_cast<vsg::Data>(fir.absolutePath().toStdString() + "/" + rmaterials.front().diffuse_texname, _database->builder->options);
-
-    auto fillTexture = vsg::read_cast<vsg::Data>(fif.absolutePath().toStdString() + "/" + fmaterials.front().diffuse_texname, _database->builder->options);
 
     auto builder = _database->builder;
 
@@ -111,12 +86,7 @@ void AddRails::intersection(const FindNode &isection)
                                                 bwd,
                                                 fwd,
                                                 builder,
-                                                readerRail.GetAttrib(),
-                                                readerRail.GetShapes().front().mesh.indices,
-                                                readerFill.GetAttrib(),
-                                                readerFill.GetShapes().front().mesh.indices,
-                                                railsTexture,
-                                                fillTexture,
+                                                railFilepath.toStdString(), fillFilepath.toStdString(),
                                                 vsg::Node::create(), 2.0, 1.5);
     auto adapter = route::SceneTrajectory::create(traj);
 
