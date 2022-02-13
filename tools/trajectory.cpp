@@ -240,15 +240,15 @@ namespace route
             indices.push_back(ind);
         }
 
-        auto colorArray = vsg::vec4Array::create(vsize);
-        std::fill(colorArray->begin(), colorArray->end(), vsg::vec4(1.0f, 0.0f, 1.0f, 1.0f));
+        //auto colorArray = vsg::vec4Array::create(vsize);
+        //std::fill(colorArray->begin(), colorArray->end(), vsg::vec4(1.0f, 0.0f, 1.0f, 1.0f));
 
         auto ind = vsg::ushortArray::create(indices.size());
         std::copy(indices.begin(), indices.end(), ind->begin());
 
         auto vid = vsg::VertexIndexDraw::create();
 
-        vid->assignArrays(vsg::DataList{vertArray, normalArray, texArray, colorArray});
+        vid->assignArrays(vsg::DataList{vertArray, normalArray, texArray});
 
         vid->assignIndices(ind);
         vid->indexCount = static_cast<uint32_t>(ind->size());
@@ -341,103 +341,59 @@ namespace route
     {
         vsg::Paths searchPaths = vsg::getEnvPaths("RRS2_ROOT");
 
-        auto vertexShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp.vert", _builder->options);
-        auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp_phong.frag", _builder->options);
+        vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("shaders/vert_PushConstants.spv", searchPaths));
+        vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("shaders/frag_PushConstants.spv", searchPaths));
         if (!vertexShader || !fragmentShader)
         {
             std::cout << "Could not create shaders." << std::endl;
             return vsg::ref_ptr<vsg::StateGroup>();
         }
 
-        auto shaderHints = vsg::ShaderCompileSettings::create();
-        std::vector<std::string>& defines = shaderHints->defines;
-
-        vertexShader->module->hints = shaderHints;
-        vertexShader->module->code = {};
-
-        fragmentShader->module->hints = shaderHints;
-        fragmentShader->module->code = {};
-
         // set up graphics pipeline
-        vsg::DescriptorSetLayoutBindings descriptorBindings;
-        descriptorBindings.push_back(VkDescriptorSetLayoutBinding{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr});
-        defines.push_back("VSG_DIFFUSE_MAP");
-
-        descriptorBindings.push_back(VkDescriptorSetLayoutBinding{10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr});
+        vsg::DescriptorSetLayoutBindings descriptorBindings{
+            {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
+        };
 
         auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
-
-        vsg::DescriptorSetLayouts descriptorSetLayouts{descriptorSetLayout, vsg::ViewDescriptorSetLayout::create()};
-        defines.push_back("VSG_VIEW_LIGHT_DATA");
 
         vsg::PushConstantRanges pushConstantRanges{
             {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls automatically provided by the VSG's DispatchTraversal
         };
 
-        auto pipelineLayout = vsg::PipelineLayout::create(descriptorSetLayouts, pushConstantRanges);
-
         vsg::VertexInputState::Bindings vertexBindingsDescriptions{
             VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // vertex data
-            VkVertexInputBindingDescription{1, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // normal data
+            VkVertexInputBindingDescription{1, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // colour data
             VkVertexInputBindingDescription{2, sizeof(vsg::vec2), VK_VERTEX_INPUT_RATE_VERTEX}  // tex coord data
         };
 
         vsg::VertexInputState::Attributes vertexAttributeDescriptions{
             VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0}, // vertex data
-            VkVertexInputAttributeDescription{1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0}, // normal data
+            VkVertexInputAttributeDescription{1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0}, // colour data
             VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R32G32_SFLOAT, 0}     // tex coord data
         };
-
-        auto colorBlendState = vsg::ColorBlendState::create();
-        colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
-            {true, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
-                | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
 
         vsg::GraphicsPipelineStates pipelineStates{
             vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
             vsg::InputAssemblyState::create(),
             vsg::RasterizationState::create(),
             vsg::MultisampleState::create(),
-            colorBlendState,
+            vsg::ColorBlendState::create(),
             vsg::DepthStencilState::create()};
 
-
+        auto pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout}, pushConstantRanges);
         auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, vsg::ShaderStages{vertexShader, fragmentShader}, pipelineStates);
         auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
 
         // create texture image and associated DescriptorSets and binding
-        auto mat = vsg::PhongMaterialValue::create();
-        auto material = vsg::DescriptorBuffer::create(mat, 10);
+        auto descriptorTexture = vsg::DescriptorImage::create(vsg::Sampler::create(), textureData, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-        mat->value().specular = vsg::vec4(0.5f, 0.5f, 0.5f, 1.0f);
-
-        vsg::Descriptors descriptors;
-
-        auto sampler = vsg::Sampler::create();
-        sampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-
-        auto texture = vsg::DescriptorImage::create(sampler, textureData, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        descriptors.push_back(texture);
-
-        descriptors.push_back(material);
-
-        auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descriptors);
-        auto bindDescriptorSets = vsg::BindDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, vsg::DescriptorSets{descriptorSet});
-
-        // create texture image and associated DescriptorSets and binding
-        //auto descriptorTexture = vsg::DescriptorImage::create(vsg::Sampler::create(), texture, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-        //auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{descriptorTexture});
-        //auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
+        auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{descriptorTexture});
+        auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
 
         // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
         auto stateGroup = vsg::StateGroup::create();
         stateGroup->add(bindGraphicsPipeline);
-        stateGroup->add(bindDescriptorSets);
-        stateGroup->add(vsg::BindViewDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1));
+        stateGroup->add(bindDescriptorSet);
 
         return stateGroup;
     }
