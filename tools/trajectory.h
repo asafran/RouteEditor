@@ -13,12 +13,16 @@
 #include "splines/cubic_hermite_spline.h"
 #include "utils/arclength.h"
 #include "utils/splineinverter.h"
+#include "Constants.h"
 
 #include "tiny_obj_loader.h"
 
 namespace simulator {
     class Bogie;
 }
+
+class PointsModel;
+class AddRails;
 
 namespace route
 {
@@ -31,25 +35,21 @@ namespace route
 
     struct InterpolatedPTM : public InterpolationSpline::InterpolatedPT
     {
-        InterpolatedPTM(InterpolatedPT &&pt, const vsg::dvec3 &offset = {}) : InterpolatedPT(std::move(pt))
+        InterpolatedPTM(InterpolatedPT &&pt, const vsg::dquat &tilt = {0.0, 0.0, 0.0, 1.0}, const vsg::dvec3 &offset = {}) : InterpolatedPT(std::move(pt))
         {
             auto norm = vsg::normalize(pt.position);
-            vsg::dquat w_quat(vsg::dvec3(0.0, 1.0, 0.0), norm);
+            vsg::dquat w_quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
 
             auto t = vsg::inverse(vsg::rotate(w_quat)) * pt.tangent;
-            auto cos = vsg::dot(vsg::normalize(vsg::dvec2(t.x, t.z)), vsg::dvec2(0.0, 1.0));
+            auto cos = vsg::dot(vsg::normalize(vsg::dvec2(t.x, t.y)), vsg::dvec2(0.0, 1.0));
 
-            double angle = vsg::PI;
-            if(t.x < 0)
-                angle -= std::acos(cos);
-            else
-                angle += std::acos(cos);
+            double angle = t.x < 0 ? std::acos(cos) : -std::acos(cos);
 
-            vsg::dquat t_quat(angle, vsg::dvec3(0.0, 1.0, 0.0));
+            rot = vsg::dquat(angle, vsg::dvec3(0.0, 0.0, 1.0));
 
-            auto rot = vsg::rotate(mult(w_quat, t_quat));
+            auto result = mult(mult(w_quat, rot), tilt);
             auto pos = vsg::translate(pt.position - offset);
-            calculated = pos * rot;
+            calculated = pos * vsg::rotate(result);
         }
 
         InterpolatedPTM(InterpolatedPTM&& ptm) : InterpolatedPT(std::move(ptm)), calculated(std::move(ptm.calculated)) {}
@@ -66,6 +66,7 @@ namespace route
         InterpolatedPTM() :InterpolationSpline::InterpolatedPT() {}
 
         vsg::dmat4 calculated;
+        vsg::dquat rot;
         size_t index;
     };
 
@@ -80,7 +81,7 @@ namespace route
     {
     public:
 
-        explicit Trajectory(std::string name) : vsg::Inherit<SceneObject, Trajectory>() { setValue(META_NAME, name); }
+        explicit Trajectory(std::string name) : vsg::Inherit<SceneObject, Trajectory>() { setValue(app::NAME, name); }
         Trajectory() {}
 
         virtual ~Trajectory() {}
@@ -152,7 +153,7 @@ namespace route
         std::pair<Trajectory*, bool> getFwd() const override { return _fwdPoint->getFwd(this); }
         std::pair<Trajectory*, bool> getBwd() const override { return _bwdPoint->getBwd(this); }
 
-        size_t add(vsg::ref_ptr<RailPoint> rp);
+        void add(vsg::ref_ptr<RailPoint> rp, bool autoRotate = true);
         void remove(size_t index);
         void remove(vsg::ref_ptr<RailPoint> rp);
 
@@ -163,16 +164,12 @@ namespace route
             for (auto& child : node._points) child->accept(visitor);
             node._bwdPoint->accept(visitor);
             node._fwdPoint->accept(visitor);
+            node._track->accept(visitor);
         }
 
         void traverse(vsg::Visitor& visitor) override { Transform::traverse(visitor); t_traverse(*this, visitor); }
         void traverse(vsg::ConstVisitor& visitor) const override { Transform::traverse(visitor); t_traverse(*this, visitor); }
-        void traverse(vsg::RecordTraversal& visitor) const override
-        {
-            Trajectory::traverse(visitor);
-            _track->accept(visitor);
-            t_traverse(*this, visitor);
-        }
+        void traverse(vsg::RecordTraversal& visitor) const override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
 
         struct VertexData
         {
@@ -190,6 +187,8 @@ namespace route
 
         void reloadData();
 
+        void updateAttached();
+
     private:
 
         void updateSpline();
@@ -200,11 +199,11 @@ namespace route
                                                           const std::vector<InterpolatedPTM> &derivatives,
                                                           const std::vector<VertexData> &geometry) const;
 
-        void updateAttached();
-
         std::pair<std::vector<VertexData>, vsg::ref_ptr<vsg::Data>> loadData(std::string path);
 
-        vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<vsg::Data> textureData);
+        vsg::ref_ptr<route::RailPoint> findFloorPoint(double t) const;
+
+        vsg::dquat mixTilt(double T) const;
 
         double _sleepersDistance;
 
@@ -234,6 +233,10 @@ namespace route
         vsg::ref_ptr<RailConnector>     _bwdPoint;
 
         friend class Topology;
+
+        friend class ::PointsModel;
+
+        friend class ::AddRails;
     };
 
     class Junction : public vsg::Inherit<Trajectory, Junction>

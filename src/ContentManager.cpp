@@ -13,6 +13,8 @@ ContentManager::ContentManager(DatabaseManager *database, QString root, QWidget 
     ui->setupUi(this);
     _fsmodel = new QFileSystemModel(this);
     _fsmodel->setRootPath(root);
+    _fsmodel->setNameFilters(app::FORMATS);
+    _fsmodel->setNameFilterDisables(false);
     ui->fileView->setModel(_fsmodel);
     ui->fileView->setRootIndex(_fsmodel->index(root));
 }
@@ -61,22 +63,28 @@ void ContentManager::intersection(const FindNode &isection)
         obj = route::SingleLoader::create(node, _database->getStdWireBox(), path, wtl * world, wquat, wtl);
     else
         obj = route::SceneObject::create(node, _database->getStdWireBox(), wtl * world, wquat, wtl);
+    obj->recalculateWireframe();
     _database->undoStack->push(new AddSceneObject(_database->tilesModel, activeGroup, obj));
+    emit sendObject(obj);
     emit sendStatusText(tr("Добавлен объект %1").arg(path.c_str()), 2000);
 }
 
 bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &isection)
 {
-    auto traj = isection.track;
+    auto traj = isection.strajectory;
     if(!traj)
         return false;
     auto coord = traj->invert(isection.worldIntersection);
     auto obj = route::SceneObject::create(node, _database->getStdWireBox());
-    auto transfrom = vsg::MatrixTransform::create();
-    transfrom->addChild(obj);
-    transfrom->setValue(META_PROPERTY, coord);
+    obj->recalculateWireframe();
+    auto transform = vsg::MatrixTransform::create();
+    obj->setObject(app::PARENT, transform);
+    transform->addChild(obj);
+    transform->setValue(app::PROP, coord);
     auto model = _database->tilesModel;
-    _database->undoStack->push(new AddSceneObject(_database->tilesModel, model->index(isection.track), obj));
+    _database->undoStack->push(new AddSceneObject(_database->tilesModel, model->index(traj), transform));
+    traj->updateAttached();
+    emit sendObject(obj);
     return true;
 }
 

@@ -97,31 +97,26 @@ namespace route {
         void apply(vsg::Transform &transform) override;
     };
 
-    class FindNode : public vsg::ConstVisitor, public vsg::LineSegmentIntersector::Intersection
+    class FindNode : public vsg::Visitor, public vsg::LineSegmentIntersector::Intersection
     {
     public:
         FindNode(const vsg::LineSegmentIntersector::Intersection &lsi);
         FindNode();
 
-        std::vector<const route::SceneObject*> objects;
-        const route::Trajectory* track = nullptr;
-        const route::RailPoint* trackpoint = nullptr;
-        const vsg::Switch* tile = nullptr;
-        const vsg::MatrixTransform* terrain = nullptr;
+        std::vector<route::SceneObject*> objects;
+        route::SplineTrajectory* strajectory = nullptr;
+        route::RailPoint* trackpoint = nullptr;
+        route::RailConnector* connector = nullptr;
+        vsg::Switch* tile = nullptr;
+        vsg::MatrixTransform* terrain = nullptr;
 
         uint16_t keyModifier = 0;
 
-        void apply(const vsg::Node &node) override;
+        void apply(vsg::Node &node) override;
 
-        void apply(const route::SceneObject &object);
+        void apply(vsg::MatrixTransform &transform) override;
 
-        void apply(const route::Trajectory &traj);
-
-        void apply(const route::RailPoint &point);
-
-        void apply(const vsg::MatrixTransform &transform) override;
-
-        void apply(const vsg::Switch &sw) override;
+        void apply(vsg::Switch &sw) override;
     };
 /*
     class CreateAddCommand : public vsg::ConstVisitor, public vsg::LineSegmentIntersector::Intersection

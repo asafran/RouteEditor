@@ -98,8 +98,8 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
             _database->undoStack->endMacro();
             _isMoving = false;
         }
-        emit sendIntersection(intersectedObjects(_mask, buttonPress));
-
+        else
+            emit sendIntersection(intersectedObjects(_mask, buttonPress));
     } else if (buttonPress.mask & vsg::BUTTON_MASK_2)
         _updateMode = ROTATE;
     else if (buttonPress.mask & vsg::BUTTON_MASK_3 && _ellipsoidModel)
@@ -324,7 +324,6 @@ FindNode Manipulator::intersectedObjects(vsg::LineSegmentIntersector::Intersecti
     if(isections.empty())
         return FindNode();
     FindNode fn(isections.front());
-    std::for_each(fn.nodePath.cbegin(), fn.nodePath.cend(), [&fn](const vsg::Node *node){ node->accept(fn); });
     fn.keyModifier = _keyModifier;
     return fn;
 }

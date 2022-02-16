@@ -19,6 +19,10 @@ public:
 
     void intersection(const FindNode& isection) override;
 
+signals:
+    void sendMovingPoint(route::SceneObject *object);
+    void startMoving();
+
 private:
     //tinyobj::ObjReader loadObj(std::string path);
 

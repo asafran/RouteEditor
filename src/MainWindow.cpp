@@ -10,7 +10,7 @@
 #include "LambdaVisitor.h"
 #include "ParentVisitor.h"
 #include "ContentManager.h"
-#include "AddRails.h"
+
 #include "Painter.h"
 
 
@@ -145,17 +145,23 @@ void MainWindow::initializeTools()
 
     ope = new ObjectPropertiesEditor(database, toolbox);
     toolbox->addItem(ope, tr("Выбрать и переместить объекты"));
+    auto rpe = new RailsPointEditor(database, toolbox);
+    toolbox->addItem(rpe, tr("Изменить параметры путеовй точки"));
     auto cm = new ContentManager(database, contentRoot + "/objects/objects", toolbox);
     toolbox->addItem(cm, tr("Добавить объект"));
-    auto rm = new AddRails(database, contentRoot + "/objects/rails", toolbox);
+    rm = new AddRails(database, contentRoot + "/objects/rails", toolbox);
     toolbox->addItem(rm, tr("Добавить рельсы"));
     auto pt = new Painter(database, toolbox);
     toolbox->addItem(pt, tr("Текстурирование"));
 
-    connect(sorter, &TilesSorter::selectionChanged, ope, &ObjectPropertiesEditor::selectObject);
+    connect(sorter, &TilesSorter::selectionChanged, ope, &ObjectPropertiesEditor::selectIndex);
     connect(ope, &ObjectPropertiesEditor::objectClicked, sorter, &TilesSorter::select);
     connect(ope, &ObjectPropertiesEditor::deselect, ui->tilesView->selectionModel(), &QItemSelectionModel::clear);
     connect(ope, &ObjectPropertiesEditor::deselectItem, sorter, &TilesSorter::deselect);
+    connect(cm, &ContentManager::sendObject, ope, &ObjectPropertiesEditor::selectObject);
+    connect(rm, &AddRails::sendMovingPoint, ope, &ObjectPropertiesEditor::selectObject);
+    connect(toolbox, &QToolBox::currentChanged, ope, &ObjectPropertiesEditor::clearSelection);
+    connect(toolbox, &QToolBox::currentChanged, rpe, &RailsPointEditor::clearSelection);
     connect(sorter, &TilesSorter::frontSelectionChanged, cm, &ContentManager::activeGroupChanged);
 }
 
@@ -176,7 +182,11 @@ QWindow* MainWindow::initilizeVSGwindow()
 
     vsg::RegisterWithObjectFactoryProxy<route::SceneObject>();
     vsg::RegisterWithObjectFactoryProxy<route::SingleLoader>();
+    vsg::RegisterWithObjectFactoryProxy<route::RailPoint>();
+    vsg::RegisterWithObjectFactoryProxy<route::RailConnector>();
+    vsg::RegisterWithObjectFactoryProxy<route::StaticConnector>();
     vsg::RegisterWithObjectFactoryProxy<route::SceneTrajectory>();
+    vsg::RegisterWithObjectFactoryProxy<PointsGroup>();
     vsg::RegisterWithObjectFactoryProxy<route::Topology>();
     vsg::RegisterWithObjectFactoryProxy<route::SplineTrajectory>();
 
@@ -289,6 +299,8 @@ QWindow* MainWindow::initilizeVSGwindow()
         connect(ui->actionSave, &QAction::triggered, database, &DatabaseManager::writeTiles);
 
         connect(sorter, &TilesSorter::doubleClicked, manipulator.get(), &Manipulator::moveToObject);
+
+        connect(rm, &AddRails::startMoving, manipulator.get(), &Manipulator::startMoving);
 
         connect(manipulator.get(), &Manipulator::sendIntersection, this, &MainWindow::intersection);
 

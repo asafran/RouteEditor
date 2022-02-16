@@ -84,6 +84,7 @@
     {
         auto newWorld = vsg::inverse(stack.top());
         auto wposition = object.getWorldPosition();
+        object.recalculateWireframe();
         undoStack->push(new ApplyTransformCalculation(&object, newWorld * wposition, stack.top()));
     }
 
@@ -99,44 +100,35 @@
 
     //----------------------------------------------------------------------------------------------------
     FindNode::FindNode(const vsg::LineSegmentIntersector::Intersection &lsi)
-        : vsg::ConstVisitor()
-        , vsg::LineSegmentIntersector::Intersection(lsi) {}
+        : vsg::Visitor()
+        , vsg::LineSegmentIntersector::Intersection(lsi)
+    {
+        std::for_each(nodePath.begin(), nodePath.end(), [this](const vsg::Node *node) { const_cast<vsg::Node*>(node)->accept(*this); });
+    }
 
     FindNode::FindNode()
-        : vsg::ConstVisitor()
+        : vsg::Visitor()
         , vsg::LineSegmentIntersector::Intersection() {}
 
-    void FindNode::apply(const vsg::Node &node)
+    void FindNode::apply(vsg::Node &node)
     {
         if(auto object = node.cast<route::SceneObject>(); object)
-            apply(*object);
-        if(auto traj = node.cast<route::Trajectory>(); traj)
-            apply(*traj);
-        if(auto point = node.cast<route::RailPoint>(); point)
-            apply(*point);
+            objects.push_back(object);
+        if(auto traj = node.cast<route::SplineTrajectory>(); traj)
+            strajectory = traj;
+        else if(auto conn = node.cast<route::RailConnector>(); conn)
+            connector = conn;
+        else if(auto point = node.cast<route::RailPoint>(); point)
+            trackpoint = point;
     }
 
-    void FindNode::apply(const route::SceneObject &object)
+    void FindNode::apply(vsg::MatrixTransform &transform)
     {
-        objects.push_back(&object);
+        if(transform.getObject(app::PARENT) == tile)
+            terrain = &transform;
     }
 
-    void FindNode::apply(const route::Trajectory &traj)
-    {
-        track = &traj;
-    }
-
-    void FindNode::apply(const route::RailPoint &point)
-    {
-        trackpoint = &point;
-    }
-
-    void FindNode::apply(const vsg::MatrixTransform &transform)
-    {
-        terrain = &transform;
-    }
-
-    void FindNode::apply(const vsg::Switch &sw)
+    void FindNode::apply(vsg::Switch &sw)
     {
         if(sw.children.front().mask == route::Tiles)
             tile = &sw;

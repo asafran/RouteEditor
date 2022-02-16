@@ -18,7 +18,7 @@ public:
         , _node(node)
     {
         std::string name;
-        node->getValue(META_NAME, name);
+        node->getValue(app::NAME, name);
         if(name.empty())
             name = node->className();
         setText(QObject::tr("Новый объект %1").arg(name.c_str()));
@@ -49,7 +49,7 @@ public:
         , _row(index.row())
     {
         std::string name;
-        _node->getValue(META_NAME, name);
+        _node->getValue(app::NAME, name);
         if(name.empty())
             name = _node->className();
         setText(QObject::tr("Удален объект %1").arg(name.c_str()));
@@ -79,16 +79,16 @@ public:
         , _obj(obj)
         , _newName(name.toStdString())
     {
-        obj->getValue(META_NAME, _oldName);
+        obj->getValue(app::NAME, _oldName);
         setText(QObject::tr("Oбъект %1, новое имя %2").arg(_oldName.c_str()).arg(name));
     }
     void undo() override
     {
-        _obj->setValue(META_NAME, _oldName);
+        _obj->setValue(app::NAME, _oldName);
     }
     void redo() override
     {
-        _obj->setValue(META_NAME, _newName);
+        _obj->setValue(app::NAME, _newName);
     }
 private:
     vsg::ref_ptr<vsg::Object> _obj;
@@ -130,10 +130,10 @@ public:
     RotateObject(route::SceneObject *object, vsg::dquat q, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _object(object)
         , _oldQ(object->getRotation())
-        , _newQ(route::mult(object->getRotation(), q))
+        , _newQ(q)
     {
         std::string name;
-        _object->getValue(META_NAME, name);
+        _object->getValue(app::NAME, name);
         setText(QObject::tr("Повернут объект %1").arg(name.c_str()));
     }
     void undo() override
@@ -173,7 +173,7 @@ public:
         , _newPos(pos)
     {
         std::string name;
-        object->getValue(META_NAME, name);
+        object->getValue(app::NAME, name);
         setText(QObject::tr("Перемещен объект %1, ECEF %2").arg(name.c_str())
                 .arg("X=" + QString::number(pos.x) + " Y=" + QString::number(pos.x) + " Z=" + QString::number(pos.x)));
 
@@ -216,13 +216,13 @@ public:
         , _newPos(coord)
     {
         std::string name;
-        object->getValue(META_NAME, name);
+        object->getValue(app::NAME, name);
         setText(QObject::tr("Перемещен объект %1, путевая коодината %2").arg(name.c_str()).arg(QString::number(coord)));
 
-        if(!object->getValue(META_PROPERTY, _oldPos))
+        if(!object->getValue(app::PROP, _oldPos))
             _oldPos = 0.0;
 
-        _parent = object->getObject<route::SplineTrajectory>(META_PARENT);
+        _parent = object->getObject<route::SplineTrajectory>(app::PARENT);
 
     }
     void undo() override
@@ -231,7 +231,7 @@ public:
             return;
 
         _object->matrix = _parent->getMatrixAt(_oldPos);
-        _object->setValue(META_PROPERTY, _oldPos);
+        _object->setValue(app::PROP, _oldPos);
     }
     void redo() override
     {
@@ -239,7 +239,7 @@ public:
             return;
 
         _object->matrix = _parent->getMatrixAt(_newPos);
-        _object->setValue(META_PROPERTY, _oldPos);
+        _object->setValue(app::PROP, _oldPos);
     }
     int id() const override
     {
@@ -272,7 +272,7 @@ public:
         , _point(point)
     {
         std::string name;
-        trajectory->getValue(META_NAME, name);
+        trajectory->getValue(app::NAME, name);
         setText(QObject::tr("Добавлена точка в траекторию %1").arg(name.c_str()));
     }
     void undo() override
@@ -297,7 +297,7 @@ public:
         , _point(point)
     {
         std::string name;
-        trajectory->getValue(META_NAME, name);
+        trajectory->getValue(app::NAME, name);
         setText(QObject::tr("Добавлена точка в траекторию %1").arg(name.c_str()));
     }
     void undo() override
@@ -322,7 +322,7 @@ public:
         , _newLtw(ltw)
     {
         std::string name;
-        object->getValue(META_NAME, name);
+        object->getValue(app::NAME, name);
         setText(QObject::tr("Перемещен объект %1, ECEF %2").arg(name.c_str())
                 .arg("X=" + QString::number(pos.x) + " Y=" + QString::number(pos.x) + " Z=" + QString::number(pos.x)));
 
@@ -346,7 +346,44 @@ private:
     const vsg::dmat4 _oldLtw;
     const vsg::dmat4 _newLtw;
 };
+
+template<typename F, typename V>
+class ExecuteLambda : public QUndoCommand
+{
+public:
+    ExecuteLambda(F func, V old, V val, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+        , _newProp(val)
+        , _oldProp(old)
+        , _func(func)
+    {
+    }
+    void undo() override
+    {
+        _func(_oldProp);
+    }
+    void redo() override
+    {
+        _func(_newProp);
+    }
+
+protected:
+    F _func;
+
+    const V _oldProp;
+    const V _newProp;
+};
 /*
+class SetRailProp : public ExecuteLambda<std::function<void(double)>, double>
+{
+public:
+    SetRailProp(std::function<void(double)> func, double old, double val, QUndoCommand *parent = nullptr)
+        : ExecuteLambda(func, old, val, parent)
+    {
+        setText(QObject::tr("Изменены параметры точки"));
+    }
+};
+
+
 class DeltaMoveObject : public MoveObject
 {
 public:
@@ -398,7 +435,7 @@ public:
         , _prev(traj->bwdTraj)
     {
         std::string name;
-        traj->getValue(META_NAME, name);
+        traj->getValue(app::NAME, name);
         setText(QObject::tr("Удалена траектория %1").arg(name.c_str()));
         it = _topo->trajectories.find(name);
         Q_ASSERT(it != _topo->trajectories.end());
@@ -406,7 +443,7 @@ public:
     void undo() override
     {
         std::string name;
-        _traj->getValue(META_NAME, name);
+        _traj->getValue(app::NAME, name);
         if(_prev != nullptr)
         {
             _prev->fwdTraj = _traj;
@@ -438,7 +475,7 @@ public:
         , _oldMat(transform->matrix)
     {
         std::string name;
-        transform->getValue(META_NAME, name);
+        transform->getValue(app::NAME, name);
         setText(QObject::tr("Перемещен объект %1").arg(name.c_str()));
 
         _newMat = transform->matrix;

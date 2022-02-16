@@ -15,7 +15,7 @@ namespace route
     STrajectories::iterator Topology::insertTraj(vsg::ref_ptr<SplineTrajectory> traj)
     {
         std::string name;
-        traj->getValue(META_NAME, name);
+        traj->getValue(app::NAME, name);
         return trajectories.insert_or_assign(name, traj).first; //override if contains
     }
 
@@ -29,7 +29,7 @@ namespace route
         for(const auto &traj : trajs)
         {
             std::string name;
-            traj->getValue(META_NAME, name);
+            traj->getValue(app::NAME, name);
             trajectories.insert_or_assign(name, traj);
         }
     }

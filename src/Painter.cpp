@@ -2,9 +2,11 @@
 #include "ui_Painter.h"
 #include <vsg/traversals/ComputeBounds.h>
 #include <vsg/nodes/StateGroup.h>
-#include <vsg/state/DescriptorImage.h>
+#include <vsg/nodes/CullNode.h>
 #include <vsg/io/read.h>
+#include <vsg/nodes/VertexIndexDraw.h>
 #include <QImage>
+
 
 Painter::Painter(DatabaseManager *database, QWidget *parent) :
     Tool(database, parent),
@@ -30,7 +32,8 @@ void Painter::intersection(const FindNode &isection)
 
     struct FindTexture : public vsg::Visitor
     {
-        vsg::ref_ptr<vsg::ImageInfo> imageInfo;
+        //vsg::ref_ptr<vsg::ImageInfo> imageInfo;
+        vsg::ref_ptr<vsg::Data> texture;
 
         void apply(vsg::Object& object) override
         {
@@ -38,25 +41,62 @@ void Painter::intersection(const FindNode &isection)
         }
         void apply(vsg::StateGroup& sg) override
         {
-            for (auto& sc : sg.stateCommands) { sc->accept(*this); }
-            sg.traverse(*this);
+            // create texture image and associated DescriptorSets and binding
+            auto descriptorTexture = vsg::DescriptorImage::create(vsg::Sampler::create(), texture, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+            auto pipeline = sg.stateCommands.front().cast<vsg::BindGraphicsPipeline>()->pipeline;
+            auto pipelineLayout = pipeline->layout;
+
+            vsg::DescriptorSetLayoutBindings descriptorBindings{
+                {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
+            };
+
+            auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
+
+            pipelineLayout->setLayouts.clear();
+            pipelineLayout->setLayouts.push_back(descriptorSetLayout);
+
+            auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{descriptorTexture});
+            auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
+
+            //sg.add(bindDescriptorSet);
+
+            //sg.traverse(*this);
         }
+        /*
+        void apply(vsg::CullNode& cn) override
+        {
+            auto group = cn.child.cast<vsg::StateGroup>();
+            auto sg = route::createStateGroup(texture);
+            sg->addChild(group->children.front());
+            cn.child = sg;
+
+            sg->traverse(*this);
+            ct->compile(&cn);
+        }
+        void apply(vsg::VertexIndexDraw& vdi) override
+        {
+            vdi.arrays.erase(std::next(vdi.arrays.begin()));
+        }
+
         void apply(vsg::DescriptorImage& di) override
         {
             if (!di.imageInfoList.empty()) imageInfo = di.imageInfoList[0]; // contextID=0, and only one imageData
-        }
+        }*/
 
-        static vsg::ref_ptr<vsg::ImageInfo> find(const vsg::Node* node)
+        static void find(const vsg::Node* node, vsg::ref_ptr<vsg::Data> texture)
         {
             FindTexture fdi;
+            fdi.texture = texture;
             fdi.traversalMask = 0x0;
             const_cast<vsg::Node*>(node)->accept(fdi);
-            return fdi.imageInfo;
+            //return fdi;
         }
     };
 
-    auto textureImageInfo = FindTexture::find(isection.terrain);
-
+    FindTexture::find(isection.terrain, vsg::read_cast<vsg::Data>("/home/asafr/RRS/objects/rails/rails/Grid.png", _database->builder->options));
+    _database->builder->compileTraversal->compile(const_cast<vsg::MatrixTransform*>(isection.terrain));
+/*
     if(!textureImageInfo)
     {
         vsg::Path textureFile("textures/lz.vsgb");
@@ -67,8 +107,7 @@ void Painter::intersection(const FindNode &isection)
     }
 
     auto image = new QImage();
-
-/*
+*
     vsg::vec3 centre((cb.bounds.min + cb.bounds.max) * 0.5);
 
     vsg::GeometryInfo info;

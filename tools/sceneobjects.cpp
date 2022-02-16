@@ -139,8 +139,9 @@ namespace route
                                vsg::ref_ptr<vsg::BufferInfo> buffer,
                                const vsg::dmat4 &ltw,
                                vsg::ref_ptr<vsg::Node> compiled,
+                               vsg::ref_ptr<vsg::Node> box,
                                vsg::stride_iterator<vsg::vec3> point)
-        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, ltw * vsg::dvec3(*point))
+        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, box, ltw * vsg::dvec3(*point))
         , _worldToLocal(vsg::inverse(ltw))
         , _info(buffer)
         , _copyBufferCmd(copy)
@@ -156,13 +157,13 @@ namespace route
         _copyBufferCmd->copy(_info->data, _info);
     }
 
-    RailPoint::RailPoint(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, const vsg::dvec3 &pos, const vsg::dquat &quat)
+    RailPoint::RailPoint(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, const vsg::dvec3 &pos)
         : vsg::Inherit<SceneObject, RailPoint>(loaded, box, pos)
     {
         auto norm = vsg::normalize(pos);
         _world_quat = vsg::dquat(vsg::dvec3(0.0, 0.0, 1.0), norm);
         //always in world coordinates
-        _quat = quat;
+        //_quat = quat;
     }
     RailPoint::RailPoint()
         : vsg::Inherit<SceneObject, RailPoint>()
@@ -174,6 +175,8 @@ namespace route
     {
         SceneObject::read(input);
 
+        input.read("tangent", _tangent);
+        input.read("tilt", _tilt);
         input.read("fstTraj", trajectory);
     }
 
@@ -181,30 +184,47 @@ namespace route
     {
         SceneObject::write(output);
 
+        output.write("tangent", _tangent);
+        output.write("tilt", _tilt);
         output.write("fstTraj", trajectory);
     }
 
     void RailPoint::setPosition(const vsg::dvec3& position)
     {
         SceneObject::setPosition(position);
-        if(trajectory) trajectory->recalculate();
+        recalculate();
     }
     void RailPoint::setRotation(const vsg::dquat &rotation)
     {
         SceneObject::setRotation(rotation);
+        recalculate();
+    }
+
+    void RailPoint::recalculate()
+    {
         if(trajectory) trajectory->recalculate();
     }
 
     vsg::dvec3 RailPoint::getTangent() const
     {
-        return vsg::rotate(mult(_world_quat, _quat)) * vsg::dvec3(_tangent, 0.0, 0.0);
+        return vsg::rotate(mult(_world_quat, _quat)) * vsg::dvec3(0.0, _tangent, 0.0);
+    }
+
+    vsg::dquat RailPoint::getTilt() const
+    {
+        return vsg::dquat(vsg::radians(_tilt), vsg::dvec3(0.0, 1.0, 0.0));
+    }
+
+    void RailPoint::setInclination(double i)
+    {
+        auto angle = std::atan(i * 0.001);
+        setRotation(mult(_quat, vsg::dquat(angle, vsg::dvec3(1.0, 0.0, 0.0))));
     }
 
     RailConnector::RailConnector(vsg::ref_ptr<vsg::Node> loaded,
                                  vsg::ref_ptr<vsg::Node> box,
-                                 const vsg::dvec3 &pos,
-                                 const vsg::dquat &quat)
-        : vsg::Inherit<RailPoint, RailConnector>(loaded, box, pos, quat)
+                                 const vsg::dvec3 &pos)
+        : vsg::Inherit<RailPoint, RailConnector>(loaded, box, pos)
     {
     }
     RailConnector::RailConnector()
@@ -225,14 +245,9 @@ namespace route
         output.write("sndTraj", fwdTrajectory);
     }
 
-    void RailConnector::setPosition(const vsg::dvec3& position)
+    void RailConnector::recalculate()
     {
-        RailPoint::setPosition(position);
-        if(fwdTrajectory) fwdTrajectory->recalculate();
-    }
-    void RailConnector::setRotation(const vsg::dquat &rotation)
-    {
-        RailPoint::setRotation(rotation);
+        RailPoint::recalculate();
         if(fwdTrajectory) fwdTrajectory->recalculate();
     }
 
@@ -248,6 +263,11 @@ namespace route
         bool reversed = caller == trajectory;
         auto trj = reversed ? fwdTrajectory : trajectory;
         return std::make_pair(trj, reversed);
+    }
+
+    void RailConnector::getRelativeTangent(Trajectory *caller)
+    {
+
     }
 
     void RailConnector::setFwd(Trajectory *caller)
@@ -273,11 +293,15 @@ namespace route
             fwdTrajectory = nullptr;
     }
 
+    bool RailConnector::isFree() const
+    {
+        return trajectory == nullptr || fwdTrajectory == nullptr;
+    }
+
     StaticConnector::StaticConnector(vsg::ref_ptr<vsg::Node> loaded,
                                      vsg::ref_ptr<vsg::Node> box,
-                                     const vsg::dvec3 &pos,
-                                     const vsg::dquat &quat)
-        : vsg::Inherit<RailConnector, StaticConnector>(loaded, box, pos, quat)
+                                     const vsg::dvec3 &pos)
+        : vsg::Inherit<RailConnector, StaticConnector>(loaded, box, pos)
     {
         _world_quat = {0.0, 0.0, 0.0, 1.0};
     }

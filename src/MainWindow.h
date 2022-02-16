@@ -13,6 +13,8 @@
 #include <QToolBox>
 #include "TilesSorter.h"
 #include "ObjectPropertiesEditor.h"
+#include "RailsPointEditor.h"
+#include "AddRails.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -41,6 +43,8 @@ private:
     vsg::ref_ptr<vsg::Builder> builder;
 
     ObjectPropertiesEditor *ope;
+
+    AddRails *rm;
 
     double horizonMountainHeight;
     vsgQt::ViewerWindow *viewerWindow;

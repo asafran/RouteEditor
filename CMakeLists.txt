@@ -16,6 +16,9 @@ set(SOURCES
     src/ObjectPropertiesEditor.h
     src/ObjectPropertiesEditor.cpp
     src/ObjectPropertiesEditor.ui
+    src/RailsPointEditor.h
+    src/RailsPointEditor.cpp
+    src/RailsPointEditor.ui
     src/SceneObjectVisitor.h
     src/SceneObjectVisitor.cpp
     src/ContentManager.h
@@ -42,6 +45,8 @@ set(SOURCES
     src/TilesSorter.h
     src/SceneModel.h
     src/SceneModel.cpp
+    src/PointsModel.h
+    src/PointsModel.cpp
     src/main.cpp
 )
 
@@ -59,6 +64,7 @@ set(TOOLS
     tools/LambdaVisitor.h
     tools/ParentVisitor.cpp
     tools/ParentVisitor.h
+    tools/Constants.h
 )
 
 set(SPLINE
@@ -126,9 +132,7 @@ target_include_directories(spline PUBLIC spline_library)
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_compile_definitions(editor PRIVATE META_NAME="MetaName" META_PROPERTY="MetaProp" META_PARENT="Parent" TOPOLOGY_KEY="Topology" ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
-
-target_compile_definitions(tools PRIVATE META_NAME="MetaName" META_PROPERTY="MetaProp" META_PARENT="Parent" TOPOLOGY_KEY="Topology")
+target_compile_definitions(editor PRIVATE ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
 target_link_libraries(tools spline Qt6::Core TBB::tbb)
 

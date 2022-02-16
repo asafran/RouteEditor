@@ -14,6 +14,8 @@ AddRails::AddRails(DatabaseManager *database, QString root, QWidget *parent) : T
     ui->setupUi(this);
     _fsmodel = new QFileSystemModel(this);
     _fsmodel->setRootPath(root);
+    _fsmodel->setNameFilters(app::FORMATS);
+    _fsmodel->setNameFilterDisables(false);
     ui->railView->setModel(_fsmodel);
     ui->sleeperView->setModel(_fsmodel);
     ui->fillView->setModel(_fsmodel);
@@ -69,25 +71,43 @@ void AddRails::intersection(const FindNode &isection)
     auto sleeperFilepath = _fsmodel->filePath(activeSleeper).toStdString();
     auto fillFilepath = _fsmodel->filePath(activeFill);
 
-    auto builder = _database->builder;
-
     vsg::ref_ptr<route::RailConnector> bwd;
 
-    if(isection.trackpoint && isection.trackpoint->is_compatible(typeid (route::RailConnector)))
-        bwd = const_cast<route::RailConnector*>(isection.trackpoint->cast<route::RailConnector>());
+
+    if(isection.connector && isection.connector->isFree())
+    {
+        if(ui->noNewBox->isChecked())
+        {
+            auto trj = isection.connector->trajectory ? isection.connector->trajectory : isection.connector->fwdTrajectory;
+            if(auto strj = trj->cast<route::SplineTrajectory>(); strj)
+            {
+                auto point = route::RailPoint::create(*isection.connector);
+                strj->add(point);
+                emit sendMovingPoint(isection.connector);
+                emit startMoving();
+                return;
+            }
+        }
+        bwd = isection.connector;
+    }
     else
         bwd = route::RailConnector::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
 
-    auto fwd = route::RailConnector::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection + vsg::dvec3(20.0, 0.0, 0.0));
+    auto fwd = route::RailConnector::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
 
     auto sleeper = vsg::read_cast<vsg::Node>(sleeperFilepath, _database->builder->options);
+
+    if(!sleeper)
+        return;
+
+    _database->builder->compileTraversal->compile(sleeper);
 
     auto traj = route::SplineTrajectory::create("trj",
                                                 bwd,
                                                 fwd,
-                                                builder,
+                                                _database->builder,
                                                 railFilepath.toStdString(), fillFilepath.toStdString(),
-                                                vsg::Node::create(), 2.0, 1.5);
+                                                sleeper, 2.0, 1.5);
     auto adapter = route::SceneTrajectory::create(traj);
 
     if(!isection.tile)
@@ -102,6 +122,6 @@ void AddRails::intersection(const FindNode &isection)
 
     _database->undoStack->push(new AddSceneObject(tilesModel, index, adapter));
 
-    //const_cast<vsg::Switch*>(isection.tile.first)->addChild(route::SceneObjects, adapter);
-
+    emit sendMovingPoint(fwd);
+    emit startMoving();
 }

@@ -21,6 +21,9 @@ public:
 public slots:
     void activeGroupChanged(const QModelIndex &index);
 
+signals:
+    void sendObject(route::SceneObject *object);
+
 private:
     bool addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &isection);
 

@@ -22,9 +22,12 @@ public:
 
 public slots:
     void updateData();
-    void selectObject(const QItemSelection &selected, const QItemSelection &deselected);
+    void clearSelection();
+    void selectIndex(const QItemSelection &selected, const QItemSelection &deselected);
     void move(const vsg::dvec3 &delta);
-    void selectNode(route::SceneObject *object);
+    void selectObject(route::SceneObject *object);
+
+    void updateRotation(double);
 
 signals:
     void objectClicked(const QModelIndex &index);
@@ -33,10 +36,10 @@ signals:
     void sendFirst(vsg::ref_ptr<route::SceneObject> firstObject);
 
 private:
-
     void clear();
-    void toggle(const route::SceneObject* object);
+    void toggle(route::SceneObject* object);
     void select(const QModelIndex &index, route::SceneObject *object);
+    void setSpinEanbled(bool enabled);
 
     Ui::ObjectPropertiesEditor *ui;
 
@@ -47,10 +50,6 @@ private:
     std::map<QModelIndex, route::SceneObject*> _selectedObjects;
 
     bool _single = true;
-
-    double _xrot;
-    double _yrot;
-    double _zrot;
 };
 
 #endif // OBJECTPROPERTIESEDITOR_H

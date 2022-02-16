@@ -11,7 +11,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 {
     ui->setupUi(this);
 
-    setEnabled(false);
+    setSpinEanbled(false);
 
     auto stack = _database->undoStack;
 
@@ -111,7 +111,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
         else
             move(delta);
     });
-
+/*
     connect(ui->rotXspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
         auto rad = qDegreesToRadians(d);
@@ -136,12 +136,18 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
         if(_selectedObjects.size() != 1)
             emit sendStatusText(tr("Вращение нескольких объектов не поддерживается"), 2000);
     });
+    */
+    connect(ui->rotXspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updateRotation);
+    connect(ui->rotYspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updateRotation);
+    connect(ui->rotZspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updateRotation);
+
     connect(ui->llaCombo, &QComboBox::currentIndexChanged, this, [this](int index)
     {
         auto step = 0.0001 * std::pow(100, index);
         ui->latSpin->setSingleStep(step);
         ui->lonSpin->setSingleStep(step);
     });
+
     connect(ui->ecefCombo, &QComboBox::currentIndexChanged, this, [this](int index)
     {
         auto step = 0.01 * std::pow(10, index);
@@ -159,13 +165,21 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 
     connect(ui->trjCoordspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        stack->push(new MoveObjectOnTraj(_firstObject->getObject<vsg::MatrixTransform>(META_PARENT), d));
+        stack->push(new MoveObjectOnTraj(_firstObject->getObject<vsg::MatrixTransform>(app::PARENT), d));
     });
 }
 
 ObjectPropertiesEditor::~ObjectPropertiesEditor()
 {
     delete ui;
+}
+
+void ObjectPropertiesEditor::updateRotation(double)
+{
+    auto x = qDegreesToRadians(ui->rotXspin->value());
+    auto y = qDegreesToRadians(ui->rotYspin->value());
+    auto z = qDegreesToRadians(ui->rotZspin->value());
+    _database->undoStack->push(new RotateObject(_firstObject, route::toQuaternion(x, y, z)));
 }
 
 void ObjectPropertiesEditor::move(const vsg::dvec3 &delta)
@@ -177,7 +191,7 @@ void ObjectPropertiesEditor::move(const vsg::dvec3 &delta)
     }
 }
 
-void ObjectPropertiesEditor::selectObject(const QItemSelection &selected, const QItemSelection &deselected)
+void ObjectPropertiesEditor::selectIndex(const QItemSelection &selected, const QItemSelection &deselected)
 {
     for (const auto &index : deselected.indexes())
         if(!selected.contains(index) && (_selectedObjects.find(index) != _selectedObjects.end()))
@@ -212,27 +226,7 @@ void ObjectPropertiesEditor::intersection(const FindNode& isection)
     if(_single)
         clear();
 
-    if(isection.objects.empty())
-    {
-        updateData();
-        return;
-    }
-
-    if(ui->trajAddPButt->isChecked() && isection.track && isection.track->is_compatible(typeid(route::SplineTrajectory)))
-    {
-        clear();
-        toggle(isection.track);
-        auto point = route::RailPoint::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
-        _database->undoStack->push(new AddRailPoint(const_cast<route::Trajectory*>(isection.track)->cast<route::SplineTrajectory>(), point));
-    }
-    else if(ui->trajRemPButt->isChecked() && isection.trackpoint)
-    {
-        clear();
-        toggle(isection.track);
-        _database->undoStack->push(new RemoveRailPoint(const_cast<route::Trajectory*>(isection.track)->cast<route::SplineTrajectory>(),
-                                                       const_cast<route::RailPoint*>(isection.trackpoint)));
-    }
-    else
+    if(!isection.objects.empty())
     {
         if((isection.keyModifier & vsg::MODKEY_Shift) == 0)
             toggle(isection.objects.back());
@@ -243,16 +237,15 @@ void ObjectPropertiesEditor::intersection(const FindNode& isection)
     updateData();
 }
 
-void ObjectPropertiesEditor::selectNode(route::SceneObject *object)
+void ObjectPropertiesEditor::selectObject(route::SceneObject *object)
 {
     clear();
     toggle(object);
     updateData();
 }
 
-void ObjectPropertiesEditor::toggle(const route::SceneObject *object)
+void ObjectPropertiesEditor::toggle(route::SceneObject *object)
 {
-    auto casted = const_cast<route::SceneObject*>(object);
     auto index = _database->tilesModel->index(object);
     if(auto selectedIt = _selectedObjects.find(index); selectedIt != _selectedObjects.end())
     {
@@ -270,7 +263,7 @@ void ObjectPropertiesEditor::toggle(const route::SceneObject *object)
         }
         return;
     }
-    select(index, casted);
+    select(index, object);
     emit objectClicked(index);
 }
 void ObjectPropertiesEditor::clear()
@@ -294,6 +287,19 @@ void ObjectPropertiesEditor::select(const QModelIndex &index, route::SceneObject
     _selectedObjects.insert({index, object});
 }
 
+void ObjectPropertiesEditor::setSpinEanbled(bool enabled)
+{
+    ui->ecefXspin->setEnabled(enabled);
+    ui->ecefYspin->setEnabled(enabled);
+    ui->ecefZspin->setEnabled(enabled);
+    ui->latSpin->setEnabled(enabled);
+    ui->lonSpin->setEnabled(enabled);
+    ui->altSpin->setEnabled(enabled);
+    ui->rotXspin->setEnabled(enabled);
+    ui->rotYspin->setEnabled(enabled);
+    ui->rotZspin->setEnabled(enabled);
+}
+
 void ObjectPropertiesEditor::updateData()
 {
     QSignalBlocker l1(ui->ecefXspin);
@@ -307,11 +313,12 @@ void ObjectPropertiesEditor::updateData()
     QSignalBlocker l9(ui->rotZspin);
     QSignalBlocker l10(ui->trjCoordspin);
 
-    setEnabled(_firstObject);
+    setSpinEanbled(_firstObject && !_firstObject->is_compatible(typeid (route::SplineTrajectory)));
     if(!_firstObject)
         return;
 
-    ui->trjCoordspin->setEnabled(_firstObject->getObject<vsg::MatrixTransform>(META_PARENT) != nullptr);
+    ui->trjCoordspin->setEnabled(_firstObject->getObject<vsg::MatrixTransform>(app::PARENT) != nullptr);
+
 
     auto position = _firstObject->getPosition();
     ui->ecefXspin->setValue(position.x);
@@ -328,18 +335,25 @@ void ObjectPropertiesEditor::updateData()
 
     double sinr_cosp = 2 * (quat.w * quat.x + quat.y * quat.z);
     double cosr_cosp = 1 - 2 * (quat.x * quat.x + quat.y * quat.y);
-    _xrot = std::atan2(sinr_cosp, cosr_cosp);
-    ui->rotXspin->setValue(qRadiansToDegrees(_xrot));
+    auto xrot = std::atan2(sinr_cosp, cosr_cosp);
+    ui->rotXspin->setValue(qRadiansToDegrees(xrot));
 
     double sinp = 2 * (quat.w * quat.y - quat.z * quat.x);
+    double yrot;
     if (std::abs(sinp) >= 1)
-        _yrot = std::copysign(vsg::PI / 2, sinp); // use 90 degrees if out of range
+        yrot = std::copysign(vsg::PI / 2, sinp); // use 90 degrees if out of range
     else
-        _yrot = std::asin(sinp);
-    ui->rotYspin->setValue(qRadiansToDegrees(_yrot));
+        yrot = std::asin(sinp);
+    ui->rotYspin->setValue(qRadiansToDegrees(yrot));
 
     double siny_cosp = 2 * (quat.w * quat.z + quat.x * quat.y);
     double cosy_cosp = 1 - 2 * (quat.y * quat.y + quat.z * quat.z);
-    _zrot = std::atan2(siny_cosp, cosy_cosp);
+    auto _zrot = std::atan2(siny_cosp, cosy_cosp);
     ui->rotZspin->setValue(qRadiansToDegrees(_zrot));
+}
+
+void ObjectPropertiesEditor::clearSelection()
+{
+    clear();
+    updateData();
 }

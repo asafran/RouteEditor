@@ -14,6 +14,7 @@
 #include <vsg/nodes/VertexIndexDraw.h>
 #include <vsg/state/GraphicsPipeline.h>
 #include "sceneobjects.h"
+#include "Constants.h"
 
 #include <execution>
 
@@ -29,14 +30,14 @@ struct PushPopNode
 
 void ParentIndexer::apply(vsg::Node& node)
 {
-    node.setObject(META_PARENT, _nodePath.back());
+    node.setObject(app::PARENT, _nodePath.back());
     PushPopNode ppn(_nodePath, &node);
     node.traverse(*this);
 }
 
 void ParentTracer::apply(vsg::Object &node)
 {
-    auto parent = node.getObject(META_PARENT);
+    auto parent = node.getObject(app::PARENT);
     if(parent)
     {
         nodePath.push_front(parent);

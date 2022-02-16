@@ -76,16 +76,16 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
 
     Q_ASSERT(childNode != nullptr);
 
-    vsg::Node *parent = childNode->getObject<vsg::Node>(META_PARENT);
+    vsg::Node *parent = childNode->getObject<vsg::Node>(app::PARENT);
     if(!parent)
         return QModelIndex();
 
-    vsg::Node *grandParent = parent->getObject<vsg::Node>(META_PARENT);
+    vsg::Node *grandParent = parent->getObject<vsg::Node>(app::PARENT);
     if (grandParent)
     {
         FindPositionVisitor fpv(parent);
         fpv.traversalMask = route::SceneObjects;
-        return createIndex(fpv(grandParent), 0, const_cast<vsg::Node*>(parent));
+        return createIndex(fpv(grandParent), 0, parent);
     }
     else
         return QModelIndex();
@@ -145,7 +145,7 @@ int SceneModel::addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loade
     if (parentNode->is_compatible(typeid (vsg::PagedLOD)))
         return false;
 
-    loaded->setObject(META_PARENT, parentNode);
+    loaded->setObject(app::PARENT, parentNode);
 
     auto groupF = [loaded](vsg::Group& group) { group.addChild(loaded); };
     auto swF = [loaded, mask](vsg::Switch& sw) { sw.addChild(mask, loaded); };
@@ -168,13 +168,13 @@ QModelIndex SceneModel::removeNode(const QModelIndex &index)
 void SceneModel::removeNode(const QModelIndex &parent, const QModelIndex &index)
 {
     vsg::Node* childNode = static_cast<vsg::Node*>(index.internalPointer());
-    childNode->setObject(META_PARENT, nullptr);
+    childNode->setObject(app::PARENT, nullptr);
     removeRow(index.row(), parent);
 }
 
 QModelIndex SceneModel::index(const vsg::Node *node) const
 {
-    auto *parent = node->getObject<vsg::Node>(META_PARENT);
+    auto *parent = node->getObject<vsg::Node>(app::PARENT);
     if(parent)
         return SceneModel::index(node, parent);
     else
@@ -312,7 +312,7 @@ QVariant SceneModel::data(const QModelIndex &index, int role) const
         if (role == Qt::DisplayRole || role == Qt::EditRole)
         {
             std::string name;
-            if(nodeInfo->getValue(META_NAME, name))
+            if(nodeInfo->getValue(app::NAME, name))
                 return name.c_str();
         }
         break;

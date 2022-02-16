@@ -22,15 +22,15 @@ DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Builder> in_bui
     if (!_database)
         throw (DatabaseException(path));
 
-        topology = _database->getObject<route::Topology>(TOPOLOGY_KEY);
+        topology = _database->getObject<route::Topology>(app::TOPOLOGY);
         if(!topology)
         {
             topology = route::Topology::create();
-            _database->setObject(TOPOLOGY_KEY, topology);
+            _database->setObject(app::TOPOLOGY, topology);
         }
         topology->assignBuilder(builder);
 
-    builder->options->objectCache->add(topology, TOPOLOGY_KEY);
+    builder->options->objectCache->add(topology, app::TOPOLOGY);
 
     vsg::StateInfo si;
     si.lighting = false;
@@ -56,7 +56,7 @@ DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Builder> in_bui
     gi.color = vsg::vec4(0.0f, 0.0f, 1.0f, 1.0f);
     stdAxis->addChild(builder->createBox(gi));
 
-    root->addChild(stdWireBox);
+    root->addChild(stdWireBox); //for compilation
     root->addChild(stdAxis);
 }
 DatabaseManager::~DatabaseManager()
@@ -67,7 +67,7 @@ vsg::ref_ptr<vsg::Group> DatabaseManager::getDatabase() const noexcept { return 
 
 void DatabaseManager::addPoints(const vsg::Node *tile, vsg::ref_ptr<vsg::Node> sphere, vsg::ref_ptr<vsg::Group> points)
 {
-    auto traverseTiles = [sphere, points, copyBuffer=_copyBufferCmd](const vsg::MatrixTransform &transform)
+    auto traverseTiles = [sphere, points, copyBuffer=_copyBufferCmd, box=stdWireBox](const vsg::MatrixTransform &transform)
     {
         auto addPoint = [=](const vsg::VertexIndexDraw& vid)
         {
@@ -75,7 +75,9 @@ void DatabaseManager::addPoints(const vsg::Node *tile, vsg::ref_ptr<vsg::Node> s
             auto vertarray = bufferInfo->data.cast<vsg::vec3Array>();
             for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
             {
-                points->addChild(route::TerrainPoint::create(copyBuffer, bufferInfo, transform.matrix, sphere, it));
+                auto point = route::TerrainPoint::create(copyBuffer, bufferInfo, transform.matrix, sphere, box, it);
+                point->recalculateWireframe();
+                points->addChild(point);
             }
         };
         CLambdaVisitor<decltype (addPoint), vsg::VertexIndexDraw> lv(addPoint);
@@ -234,7 +236,7 @@ void DatabaseManager::writeTiles() noexcept
 
     auto removeParents = [](vsg::Node& node)
     {
-        node.removeObject(META_PARENT);
+        node.removeObject(app::PARENT);
     };
     LambdaVisitor<decltype (removeParents), vsg::Node> lvmp(removeParents);
 

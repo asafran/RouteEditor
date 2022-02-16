@@ -8,7 +8,8 @@
 #include    "topology.h"
 #include    "sceneobjects.h"
 #include    "LambdaVisitor.h"
-#include    <vsg/all.h>
+#include    <vsg/nodes/VertexIndexDraw.h>
+#include    <vsg/io/ObjectCache.h>
 
 
 
@@ -116,7 +117,7 @@ namespace route
     {
         double T = ArcLength::solveLength(*_railSpline, 0.0, x);
         auto pt = _railSpline->getTangent(T);
-        return InterpolatedPTM(std::move(pt)).calculated;
+        return InterpolatedPTM(std::move(pt), mixTilt(T)).calculated;
     }
 
     void SplineTrajectory::updateSpline()
@@ -157,9 +158,9 @@ namespace route
 
         std::vector<InterpolatedPTM> derivatives(partitionBoundaries.size());
         std::transform(std::execution::par_unseq, partitionBoundaries.begin(), partitionBoundaries.end(), derivatives.begin(),
-                       [railSpline=_railSpline, front](double T)
+                       [this, front](double T)
         {
-            return std::move(InterpolatedPTM(railSpline->getTangent(T), front));
+            return std::move(InterpolatedPTM(_railSpline->getTangent(T), mixTilt(T), front));
         });
 
         _track->children.clear();
@@ -285,7 +286,7 @@ namespace route
         auto computeTransform = [this](vsg::MatrixTransform& transform)
         {
             double coord = 0.0;
-            if(transform.getValue(META_PROPERTY, coord))
+            if(transform.getValue(app::PROP, coord))
                 transform.matrix = getMatrixAt(coord);
         };
         LambdaVisitor<decltype (computeTransform), vsg::MatrixTransform> ct(computeTransform);
@@ -318,7 +319,7 @@ namespace route
         auto end = attrib.vertices.end() - (attrib.vertices.size()/2);
         while (it < end)
         {
-            vd.push_back(VertexData(vsg::vec3(*it, *(it + 1), *(it + 2))));
+            vd.push_back(VertexData(vsg::vec3(*it, *(it + 2), *(it + 1))));
             it += 3;
         }
 
@@ -337,80 +338,44 @@ namespace route
         return std::make_pair(vd, texture);
     }
 
-    vsg::ref_ptr<vsg::StateGroup> SplineTrajectory::createStateGroup(vsg::ref_ptr<vsg::Data> textureData)
+    vsg::ref_ptr<RailPoint> SplineTrajectory::findFloorPoint(double t) const
     {
-        vsg::Paths searchPaths = vsg::getEnvPaths("RRS2_ROOT");
-
-        vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("shaders/vert_PushConstants.spv", searchPaths));
-        vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("shaders/frag_PushConstants.spv", searchPaths));
-        if (!vertexShader || !fragmentShader)
-        {
-            std::cout << "Could not create shaders." << std::endl;
-            return vsg::ref_ptr<vsg::StateGroup>();
-        }
-
-        // set up graphics pipeline
-        vsg::DescriptorSetLayoutBindings descriptorBindings{
-            {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
-        };
-
-        auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
-
-        vsg::PushConstantRanges pushConstantRanges{
-            {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls automatically provided by the VSG's DispatchTraversal
-        };
-
-        vsg::VertexInputState::Bindings vertexBindingsDescriptions{
-            VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // vertex data
-            VkVertexInputBindingDescription{1, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // colour data
-            VkVertexInputBindingDescription{2, sizeof(vsg::vec2), VK_VERTEX_INPUT_RATE_VERTEX}  // tex coord data
-        };
-
-        vsg::VertexInputState::Attributes vertexAttributeDescriptions{
-            VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0}, // vertex data
-            VkVertexInputAttributeDescription{1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0}, // colour data
-            VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R32G32_SFLOAT, 0}     // tex coord data
-        };
-
-        vsg::GraphicsPipelineStates pipelineStates{
-            vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
-            vsg::InputAssemblyState::create(),
-            vsg::RasterizationState::create(),
-            vsg::MultisampleState::create(),
-            vsg::ColorBlendState::create(),
-            vsg::DepthStencilState::create()};
-
-        auto pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout}, pushConstantRanges);
-        auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, vsg::ShaderStages{vertexShader, fragmentShader}, pipelineStates);
-        auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
-
-        // create texture image and associated DescriptorSets and binding
-        auto descriptorTexture = vsg::DescriptorImage::create(vsg::Sampler::create(), textureData, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-        auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{descriptorTexture});
-        auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
-
-        // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
-        auto stateGroup = vsg::StateGroup::create();
-        stateGroup->add(bindGraphicsPipeline);
-        stateGroup->add(bindDescriptorSet);
-
-        return stateGroup;
+        auto index = static_cast<int>(t) - 1;
+        if(index < 0)
+            return _fwdPoint;
+        else if(index >= _points.size())
+            return _bwdPoint;
+        else
+            return _points.at(index);
     }
 
-    size_t SplineTrajectory::add(vsg::ref_ptr<RailPoint> rp)
+    vsg::dquat SplineTrajectory::mixTilt(double T) const
+    {
+        double i;
+        double fr = std::modf(T, &i);
+        return vsg::mix(findFloorPoint(i)->getTilt(), findFloorPoint(i + 1.0)->getTilt(), fr);
+    }
+
+    void SplineTrajectory::add(vsg::ref_ptr<RailPoint> rp, bool autoRotate)
     {
         SplineInverter<vsg::dvec3, double> inverter(*_railSpline);
-        double t = inverter.findClosestT(rp->getPosition());
-        auto index = static_cast<size_t>(std::floor(t)) + 1;
-        auto it = _points.begin() + index;
-        Q_ASSERT(it <= _points.end());
-        _points.insert(it, rp);
+        double T = inverter.findClosestT(rp->getPosition());
+
+        if(T >= _railSpline->getMaxT())
+            _points.push_back(rp);
+        else
+        {
+            auto index = static_cast<size_t>(std::trunc(T));
+            auto it = _points.begin() + index;
+            Q_ASSERT(it <= _points.end());
+            _points.insert(it, rp);
+        }
         rp->trajectory = this;
 
-        recalculate();
-
-        return index;
+        if(autoRotate)
+            rp->setRotation(InterpolatedPTM(_railSpline->getTangent(T)).rot);
+        else
+            recalculate(); //called on setRotation
     }
 
     void SplineTrajectory::remove(size_t index)
@@ -418,12 +383,17 @@ namespace route
         auto it = _points.begin() + index;
         Q_ASSERT(it < _points.end());
         _points.erase(it);
+
+        recalculate();
     }
 
     void SplineTrajectory::remove(vsg::ref_ptr<RailPoint> rp)
     {
         auto it = std::find(_points.begin(), _points.end(), rp);
+        Q_ASSERT(it != _points.end());
         _points.erase(it);
+
+        recalculate();
     }
 
     void SplineTrajectory::reloadData()
@@ -556,7 +526,7 @@ namespace route
         std::string name;
         input.read("trajName", name);
 
-        addChild(input.options->objectCache->get(TOPOLOGY_KEY).cast<Topology>()->trajectories.at(name));
+        addChild(input.options->objectCache->get(app::TOPOLOGY).cast<Topology>()->trajectories.at(name));
 
     }
 
@@ -568,7 +538,7 @@ namespace route
         Q_ASSERT(trajectory);
 
         std::string name;
-        trajectory->getValue(META_NAME, name);
+        trajectory->getValue(app::NAME, name);
         output.write("trajName", name);
 
     }
