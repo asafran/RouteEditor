@@ -223,7 +223,6 @@ public:
             _oldPos = 0.0;
 
         _parent = object->getObject<route::SplineTrajectory>(app::PARENT);
-
     }
     void undo() override
     {
@@ -232,6 +231,10 @@ public:
 
         _object->matrix = _parent->getMatrixAt(_oldPos);
         _object->setValue(app::PROP, _oldPos);
+
+        ApplyTransform ct;
+        ct.stack.push(vsg::dmat4());
+        _parent->accept(ct);
     }
     void redo() override
     {
@@ -240,6 +243,10 @@ public:
 
         _object->matrix = _parent->getMatrixAt(_newPos);
         _object->setValue(app::PROP, _oldPos);
+
+        ApplyTransform ct;
+        ct.stack.push(vsg::dmat4());
+        _parent->accept(ct);
     }
     int id() const override
     {

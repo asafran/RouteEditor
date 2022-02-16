@@ -6,13 +6,15 @@
 #include <vsg/traversals/LineSegmentIntersector.h>
 
 #include <QUndoStack>
-#include "SceneModel.h"
 #include <vsg/ui/KeyEvent.h>
 #include <vsg/vk/State.h>
 
 namespace route {
     class SceneTrajectory;
     class SceneObject;
+    class SplineTrajectory;
+    class RailPoint;
+    class RailConnector;
 }
 
 /*
@@ -88,7 +90,21 @@ namespace route {
 
         vsg::MatrixStack stack;
 
-        QUndoStack *undoStack;
+        QUndoStack *undoStack = nullptr;
+
+        void apply(vsg::Node &node) override;
+
+        void apply(route::SceneObject &object);
+
+        void apply(vsg::Transform &transform) override;
+    };
+
+    class ApplyTransform : public vsg::Visitor
+    {
+    public:
+        ApplyTransform();
+
+        vsg::MatrixStack stack;
 
         void apply(vsg::Node &node) override;
 

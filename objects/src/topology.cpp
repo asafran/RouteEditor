@@ -12,7 +12,7 @@ namespace route
 
     }
 
-    STrajectories::iterator Topology::insertTraj(vsg::ref_ptr<SplineTrajectory> traj)
+    std::map<std::string, vsg::ref_ptr<SplineTrajectory>>::iterator Topology::insertTraj(vsg::ref_ptr<SplineTrajectory> traj)
     {
         std::string name;
         traj->getValue(app::NAME, name);

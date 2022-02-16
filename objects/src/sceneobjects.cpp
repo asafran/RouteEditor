@@ -265,11 +265,6 @@ namespace route
         return std::make_pair(trj, reversed);
     }
 
-    void RailConnector::getRelativeTangent(Trajectory *caller)
-    {
-
-    }
-
     void RailConnector::setFwd(Trajectory *caller)
     {
         if(fwdTrajectory != nullptr)
@@ -285,12 +280,26 @@ namespace route
         else
             trajectory = caller;
     }
-    void RailConnector::setNull(Trajectory *caller)
+    void RailConnector::setFwdNull(Trajectory *caller)
+    {
+        if(caller == fwdTrajectory)
+            fwdTrajectory = nullptr;
+        else if(caller == trajectory)
+        {
+            trajectory = fwdTrajectory;
+            fwdTrajectory = nullptr;
+        }
+    }
+
+    void RailConnector::setBwdNull(Trajectory *caller)
     {
         if(caller == trajectory)
             trajectory = nullptr;
         else if(caller == fwdTrajectory)
-            fwdTrajectory = nullptr;
+        {
+            fwdTrajectory = trajectory;
+            trajectory = nullptr;
+        }
     }
 
     bool RailConnector::isFree() const

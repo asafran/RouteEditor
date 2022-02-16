@@ -14,8 +14,9 @@
 #include "utils/arclength.h"
 #include "utils/splineinverter.h"
 #include "Constants.h"
+#include "tools.h"
 
-#include "tiny_obj_loader.h"
+#include "../tiny_obj_loader.h"
 
 namespace simulator {
     class Bogie;
@@ -30,6 +31,7 @@ namespace route
     class Trajectory;
     class SceneModel;
     class SceneTrajectory;
+    class Topology;
 
     using InterpolationSpline = CubicHermiteSpline<vsg::dvec3, double>;
 
@@ -315,7 +317,14 @@ namespace route
 
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
+
+    private:
+        vsg::ref_ptr<route::Topology> _topology;
     };
 }
+
+EVSG_type_name(route::SplineTrajectory);
+EVSG_type_name(route::SceneTrajectory);
+EVSG_type_name(route::Junction);
 
 #endif // TRAJ_H

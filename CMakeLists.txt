@@ -19,8 +19,6 @@ set(SOURCES
     src/RailsPointEditor.h
     src/RailsPointEditor.cpp
     src/RailsPointEditor.ui
-    src/SceneObjectVisitor.h
-    src/SceneObjectVisitor.cpp
     src/ContentManager.h
     src/ContentManager.cpp
     src/ContentManager.ui
@@ -37,8 +35,6 @@ set(SOURCES
     src/AddRails.h
     src/DatabaseManager.cpp
     src/DatabaseManager.h
-    src/undo-redo.cpp
-    src/undo-redo.h
     src/Manipulator.h
     src/Manipulator.cpp
     src/TilesSorter.cpp
@@ -47,32 +43,11 @@ set(SOURCES
     src/SceneModel.cpp
     src/PointsModel.h
     src/PointsModel.cpp
+    src/SceneObjectVisitor.h
+    src/SceneObjectVisitor.cpp
+    src/undo-redo.h
+    src/undo-redo.cpp
     src/main.cpp
-)
-
-set(TOOLS
-    tools/sceneobjects.h
-    tools/sceneobjects.cpp
-    tools/topology.h
-    tools/topology.cpp
-    tools/trajectory.h
-    tools/trajectory.cpp
-    #tools/vehicle-controller.h
-    #tools/vehicle-controller.cpp
-    tools/tiny_obj_loader.h
-    #tools/tiny_obj_loader.cc
-    tools/LambdaVisitor.h
-    tools/ParentVisitor.cpp
-    tools/ParentVisitor.h
-    tools/Constants.h
-)
-
-set(SPLINE
-    spline_library/splines/uniform_cr_spline.h
-    spline_library/splines/cubic_hermite_spline.h
-    spline_library/utils/arclength.h
-    spline_library/utils/splineinverter.h
-    spline_library/utils/spline_common.h
 )
 
 # Change the default build type to Release
@@ -96,8 +71,6 @@ find_package(Qt6 COMPONENTS Xml REQUIRED)
 find_package(vsg 0.2.9 REQUIRED)
 find_package(vsgXchange REQUIRED)
 find_package(vsgQt REQUIRED)
-find_package(Boost REQUIRED)
-find_package(TBB REQUIRED)
 
 # set the use of C++17 globally as all examples require it
 set(CMAKE_CXX_STANDARD 17)
@@ -122,18 +95,12 @@ endif()
 
 add_executable(editor ${SOURCES})
 
-target_include_directories(editor PRIVATE tools)
+add_subdirectory(tools)
 
-add_library(tools ${TOOLS})
-
-add_library(spline ${SPLINE})
-
-target_include_directories(spline PUBLIC spline_library)
+add_subdirectory(objects)
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
 target_compile_definitions(editor PRIVATE ORGANIZATION_NAME="RRS" ORGANIZATION_DOMAIN="rusrailsim.org" APPLICATION_NAME="editor")
 
-target_link_libraries(tools spline Qt6::Core TBB::tbb)
-
-target_link_libraries(editor tools vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange)
+target_link_libraries(editor objects vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange)

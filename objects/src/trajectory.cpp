@@ -53,8 +53,8 @@ namespace route
     }
     SplineTrajectory::~SplineTrajectory()
     {
-        _bwdPoint->setNull(this);
-        _fwdPoint->setNull(this);
+        _bwdPoint->setFwdNull(this);
+        _fwdPoint->setBwdNull(this);
     }
     //------------------------------------------------------------------------------
     //
@@ -126,7 +126,10 @@ namespace route
         std::vector<vsg::dvec3> tangents;
 
         points.push_back(_fwdPoint->getPosition());
-        tangents.push_back(_fwdPoint->getTangent());
+        if(_fwdPoint->getFwd(this).second)
+            tangents.push_back(-_fwdPoint->getTangent());
+        else
+            tangents.push_back(_fwdPoint->getTangent());
 
         std::transform(_points.begin(), _points.end(), std::back_insert_iterator(points),
                        [](const vsg::ref_ptr<RailPoint> sp)
@@ -140,7 +143,10 @@ namespace route
         });
 
         points.push_back(_bwdPoint->getPosition());
-        tangents.push_back(_bwdPoint->getTangent());
+        if(_bwdPoint->getBwd(this).second)
+            tangents.push_back(-_bwdPoint->getTangent());
+        else
+            tangents.push_back(_bwdPoint->getTangent());
 
         _railSpline.reset(new InterpolationSpline(points, tangents));
     }
@@ -517,7 +523,18 @@ namespace route
         children.emplace_back(traj);
     }
 
-    SceneTrajectory::~SceneTrajectory() {}
+    SceneTrajectory::~SceneTrajectory()
+    {
+        auto trajectory = children.front();
+        Q_ASSERT(trajectory);
+
+        std::string name;
+        trajectory->getValue(app::NAME, name);
+
+        auto trj = _topology->trajectories.find(name);
+        Q_ASSERT(trj != _topology->trajectories.end());
+        _topology->trajectories.erase(trj);
+    }
 
     void SceneTrajectory::read(vsg::Input& input)
     {
@@ -526,7 +543,9 @@ namespace route
         std::string name;
         input.read("trajName", name);
 
-        addChild(input.options->objectCache->get(app::TOPOLOGY).cast<Topology>()->trajectories.at(name));
+        _topology = input.options->objectCache->get(app::TOPOLOGY).cast<Topology>();
+
+        addChild(_topology->trajectories.at(name));
 
     }
 

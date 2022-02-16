@@ -84,6 +84,9 @@ bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &is
     auto model = _database->tilesModel;
     _database->undoStack->push(new AddSceneObject(_database->tilesModel, model->index(traj), transform));
     traj->updateAttached();
+    ApplyTransform ct;
+    ct.stack.push(vsg::dmat4());
+    traj->accept(ct);
     emit sendObject(obj);
     return true;
 }

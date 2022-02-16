@@ -3,6 +3,7 @@
 #include "undo-redo.h"
 #include <vsg/traversals/ComputeBounds.h>
 #include "ParentVisitor.h"
+#include "tools.h"
 #include <QSignalBlocker>
 
 ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidget *parent) : Tool(database, parent)
@@ -317,7 +318,19 @@ void ObjectPropertiesEditor::updateData()
     if(!_firstObject)
         return;
 
-    ui->trjCoordspin->setEnabled(_firstObject->getObject<vsg::MatrixTransform>(app::PARENT) != nullptr);
+    if(_firstObject->is_compatible(typeid (route::RailPoint)))
+    {
+        ui->rotXspin->setEnabled(false);
+        ui->rotYspin->setEnabled(false);
+    }
+
+    if(auto railMatrix = _firstObject->getObject<vsg::MatrixTransform>(app::PARENT); railMatrix)
+    {
+        ui->trjCoordspin->setEnabled(railMatrix != nullptr);
+        double val = 0.0;
+        railMatrix->getValue(app::PROP, val);
+        ui->trjCoordspin->setValue(val);
+    }
 
 
     auto position = _firstObject->getPosition();

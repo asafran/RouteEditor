@@ -5,7 +5,7 @@
 #include "ParentVisitor.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
-#include "tiny_obj_loader.h"
+#include "../tiny_obj_loader.h"
 
 
 AddRails::AddRails(DatabaseManager *database, QString root, QWidget *parent) : Tool(database, parent)
@@ -102,7 +102,10 @@ void AddRails::intersection(const FindNode &isection)
 
     _database->builder->compileTraversal->compile(sleeper);
 
-    auto traj = route::SplineTrajectory::create("trj",
+    std::string name = "traj";
+    if(_database->topology->trajectories.find("traj") != _database->topology->trajectories.end())
+        name = _database->topology->trajectories.rbegin()->first + "_2";
+    auto traj = route::SplineTrajectory::create(name,
                                                 bwd,
                                                 fwd,
                                                 _database->builder,

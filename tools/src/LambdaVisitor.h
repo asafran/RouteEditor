@@ -4,8 +4,6 @@
 #include <vsg/nodes/PagedLOD.h>
 #include <vsg/nodes/Switch.h>
 
-#include "sceneobjects.h"
-
 template<typename F1, typename C1>
 class LambdaVisitor : public vsg::Visitor
 {

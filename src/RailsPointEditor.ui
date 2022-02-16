@@ -14,16 +14,6 @@
    <string>Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
-    <widget class="QLabel" name="label_2">
-     <property name="text">
-      <string>Уклон</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1">
-    <widget class="QDoubleSpinBox" name="inclSpin"/>
-   </item>
    <item row="1" column="0">
     <widget class="QLabel" name="label_3">
      <property name="text">
@@ -31,8 +21,8 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="1">
-    <widget class="QDoubleSpinBox" name="tangSpin"/>
+   <item row="3" column="1">
+    <widget class="QDoubleSpinBox" name="cheightSpin"/>
    </item>
    <item row="2" column="0">
     <widget class="QLabel" name="label_4">
@@ -41,8 +31,15 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="1">
-    <widget class="QDoubleSpinBox" name="tiltSpin"/>
+   <item row="4" column="0">
+    <widget class="QPushButton" name="trajAddPButt">
+     <property name="text">
+      <string>Режим добавления точек</string>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+    </widget>
    </item>
    <item row="3" column="0">
     <widget class="QLabel" name="label_5">
@@ -51,16 +48,23 @@
      </property>
     </widget>
    </item>
-   <item row="3" column="1">
-    <widget class="QDoubleSpinBox" name="cheightSpin"/>
-   </item>
-   <item row="4" column="0">
-    <widget class="QPushButton" name="trajAddPButt">
+   <item row="0" column="0">
+    <widget class="QLabel" name="label_2">
      <property name="text">
-      <string>Режим добавления точек</string>
+      <string>Уклон</string>
      </property>
-     <property name="checkable">
-      <bool>true</bool>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QDoubleSpinBox" name="inclSpin">
+     <property name="minimum">
+      <double>-50.000000000000000</double>
+     </property>
+     <property name="maximum">
+      <double>50.000000000000000</double>
+     </property>
+     <property name="singleStep">
+      <double>0.100000000000000</double>
      </property>
     </widget>
    </item>
@@ -74,17 +78,20 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="0">
-    <widget class="QPushButton" name="trajConnFwd">
-     <property name="text">
-      <string>Соединить траекторию впереди с выбранной</string>
+   <item row="1" column="1">
+    <widget class="QDoubleSpinBox" name="tangSpin">
+     <property name="maximum">
+      <double>999.000000000000000</double>
      </property>
     </widget>
    </item>
-   <item row="5" column="1">
-    <widget class="QPushButton" name="trajConnBwd">
-     <property name="text">
-      <string>Соединить траекторию позади с выбранной</string>
+   <item row="2" column="1">
+    <widget class="QDoubleSpinBox" name="tiltSpin">
+     <property name="minimum">
+      <double>-45.000000000000000</double>
+     </property>
+     <property name="maximum">
+      <double>45.000000000000000</double>
      </property>
     </widget>
    </item>

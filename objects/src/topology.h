@@ -7,8 +7,6 @@
 
 namespace route
 {
-    using STrajectories = std::map<std::string, vsg::ref_ptr<SplineTrajectory>>;
-
     class Topology : public vsg::Inherit<vsg::Object, Topology>
     {
     public:
@@ -16,7 +14,7 @@ namespace route
 
         virtual ~Topology();
 
-        STrajectories::iterator insertTraj(vsg::ref_ptr<SplineTrajectory> traj);
+        std::map<std::string, vsg::ref_ptr<SplineTrajectory>>::iterator insertTraj(vsg::ref_ptr<SplineTrajectory> traj);
 
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
@@ -35,8 +33,8 @@ namespace route
 
         void assignBuilder(vsg::ref_ptr<vsg::Builder> builder);
 
-        STrajectories trajectories;
-        //std::map<std::string, vsg::ref_ptr<Junction>> junctions;
+        std::map<std::string, vsg::ref_ptr<SplineTrajectory>> trajectories;
+        std::map<std::string, vsg::ref_ptr<Junction>> junctions;
         //std::map<std::string, AnimatedTrackside> trackside;
         //std::map<std::string, Signal> signal;
 

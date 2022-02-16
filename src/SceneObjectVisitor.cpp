@@ -84,11 +84,41 @@
     {
         auto newWorld = vsg::inverse(stack.top());
         auto wposition = object.getWorldPosition();
+        if(undoStack)
+            undoStack->push(new ApplyTransformCalculation(&object, newWorld * wposition, stack.top()));
+        else
+        {
+            object.localToWorld = stack.top();
+            object.setPosition(newWorld * wposition);
+        }
         object.recalculateWireframe();
-        undoStack->push(new ApplyTransformCalculation(&object, newWorld * wposition, stack.top()));
     }
 
     void CalculateTransform::apply(vsg::Transform &transform)
+    {
+        if(auto object = transform.cast<route::SceneObject>(); object)
+            apply(*object);
+        stack.push(transform);
+        transform.traverse(*this);
+        stack.pop();
+    }
+
+    ApplyTransform::ApplyTransform() : vsg::Visitor()
+    {
+    }
+
+    void ApplyTransform::apply(vsg::Node &node)
+    {
+        node.traverse(*this);
+    }
+
+    void ApplyTransform::apply(route::SceneObject &object)
+    {
+        auto newWorld = vsg::inverse(stack.top());
+        object.localToWorld = stack.top();
+    }
+
+    void ApplyTransform::apply(vsg::Transform &transform)
     {
         if(auto object = transform.cast<route::SceneObject>(); object)
             apply(*object);
