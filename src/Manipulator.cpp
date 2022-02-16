@@ -270,12 +270,12 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
 {
     Trackball::apply(pointerEvent);
 
+    _previousPointerEvent = &pointerEvent;
+
     if(!_isMoving || !_movingObject)
         return;
 
-    switch (_axis) {
-    case MovingAxis::TERRAIN:
-    {
+
         auto isections = intersections(route::Tiles, pointerEvent);
         if(isections.empty())
             return;
@@ -286,37 +286,38 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
         delta = isection.worldIntersection - _movingObject->getWorldPosition();
 
         emit sendMovingDelta(delta);
-    }
+        /*
     case MovingAxis::X:
     {
-        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 2;
-        auto quat = _movingObject->getWorldQuat();
+        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 4;
+        auto quat = _movingObject->getWorldRotation();
 
-        auto rotated = vsg::rotate(quat) * vsg::dvec3(delta, 0.0, 0.0);
+        auto rotated = vsg::inverse(vsg::rotate(quat)) * vsg::dvec3(delta, 0.0, 0.0);
 
         emit sendMovingDelta(rotated);
     }
     case MovingAxis::Y:
     {
-        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 2;
-        auto quat = _movingObject->getWorldQuat();
+        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 4;
+        auto quat = _movingObject->getWorldRotation();
 
-        auto rotated = vsg::rotate(quat) * vsg::dvec3(0.0, delta, 0.0);
+        auto rotated = route::mult(quat, vsg::dvec3(0.0, delta, 0.0));
 
         emit sendMovingDelta(rotated);
     }
     case MovingAxis::Z:
     {
-        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 2;
-        auto quat = _movingObject->getWorldQuat();
+        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 4;
+        auto quat = _movingObject->getWorldRotation();
 
-        auto rotated = vsg::rotate(quat) * vsg::dvec3(0.0, 0.0, delta);
+        auto rotated = route::mult(quat, vsg::dvec3(0.0, 0.0, delta));
 
         emit sendMovingDelta(rotated);
     }
 
     }
-    _previousPointerEvent = &pointerEvent;
+    */
+
 }
 
 FindNode Manipulator::intersectedObjects(vsg::LineSegmentIntersector::Intersections isections)
