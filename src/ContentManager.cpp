@@ -78,7 +78,7 @@ bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &is
     auto obj = route::SceneObject::create(node, _database->getStdWireBox());
     obj->recalculateWireframe();
     auto transform = vsg::MatrixTransform::create();
-    obj->setObject(app::PARENT, transform);
+    obj->setValue(app::PARENT, transform);
     transform->addChild(obj);
     transform->setValue(app::PROP, coord);
     auto model = _database->tilesModel;

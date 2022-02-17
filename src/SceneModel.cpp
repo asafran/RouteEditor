@@ -76,19 +76,19 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
 
     Q_ASSERT(childNode != nullptr);
 
-    vsg::Node *parent = childNode->getObject<vsg::Node>(app::PARENT);
+    vsg::Node *parent = nullptr;
+    childNode->getValue(app::PARENT, parent);
     if(!parent)
         return QModelIndex();
 
-    vsg::Node *grandParent = parent->getObject<vsg::Node>(app::PARENT);
-    if (grandParent)
-    {
-        FindPositionVisitor fpv(parent);
-        fpv.traversalMask = route::SceneObjects;
-        return createIndex(fpv(grandParent), 0, parent);
-    }
-    else
+    vsg::Node *grandParent = nullptr;
+    parent->getValue(app::PARENT, grandParent);
+    if (!grandParent)
         return QModelIndex();
+
+    FindPositionVisitor fpv(parent);
+    fpv.traversalMask = route::SceneObjects;
+    return createIndex(fpv(grandParent), 0, parent);
 }
 
 bool SceneModel::removeRows(int row, int count, const QModelIndex &parent)
@@ -145,7 +145,7 @@ int SceneModel::addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loade
     if (parentNode->is_compatible(typeid (vsg::PagedLOD)))
         return false;
 
-    loaded->setObject(app::PARENT, parentNode);
+    loaded->setValue(app::PARENT, parentNode);
 
     auto groupF = [loaded](vsg::Group& group) { group.addChild(loaded); };
     auto swF = [loaded, mask](vsg::Switch& sw) { sw.addChild(mask, loaded); };
@@ -161,21 +161,20 @@ int SceneModel::addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loade
 QModelIndex SceneModel::removeNode(const QModelIndex &index)
 {
     auto parent = index.parent();
-
-    removeRow(index.row(), parent);
+    removeNode(index, parent);
     return parent;
 }
-void SceneModel::removeNode(const QModelIndex &parent, const QModelIndex &index)
+void SceneModel::removeNode(const QModelIndex &index, const QModelIndex &parent)
 {
     vsg::Node* childNode = static_cast<vsg::Node*>(index.internalPointer());
-    childNode->setObject(app::PARENT, nullptr);
+    childNode->removeObject(app::PARENT);
     removeRow(index.row(), parent);
 }
 
 QModelIndex SceneModel::index(const vsg::Node *node) const
 {
-    auto *parent = node->getObject<vsg::Node>(app::PARENT);
-    if(parent)
+    vsg::Node *parent = nullptr;
+    if(node->getValue(app::PARENT, parent))
         return SceneModel::index(node, parent);
     else
         return QModelIndex();

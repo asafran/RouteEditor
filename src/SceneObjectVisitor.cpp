@@ -154,7 +154,8 @@
 
     void FindNode::apply(vsg::MatrixTransform &transform)
     {
-        if(transform.getObject(app::PARENT) == tile)
+        vsg::Node *parent = nullptr;
+        if(transform.getValue(app::PARENT, parent) && parent == tile)
             terrain = &transform;
     }
 

@@ -99,7 +99,7 @@ namespace route
 
         virtual double getLength() const = 0;
 
-        virtual void recalculate() = 0;
+        virtual void recalculate() = 0; 
 
         virtual std::pair<Trajectory*, bool> getFwd() const = 0;
         virtual std::pair<Trajectory*, bool> getBwd() const = 0;
@@ -155,6 +155,9 @@ namespace route
         std::pair<Trajectory*, bool> getFwd() const override { return _fwdPoint->getFwd(this); }
         std::pair<Trajectory*, bool> getBwd() const override { return _bwdPoint->getBwd(this); }
 
+        void setFwdPoint(RailConnector *rc);
+        void setBwdPoint(RailConnector *rc);
+
         void add(vsg::ref_ptr<RailPoint> rp, bool autoRotate = true);
         void remove(size_t index);
         void remove(vsg::ref_ptr<RailPoint> rp);
@@ -190,6 +193,10 @@ namespace route
         void reloadData();
 
         void updateAttached();
+
+        vsg::ref_ptr<RailConnector> getFwdPoint() const;
+
+        vsg::ref_ptr<RailConnector> getBwdPoint() const;
 
     private:
 

@@ -61,7 +61,7 @@ public:
     uint32_t setMask(uint32_t mask, const QModelIndex &index);
     */
     QModelIndex removeNode(const QModelIndex &index);
-    void removeNode(const QModelIndex &parent, const QModelIndex &index);
+    void removeNode(const QModelIndex &index, const QModelIndex &parent);
     //void removeNode(vsg::ref_ptr<vsg::Node> node);
     //void removeNode(const QModelIndex &parent, int row, vsg::ref_ptr<vsg::Node> node);
 

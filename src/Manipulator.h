@@ -54,7 +54,7 @@ protected:
     inline void createPointer();
 
     //void handlePress(vsg::ButtonPressEvent& buttonPressEvent);
-
+/*
     enum MovingAxis
     {
         X,
@@ -63,7 +63,7 @@ protected:
         TERRAIN
     };
 
-    MovingAxis _axis = TERRAIN;
+    MovingAxis _axis = TERRAIN;*/
 
     DatabaseManager *_database;
 

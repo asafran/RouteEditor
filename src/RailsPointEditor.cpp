@@ -16,7 +16,7 @@ RailsPointEditor::RailsPointEditor(DatabaseManager *database, QWidget *parent) :
     auto stack = _database->undoStack;
 
     connect(stack, &QUndoStack::indexChanged, this, &RailsPointEditor::updateData);
-
+/*
     connect(ui->inclSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
         auto parent = new QUndoCommand(tr("Изменен уклон"));
@@ -31,11 +31,12 @@ RailsPointEditor::RailsPointEditor(DatabaseManager *database, QWidget *parent) :
             double cosr_cosp = 1 - 2 * (quat.x * quat.x + quat.y * quat.y);
             auto rot = std::atan2(sinr_cosp, cosr_cosp) * 1000.0;
 
-            new ExecuteLambda<decltype (fn), double>(fn, rot, d, parent);
+            new ExecuteLambda<decltype (fn), double>(fn, rot, d, 5, parent);
         }
 
         stack->push(parent);
     });
+    */
     connect(ui->tangSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
         auto parent = new QUndoCommand(tr("Изменен вес производной"));
@@ -44,7 +45,7 @@ RailsPointEditor::RailsPointEditor(DatabaseManager *database, QWidget *parent) :
         {
             vsg::ref_ptr<route::RailPoint> ref(object);
             auto fn = [ref](double val){ ref->setTangent(val); };
-            new ExecuteLambda<decltype (fn), double>(fn, ref->_tangent, d, parent);
+            new ExecuteLambda<decltype (fn), double>(fn, ref->_tangent, d, 6, parent);
         }
 
         stack->push(parent);
@@ -57,7 +58,7 @@ RailsPointEditor::RailsPointEditor(DatabaseManager *database, QWidget *parent) :
         {
             vsg::ref_ptr<route::RailPoint> ref(object);
             auto fn = [ref](double val){ ref->setTilt(val); };
-            new ExecuteLambda<decltype (fn), double>(fn, ref->_tilt, d, parent);
+            new ExecuteLambda<decltype (fn), double>(fn, ref->_tilt, d, 7, parent);
         }
 
         stack->push(parent);
@@ -71,11 +72,13 @@ RailsPointEditor::RailsPointEditor(DatabaseManager *database, QWidget *parent) :
         {
             vsg::ref_ptr<route::RailPoint> ref(object);
             auto fn = [ref](double val){ ref->setCHeight(val); };
-            new ExecuteLambda<decltype (fn), double>(fn, ref->_cheight, d, parent);
+            new ExecuteLambda<decltype (fn), double>(fn, ref->_cheight, d, 8, parent);
         }
 
         stack->push(parent);
     });
+
+    connect(ui->connectButt, &QPushButton::clicked, this, &RailsPointEditor::clear);
 }
 
 RailsPointEditor::~RailsPointEditor()
@@ -85,9 +88,27 @@ RailsPointEditor::~RailsPointEditor()
 
 void RailsPointEditor::intersection(const FindNode& isection)
 {
+    if(ui->connectButt->isChecked())
+    {
+        if(isection.connector && isection.connector->isFree())
+        {
+            if(_selectedObjects.isEmpty())
+                toggle(isection.connector);
+            else if(_selectedObjects.size() == 1)
+            {
+                auto connector = (*_selectedObjects.begin())->cast<route::RailConnector>();
+                bool front = isection.connector->fwdTrajectory == nullptr;
+                auto traj = front ? isection.connector->trajectory : isection.connector->fwdTrajectory;
+                if(auto straj = traj->cast<route::SplineTrajectory>(); straj)
+                    _database->undoStack->push(new ConnectRails(connector, straj, front));
+            }
+        }
+        return;
+    }
+
     auto single = (isection.keyModifier & vsg::MODKEY_Control) == 0;
 
-    if(single || ui->trajRemPButt->isChecked() || ui->trajRemPButt->isChecked())
+    if(single  || ui->trajRemPButt->isChecked() || ui->trajRemPButt->isChecked())
         clear();
 
     if(isection.connector)
@@ -127,7 +148,7 @@ void RailsPointEditor::toggle(route::RailPoint *object)
 }
 void RailsPointEditor::clear()
 {
-    for (auto &object : _selectedObjects)
+    for (auto &object : qAsConst(_selectedObjects))
     {
         object->setSelection(false);
     }

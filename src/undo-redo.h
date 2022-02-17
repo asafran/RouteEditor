@@ -222,7 +222,9 @@ public:
         if(!object->getValue(app::PROP, _oldPos))
             _oldPos = 0.0;
 
-        _parent = object->getObject<route::SplineTrajectory>(app::PARENT);
+        vsg::Node *parentNode = nullptr;
+        object->getValue(app::PARENT, parentNode);
+        _parent = object->cast<route::SplineTrajectory>();
     }
     void undo() override
     {
@@ -250,7 +252,7 @@ public:
     }
     int id() const override
     {
-        return 1;
+        return 3;
     }
     bool mergeWith(const QUndoCommand *other) override
     {
@@ -268,6 +270,36 @@ protected:
     vsg::ref_ptr<vsg::MatrixTransform> _object;
     double _oldPos;
     double _newPos;
+};
+
+class ConnectRails : public QUndoCommand
+{
+public:
+    ConnectRails(route::RailConnector *conn2, route::SplineTrajectory *connectable, bool front, QUndoCommand *parent = nullptr)
+        : QUndoCommand(parent)
+        , _conn2(conn2)
+        , _traj(connectable)
+        , _setfront(front)
+    {
+        setText(QObject::tr("Соединены траектории"));
+
+        _conn1 = _setfront ? _traj->getFwdPoint() : _traj->getBwdPoint();
+    }
+    void undo() override
+    {
+        _setfront ? _traj->setFwdPoint(_conn1) : _traj->setBwdPoint(_conn1);
+        _traj->recalculate();
+    }
+    void redo() override
+    {
+        _setfront ? _traj->setFwdPoint(_conn2) : _traj->setBwdPoint(_conn2);
+        _traj->recalculate();
+    }
+private:
+    vsg::ref_ptr<route::RailConnector> _conn1;
+    vsg::ref_ptr<route::RailConnector> _conn2;
+    bool _setfront;
+    vsg::ref_ptr<route::SplineTrajectory> _traj;
 };
 
 class AddRailPoint : public QUndoCommand
@@ -358,10 +390,11 @@ template<typename F, typename V>
 class ExecuteLambda : public QUndoCommand
 {
 public:
-    ExecuteLambda(F func, V old, V val, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
+    ExecuteLambda(F func, V old, V val, int id, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
         , _newProp(val)
         , _oldProp(old)
         , _func(func)
+        , _id(id)
     {
     }
     void undo() override
@@ -372,12 +405,25 @@ public:
     {
         _func(_newProp);
     }
+    int id() const override
+    {
+        return _id;
+    }
+    bool mergeWith(const QUndoCommand *other) override
+    {
+        if (other->id() != id())
+            return false;
+        auto excmd = static_cast<const ExecuteLambda<F,V>*>(other);
+        _newProp = excmd->_newProp;
+        return true;
+    }
 
 protected:
     F _func;
+    int _id;
 
     const V _oldProp;
-    const V _newProp;
+    V _newProp;
 };
 /*
 class SetRailProp : public ExecuteLambda<std::function<void(double)>, double>

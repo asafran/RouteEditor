@@ -214,12 +214,12 @@ namespace route
     {
         return vsg::dquat(vsg::radians(_tilt), vsg::dvec3(0.0, 1.0, 0.0));
     }
-
+/*
     void RailPoint::setInclination(double i)
     {
         auto angle = std::atan(i * 0.001);
         setRotation(mult(_quat, vsg::dquat(angle, vsg::dvec3(1.0, 0.0, 0.0))));
-    }
+    }*/
 
     RailConnector::RailConnector(vsg::ref_ptr<vsg::Node> loaded,
                                  vsg::ref_ptr<vsg::Node> box,

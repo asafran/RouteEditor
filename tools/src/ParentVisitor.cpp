@@ -30,15 +30,15 @@ struct PushPopNode
 
 void ParentIndexer::apply(vsg::Node& node)
 {
-    node.setObject(app::PARENT, _nodePath.back());
+    node.setValue(app::PARENT, _nodePath.back());
     PushPopNode ppn(_nodePath, &node);
     node.traverse(*this);
 }
 
-void ParentTracer::apply(vsg::Object &node)
+void ParentTracer::apply(vsg::Object &object)
 {
-    auto parent = node.getObject(app::PARENT);
-    if(parent)
+    vsg::Node *parent = nullptr;
+    if(object.getValue(app::PARENT, parent))
     {
         nodePath.push_front(parent);
         parent->accept(*this);

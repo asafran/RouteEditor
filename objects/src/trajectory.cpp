@@ -188,6 +188,20 @@ namespace route
         updateAttached();
     }
 
+    void SplineTrajectory::setFwdPoint(RailConnector *rc)
+    {
+        _fwdPoint->setBwdNull(this);
+        _fwdPoint = rc;
+        _fwdPoint->setBwd(this);
+    }
+
+    void SplineTrajectory::setBwdPoint(RailConnector *rc)
+    {
+        _bwdPoint->setFwdNull(this);
+        _bwdPoint = rc;
+        _bwdPoint->setFwd(this);
+    }
+
     vsg::ref_ptr<vsg::VertexIndexDraw> SplineTrajectory::createGeometry(const vsg::vec3 &offset,
                                                                         const std::vector<InterpolatedPTM> &derivatives,
                                                                         const std::vector<VertexData> &geometry) const
@@ -360,6 +374,16 @@ namespace route
         double i;
         double fr = std::modf(T, &i);
         return vsg::mix(findFloorPoint(i)->getTilt(), findFloorPoint(i + 1.0)->getTilt(), fr);
+    }
+
+    vsg::ref_ptr<RailConnector> SplineTrajectory::getBwdPoint() const
+    {
+        return _bwdPoint;
+    }
+
+    vsg::ref_ptr<RailConnector> SplineTrajectory::getFwdPoint() const
+    {
+        return _fwdPoint;
     }
 
     void SplineTrajectory::add(vsg::ref_ptr<RailPoint> rp, bool autoRotate)

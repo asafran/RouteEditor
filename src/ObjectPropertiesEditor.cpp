@@ -155,6 +155,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
         ui->ecefXspin->setSingleStep(step);
         ui->ecefYspin->setSingleStep(step);
         ui->ecefZspin->setSingleStep(step);
+        ui->altSpin->setSingleStep(step);
     });
     connect(ui->rotCombo, &QComboBox::currentIndexChanged, this, [this](int index)
     {
@@ -166,7 +167,10 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 
     connect(ui->trjCoordspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        stack->push(new MoveObjectOnTraj(_firstObject->getObject<vsg::MatrixTransform>(app::PARENT), d));
+        vsg::Node *mt = nullptr;
+        _firstObject->getValue(app::PARENT, mt);
+        if(mt)
+            stack->push(new MoveObjectOnTraj(mt->cast<vsg::MatrixTransform>(), d));
     });
 }
 
@@ -320,17 +324,21 @@ void ObjectPropertiesEditor::updateData()
 
     if(_firstObject->is_compatible(typeid (route::RailPoint)))
     {
-        ui->rotXspin->setEnabled(false);
+        //ui->rotXspin->setEnabled(false);
         ui->rotYspin->setEnabled(false);
     }
 
-    if(auto railMatrix = _firstObject->getObject<vsg::MatrixTransform>(app::PARENT); railMatrix)
+    vsg::Node *rmt = nullptr;
+    _firstObject->getValue(app::PARENT, rmt);
+    if(rmt->is_compatible(typeid(vsg::MatrixTransform)))
     {
-        ui->trjCoordspin->setEnabled(railMatrix != nullptr);
+        ui->trjCoordspin->setEnabled(true);
         double val = 0.0;
-        railMatrix->getValue(app::PROP, val);
+        rmt->getValue(app::PROP, val);
         ui->trjCoordspin->setValue(val);
     }
+    else
+        ui->trjCoordspin->setEnabled(false);
 
 
     auto position = _firstObject->getPosition();

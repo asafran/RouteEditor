@@ -163,8 +163,6 @@ namespace route
 
         void setTangent(double t) { _tangent = t; recalculate(); }
 
-        void setInclination(double i);
-
         Trajectory *trajectory = nullptr;
 
         void setTilt(double t) { _tilt = t; recalculate(); }
