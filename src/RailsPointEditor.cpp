@@ -111,21 +111,23 @@ void RailsPointEditor::intersection(const FindNode& isection)
     if(single  || ui->trajRemPButt->isChecked() || ui->trajRemPButt->isChecked())
         clear();
 
+    bool isSplineTraj = isection.trajectory && isection.trajectory->is_compatible(typeid(route::SplineTrajectory));
+
     if(isection.connector)
     {
         toggle(isection.connector);
     }
-    else if(isection.trackpoint)
+    else if(isection.trackpoint && isSplineTraj)
     {
         if(ui->trajRemPButt->isChecked())
-            _database->undoStack->push(new RemoveRailPoint(isection.strajectory, isection.trackpoint));
+            _database->undoStack->push(new RemoveRailPoint(isection.trajectory->cast<route::SplineTrajectory>(), isection.trackpoint));
         else
             toggle(isection.trackpoint);
     }
-    else if (ui->trajAddPButt->isChecked() && isection.strajectory)
+    else if (ui->trajAddPButt->isChecked() && isSplineTraj)
     {
         auto point = route::RailPoint::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
-        _database->undoStack->push(new AddRailPoint(isection.strajectory, point));
+        _database->undoStack->push(new AddRailPoint(isection.trajectory->cast<route::SplineTrajectory>(), point));
     }
 
     updateData();

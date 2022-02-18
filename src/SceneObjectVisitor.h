@@ -12,7 +12,7 @@
 namespace route {
     class SceneTrajectory;
     class SceneObject;
-    class SplineTrajectory;
+    class Trajectory;
     class RailPoint;
     class RailConnector;
 }
@@ -120,7 +120,7 @@ namespace route {
         FindNode();
 
         std::vector<route::SceneObject*> objects;
-        route::SplineTrajectory* strajectory = nullptr;
+        route::Trajectory* trajectory = nullptr;
         route::RailPoint* trackpoint = nullptr;
         route::RailConnector* connector = nullptr;
         vsg::Switch* tile = nullptr;

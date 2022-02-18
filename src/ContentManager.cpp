@@ -71,7 +71,9 @@ void ContentManager::intersection(const FindNode &isection)
 
 bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &isection)
 {
-    auto traj = isection.strajectory;
+    if(!isection.trajectory)
+        return false;
+    auto traj = isection.trajectory->cast<route::SplineTrajectory>();
     if(!traj)
         return false;
     auto coord = traj->invert(isection.worldIntersection);

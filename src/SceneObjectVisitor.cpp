@@ -144,8 +144,8 @@
     {
         if(auto object = node.cast<route::SceneObject>(); object)
             objects.push_back(object);
-        if(auto traj = node.cast<route::SplineTrajectory>(); traj)
-            strajectory = traj;
+        if(auto traj = node.cast<route::Trajectory>(); traj)
+            trajectory = traj;
         else if(auto conn = node.cast<route::RailConnector>(); conn)
             connector = conn;
         else if(auto point = node.cast<route::RailPoint>(); point)
