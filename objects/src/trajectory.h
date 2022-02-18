@@ -317,7 +317,7 @@ namespace route
     class SceneTrajectory : public vsg::Inherit<vsg::Group, SceneTrajectory>
     {
     public:
-        explicit SceneTrajectory(Trajectory *traj);
+        explicit SceneTrajectory(Trajectory *traj, Topology *topo);
         explicit SceneTrajectory();
 
         virtual ~SceneTrajectory();

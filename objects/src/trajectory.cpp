@@ -541,10 +541,11 @@ namespace route
         : vsg::Inherit<vsg::Group, SceneTrajectory>()
     {
     }
-    SceneTrajectory::SceneTrajectory(Trajectory *traj)
+    SceneTrajectory::SceneTrajectory(Trajectory *traj, Topology *topo)
         : SceneTrajectory()
     {
         children.emplace_back(traj);
+        _topology = topo;
     }
 
     SceneTrajectory::~SceneTrajectory()

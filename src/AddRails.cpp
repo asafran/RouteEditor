@@ -82,7 +82,7 @@ void AddRails::intersection(const FindNode &isection)
             if(auto strj = trj->cast<route::SplineTrajectory>(); strj)
             {
                 auto point = route::RailPoint::create(*isection.connector);
-                strj->add(point);
+                _database->undoStack->push(new AddRailPoint(strj, point));
                 emit sendMovingPoint(isection.connector);
                 emit startMoving();
                 return;
@@ -111,7 +111,7 @@ void AddRails::intersection(const FindNode &isection)
                                                 _database->builder,
                                                 railFilepath.toStdString(), fillFilepath.toStdString(),
                                                 sleeper, 2.0, 1.5);
-    auto adapter = route::SceneTrajectory::create(traj);
+    auto adapter = route::SceneTrajectory::create(traj, _database->topology.get());
 
     if(!isection.tile)
         return;
