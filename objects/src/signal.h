@@ -11,6 +11,7 @@ namespace route
     {
     public:
         Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box);
+        Signal();
 
         void traverse(vsg::Visitor& visitor) override { Transform::traverse(visitor);  }
         void traverse(vsg::ConstVisitor& visitor) const override { Transform::traverse(visitor); t_traverse(*this, visitor); }

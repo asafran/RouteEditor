@@ -23,6 +23,13 @@ public:
             name = node->className();
         setText(QObject::tr("Новый объект %1").arg(name.c_str()));
     }
+    AddSceneObject(SceneModel *model,
+            vsg::Node *group,
+            vsg::ref_ptr<vsg::Node> node,
+            QUndoCommand *parent = nullptr)
+        : AddSceneObject(model, model->index(group), node, parent)
+    {
+    }
     void undo() override
     {
         _model->removeNode(_model->index(_row, 0, _group));
@@ -224,13 +231,10 @@ public:
 
         vsg::Node *parentNode = nullptr;
         object->getValue(app::PARENT, parentNode);
-        _parent = object->cast<route::SplineTrajectory>();
+        _parent = parentNode->cast<route::SplineTrajectory>();
     }
     void undo() override
     {
-        if(!_parent)
-            return;
-
         _object->matrix = _parent->getMatrixAt(_oldPos);
         _object->setValue(app::PROP, _oldPos);
 
@@ -240,11 +244,8 @@ public:
     }
     void redo() override
     {
-        if(!_parent)
-            return;
-
         _object->matrix = _parent->getMatrixAt(_newPos);
-        _object->setValue(app::PROP, _oldPos);
+        _object->setValue(app::PROP, _newPos);
 
         ApplyTransform ct;
         ct.stack.push(vsg::dmat4());

@@ -102,28 +102,14 @@ void AddRails::intersection(const FindNode &isection)
 
     _database->builder->compileTraversal->compile(sleeper);
 
-    std::string name = "traj";
-    if(_database->topology->trajectories.find("traj") != _database->topology->trajectories.end())
-        name = _database->topology->trajectories.rbegin()->first + "_2";
-    auto traj = route::SplineTrajectory::create(name,
+    auto traj = route::SplineTrajectory::create("trajectory",
                                                 bwd,
                                                 fwd,
                                                 _database->builder,
                                                 railFilepath.toStdString(), fillFilepath.toStdString(),
                                                 sleeper, 2.0, 1.5);
-    auto adapter = route::SceneTrajectory::create(traj, _database->topology.get());
 
-    if(!isection.tile)
-        return;
-    auto tilesModel = _database->tilesModel;
-    auto index = tilesModel->index(isection.tile);
-
-    _database->topology->insertTraj(traj);
-
-    ParentIndexer pi;
-    adapter->accept(pi);
-
-    _database->undoStack->push(new AddSceneObject(tilesModel, index, adapter));
+    _database->undoStack->push(new AddSceneObject(_database->tilesModel, _database->topology, traj));
 
     emit sendMovingPoint(fwd);
     emit startMoving();

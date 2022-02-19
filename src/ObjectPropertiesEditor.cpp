@@ -167,10 +167,9 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 
     connect(ui->trjCoordspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        vsg::Node *mt = nullptr;
-        _firstObject->getValue(app::PARENT, mt);
-        if(mt)
-            stack->push(new MoveObjectOnTraj(mt->cast<vsg::MatrixTransform>(), d));
+        vsg::MatrixTransform *mt = nullptr;
+        if(_firstObject->getValue(app::PARENT, mt))
+            stack->push(new MoveObjectOnTraj(mt, d));
     });
 }
 
@@ -303,6 +302,7 @@ void ObjectPropertiesEditor::setSpinEanbled(bool enabled)
     ui->rotXspin->setEnabled(enabled);
     ui->rotYspin->setEnabled(enabled);
     ui->rotZspin->setEnabled(enabled);
+    ui->trjCoordspin->setEnabled(enabled);
 }
 
 void ObjectPropertiesEditor::updateData()
@@ -328,11 +328,9 @@ void ObjectPropertiesEditor::updateData()
         ui->rotYspin->setEnabled(false);
     }
 
-    vsg::Node *rmt = nullptr;
-    _firstObject->getValue(app::PARENT, rmt);
-    if(rmt->is_compatible(typeid(vsg::MatrixTransform)))
+    vsg::MatrixTransform *rmt = nullptr;
+    if(_firstObject->getValue(app::PARENT, rmt))
     {
-        ui->trjCoordspin->setEnabled(true);
         double val = 0.0;
         rmt->getValue(app::PROP, val);
         ui->trjCoordspin->setValue(val);

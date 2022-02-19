@@ -313,21 +313,6 @@ namespace route
 
         bool _state; //true if switched
     };
-
-    class SceneTrajectory : public vsg::Inherit<vsg::Group, SceneTrajectory>
-    {
-    public:
-        explicit SceneTrajectory(Trajectory *traj, Topology *topo);
-        explicit SceneTrajectory();
-
-        virtual ~SceneTrajectory();
-
-        void read(vsg::Input& input) override;
-        void write(vsg::Output& output) const override;
-
-    private:
-        vsg::ref_ptr<route::Topology> _topology;
-    };
 }
 
 EVSG_type_name(route::SplineTrajectory);

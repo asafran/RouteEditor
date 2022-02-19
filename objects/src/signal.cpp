@@ -6,4 +6,10 @@ namespace route
         : vsg::Inherit<SceneObject, Signal>(loaded, box)
     {
     }
+
+    Signal::Signal()
+    {
+
+    }
+
 }

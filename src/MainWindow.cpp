@@ -185,7 +185,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     vsg::RegisterWithObjectFactoryProxy<route::RailPoint>();
     vsg::RegisterWithObjectFactoryProxy<route::RailConnector>();
     vsg::RegisterWithObjectFactoryProxy<route::StaticConnector>();
-    vsg::RegisterWithObjectFactoryProxy<route::SceneTrajectory>();
+    vsg::RegisterWithObjectFactoryProxy<route::Signal>();
     vsg::RegisterWithObjectFactoryProxy<PointsGroup>();
     vsg::RegisterWithObjectFactoryProxy<route::Topology>();
     vsg::RegisterWithObjectFactoryProxy<route::SplineTrajectory>();

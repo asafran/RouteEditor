@@ -3,45 +3,59 @@
 
 #include <vsg/nodes/Group.h>
 #include "sceneobjects.h"
+#include "signal.h"
 #include "trajectory.h"
 
 namespace route
 {
-    class Topology : public vsg::Inherit<vsg::Object, Topology>
+    class Topology : public vsg::Inherit<vsg::Group, Topology>
     {
     public:
         Topology();
 
         virtual ~Topology();
 
-        std::map<std::string, vsg::ref_ptr<SplineTrajectory>>::iterator insertTraj(vsg::ref_ptr<SplineTrajectory> traj);
-
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        template<class N, class V>
-        static void t_traverse(N& node, V& visitor)
-        {
-            for (auto it = node.trajectories.begin(); it != node.trajectories.end(); ++it)
-                it->second->accept(visitor);
-        }
+        void traverse(vsg::Visitor& visitor) override { Group::traverse(visitor); }
+        void traverse(vsg::ConstVisitor& visitor) const override { Group::traverse(visitor); }
+        void traverse(vsg::RecordTraversal& visitor) const override { Group::traverse(visitor); }
 
-        void traverse(vsg::Visitor& visitor) override { t_traverse(*this, visitor); }
-        void traverse(vsg::ConstVisitor& visitor) const override { t_traverse(*this, visitor); }
-        //void traverse(vsg::RecordTraversal& visitor) const override { t_traverse(*this, visitor); }
+        //void assignBuilder(vsg::ref_ptr<vsg::Builder> builder);
 
-
-        void assignBuilder(vsg::ref_ptr<vsg::Builder> builder);
-
-        std::map<std::string, vsg::ref_ptr<SplineTrajectory>> trajectories;
-        std::map<std::string, vsg::ref_ptr<Junction>> junctions;
-        //std::map<std::string, AnimatedTrackside> trackside;
-        //std::map<std::string, Signal> signal;
+        //std::map<std::string, vsg::ref_ptr<SplineTrajectory>> trajectories;
 
     protected:
 
+        //Map<std::string, Junction*> junctions;
+        //QMap<std::string, Signal*> signal;
         //std::vector<vsg::ref_ptr<Trackside>>     trackside;
 
+    };
+
+    class TopologyVisitor : vsg::ConstVisitor
+    {
+    public:
+
+        QMap<QString, Junction*> junctions;
+        QMap<QString, Signal*> signal;
+        QMap<QString, Trajectory*> trajectories;
+
+        void apply(const vsg::Transform& node) override
+        {
+            if(auto object = node.cast<route::SceneObject>(); object)
+            {
+                /*
+                if(auto traj = node.cast<route::Trajectory>(); traj)
+                    trajectories.insert(traj)
+                else if(auto conn = node.cast<route::RailConnector>(); conn)
+                    connector = conn;
+                else if(auto point = node.cast<route::RailPoint>(); point)
+                    trackpoint = point;
+                 */
+            }
+        }
     };
 }
 

@@ -28,7 +28,7 @@ DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Builder> in_bui
             topology = route::Topology::create();
             _database->setObject(app::TOPOLOGY, topology);
         }
-        topology->assignBuilder(builder);
+        //topology->assignBuilder(builder);
 
     builder->options->objectCache->add(topology, app::TOPOLOGY);
 
@@ -58,6 +58,7 @@ DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Builder> in_bui
 
     root->addChild(stdWireBox); //for compilation
     root->addChild(stdAxis);
+    root->addChild(topology);
 }
 DatabaseManager::~DatabaseManager()
 {
@@ -208,10 +209,13 @@ void DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuff
 
     root->addChild(scene);
 
-    ParentIndexer pi;
-    tiles->accept(pi);
+    auto modelroot = vsg::Group::create();
+    modelroot->addChild(tiles);
+    modelroot->addChild(topology);
 
-    tilesModel = new SceneModel(tiles, builder, undoStack, this);
+    vsg::visit<ParentIndexer>(modelroot);
+
+    tilesModel = new SceneModel(modelroot, builder, undoStack, this);
 
     //return tilesModel;
 }
@@ -280,8 +284,7 @@ void DatabaseManager::writeTiles() noexcept
     std::for_each(std::execution::par, _files.begin(), _files.end(), write);
     undoStack->setClean();
 
-    ParentIndexer pi;
-    tilesModel->getRoot()->accept(pi);
+    vsg::visit<ParentIndexer>(tilesModel->getRoot());
 }
 
 
