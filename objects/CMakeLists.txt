@@ -8,6 +8,8 @@ set(SOURCES
     src/topology.cpp
     src/trajectory.h
     src/trajectory.cpp
+    src/signal.h
+    src/signal.cpp
     tiny_obj_loader.h
 )
 
