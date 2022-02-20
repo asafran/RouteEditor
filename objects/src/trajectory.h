@@ -33,6 +33,16 @@ namespace route
     class SceneTrajectory;
     class Topology;
 
+    enum Code
+    {
+        W,
+        R,
+        YR,
+        Y,
+        G,
+        CodeCount
+    };
+
     using InterpolationSpline = CubicHermiteSpline<vsg::dvec3, double>;
 
     struct InterpolatedPTM : public InterpolationSpline::InterpolatedPT
@@ -79,12 +89,12 @@ namespace route
     }
 
 
-    class Trajectory : public vsg::Inherit<SceneObject, Trajectory>
+    class Trajectory : public QObject, public vsg::Inherit<SceneObject, Trajectory>
     {
     public:
 
-        explicit Trajectory(std::string name) : vsg::Inherit<SceneObject, Trajectory>() { setValue(app::NAME, name); }
-        Trajectory() {}
+        explicit Trajectory(std::string name) : QObject(nullptr), vsg::Inherit<SceneObject, Trajectory>() { setValue(app::NAME, name); }
+        Trajectory() : QObject(nullptr) {}
 
         virtual ~Trajectory() {}
 
@@ -99,7 +109,9 @@ namespace route
 
         virtual double getLength() const = 0;
 
-        virtual void recalculate() = 0; 
+        virtual void recalculate() = 0;
+
+        virtual void detatch() = 0;
 
         virtual std::pair<Trajectory*, bool> getFwd() const = 0;
         virtual std::pair<Trajectory*, bool> getBwd() const = 0;
@@ -117,6 +129,10 @@ namespace route
             Group::traverse(visitor);
             _track->accept(visitor);
         }*/
+
+    signals:
+        void sendCode(route::Code code);
+        void update();
 
     protected:
         QSet<simulator::Bogie *> _vehicles_on_traj;
@@ -148,6 +164,7 @@ namespace route
         void write(vsg::Output& output) const override;
 
         void recalculate() override;
+        void detatch() override;
 
         void setPosition(const vsg::dvec3& pos) override { }
         void setRotation(const vsg::dquat& rot) override { }

@@ -53,8 +53,6 @@ namespace route
     }
     SplineTrajectory::~SplineTrajectory()
     {
-        _bwdPoint->setFwdNull(this);
-        _fwdPoint->setBwdNull(this);
     }
     //------------------------------------------------------------------------------
     //
@@ -186,6 +184,12 @@ namespace route
         assignRails(derivatives);
 
         updateAttached();
+    }
+
+    void SplineTrajectory::detatch()
+    {
+        _bwdPoint->setFwdNull(this);
+        _fwdPoint->setBwdNull(this);
     }
 
     void SplineTrajectory::setFwdPoint(RailConnector *rc)
