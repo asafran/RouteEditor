@@ -21,12 +21,12 @@ namespace route
 
     }
 
-    void Signal::ref()
+    void Signal::Ref()
     {
         vcount++;
     }
 
-    void Signal::unref()
+    void Signal::Unref()
     {
         vcount--;
     }
@@ -76,7 +76,7 @@ namespace route
 
     }
 
-    void AutoBlockSignal3::update()
+    void AutoBlockSignal3::setFwdState(route::State state)
     {
 
     }

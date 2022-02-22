@@ -239,8 +239,8 @@ namespace route
         RailPoint::read(input);
 
         input.read("sndTraj", fwdTrajectory);
-        input.read("fwdSignal", _fwdSignal);
-        input.read("bwdSignal", _bwdSignal);
+        input.read("fwdSignal", fwdSignal);
+        input.read("bwdSignal", bwdSignal);
     }
 
     void RailConnector::write(vsg::Output &output) const
@@ -248,12 +248,8 @@ namespace route
         RailPoint::write(output);
 
         output.write("sndTraj", fwdTrajectory);
-        output.write("fwdSignal", _fwdSignal);
-        output.write("bwdSignal", _bwdSignal);
-        if(_fwdSignal)
-            connect(this, &RailConnector::sendBwdState, _fwdSignal.get(), &Signal::receiveState);
-        if(_bwdSignal)
-            connect(this, &RailConnector::sendFwdState, _bwdSignal.get(), &Signal::receiveState);
+        output.write("fwdSignal", fwdSignal);
+        output.write("bwdSignal", bwdSignal);
     }
 
     void RailConnector::recalculate()
@@ -323,7 +319,6 @@ namespace route
             trajectory = nullptr;
         }
         _reverser = false;
-        fwdTrajectory->co
     }
 
     bool RailConnector::isFree() const
@@ -333,11 +328,61 @@ namespace route
 
     void RailConnector::setSignal(vsg::ref_ptr<Signal> signal)
     {
+
     }
 
     void RailConnector::setReverseSignal(vsg::ref_ptr<Signal> signal)
     {
 
+    }
+
+    void RailConnector::receiveBwdDirState(State state)
+    {
+        if(!fwdSignal)
+            emit sendBwdState(state);
+        else
+            fwdSignal->setFwdState(state);
+
+    }
+
+    void RailConnector::receiveFwdDirState(State state)
+    {
+        if(!bwdSignal)
+            emit sendFwdState(state);
+        else
+            bwdSignal->setFwdState(state);
+    }
+
+    void RailConnector::receiveFwdDirRef()
+    {
+        if(!bwdSignal)
+            emit sendFwdRef();
+        else
+            bwdSignal->Ref();
+    }
+
+    void RailConnector::receiveBwdDirRef()
+    {
+        if(!fwdSignal)
+            emit sendBwdRef();
+        else
+            fwdSignal->Ref();
+    }
+
+    void RailConnector::receiveFwdDirUnref()
+    {
+        if(!bwdSignal)
+            emit sendFwdUnref();
+        else
+            bwdSignal->Unref();
+    }
+
+    void RailConnector::receiveBwdDirUnref()
+    {
+        if(!fwdSignal)
+            emit sendBwdUnref();
+        else
+            fwdSignal->Unref();
     }
 
     StaticConnector::StaticConnector(vsg::ref_ptr<vsg::Node> loaded,

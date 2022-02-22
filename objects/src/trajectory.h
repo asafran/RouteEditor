@@ -83,6 +83,7 @@ namespace route
 
     class Trajectory : public QObject, public vsg::Inherit<vsg::Group, Trajectory>
     {
+        Q_OBJECT
     public:
 
         Trajectory(std::string name, vsg::ref_ptr<RailConnector> bwdPoint, vsg::ref_ptr<RailConnector> fwdPoint);
@@ -177,6 +178,7 @@ namespace route
 
     class SplineTrajectory : public vsg::Inherit<Trajectory, SplineTrajectory>
     {
+        Q_OBJECT
     public:
 
         SplineTrajectory(std::string name,
@@ -194,6 +196,8 @@ namespace route
         double invert(const vsg::dvec3 vec) const override;
 
         vsg::dmat4 getMatrixAt(double x) const override;
+
+        vsg::dmat4 getLocalMatrixAt(double x) const override { return getMatrixAt(x); }
 
         double getLength() const override { return _railSpline->totalLength(); }
 
@@ -286,6 +290,7 @@ namespace route
 
     class PointsTrajectory : public vsg::Inherit<Trajectory, PointsTrajectory>
     {
+        Q_OBJECT
     public:
         PointsTrajectory(std::string name,
                          vsg::ref_ptr<RailConnector> bwdPoint,

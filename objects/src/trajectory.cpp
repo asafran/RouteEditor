@@ -507,6 +507,16 @@ namespace route
 
     }
 
+    void PointsTrajectory::read(vsg::Input &input)
+    {
+
+    }
+
+    void PointsTrajectory::write(vsg::Output &output) const
+    {
+
+    }
+
     vsg::dvec3 PointsTrajectory::getCoordinate(double x) const
     {
         return localToWorld * _path->computeLocation(x).position;

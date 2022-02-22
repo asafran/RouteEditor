@@ -10,6 +10,7 @@ namespace route
 {
     class Signal : public QObject, public vsg::Inherit<SceneObject, Signal>
     {
+        Q_OBJECT
     public:
         Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box);
         Signal();
@@ -21,8 +22,8 @@ namespace route
 
     public slots:
         virtual void setFwdState(route::State state) = 0;
-        void ref();
-        void unref();
+        void Ref();
+        void Unref();
 
     signals:
         void sendCode(route::Code code);
@@ -35,6 +36,7 @@ namespace route
 
     class AutoBlockSignal3 : public vsg::Inherit<Signal, AutoBlockSignal3>
     {
+        Q_OBJECT
     public:
         AutoBlockSignal3(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box);
         AutoBlockSignal3();
@@ -51,7 +53,7 @@ namespace route
         void traverse(vsg::RecordTraversal& visitor) const override { SceneObject::traverse(visitor); _signals.at(_state)->accept(visitor); }
 
     public slots:
-        void update() override;
+        void setFwdState(route::State state) override;
 
     protected:
 

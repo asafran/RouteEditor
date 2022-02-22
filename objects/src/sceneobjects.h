@@ -199,6 +199,7 @@ namespace route
 
     class RailConnector : public QObject, public vsg::Inherit<RailPoint, RailConnector>
     {
+        Q_OBJECT
     public:
         RailConnector(vsg::ref_ptr<vsg::Node> loaded,
                       vsg::ref_ptr<vsg::Node> box,
@@ -239,8 +240,10 @@ namespace route
         void receiveBwdDirState(route::State state);
         void receiveFwdDirState(route::State state);
 
-        void receiveFwdRef();
-        void receiveBwdUnref();
+        void receiveFwdDirRef();
+        void receiveBwdDirRef();
+        void receiveFwdDirUnref();
+        void receiveBwdDirUnref();
 
     signals:
         void sendFwdCode(route::Code code);
@@ -249,12 +252,18 @@ namespace route
         void sendFwdState(route::State state);
         void sendBwdState(route::State state);
 
+        void sendFwdRef();
+        void sendBwdRef();
+        void sendFwdUnref();
+        void sendBwdUnref();
+
     protected:
         bool _reverser = false;
     };
 
     class StaticConnector : public vsg::Inherit<RailConnector, StaticConnector>
     {
+        Q_OBJECT
     public:
         StaticConnector(vsg::ref_ptr<vsg::Node> loaded,
                         vsg::ref_ptr<vsg::Node> box,
