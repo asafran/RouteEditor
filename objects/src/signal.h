@@ -20,14 +20,17 @@ namespace route
         void write(vsg::Output& output) const override;
 
     public slots:
-        virtual void update() = 0;
+        virtual void setFwdState(route::State state) = 0;
+        void ref();
+        void unref();
 
     signals:
         void sendCode(route::Code code);
 
     protected:
-        std::vector<vsg::ref_ptr<Trajectory>> _fwd;
-        std::vector<vsg::ref_ptr<Trajectory>> _bwd;
+        vsg::ref_ptr<Trajectory> _code;
+
+        int vcount = 0;
     };
 
     class AutoBlockSignal3 : public vsg::Inherit<Signal, AutoBlockSignal3>
@@ -41,6 +44,8 @@ namespace route
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
+        void setFwd(AutoBlockSignal3 *_front);
+
         void traverse(vsg::Visitor& visitor) override { Transform::traverse(visitor); _signals.at(_state)->accept(visitor); }
         void traverse(vsg::ConstVisitor& visitor) const override { Transform::traverse(visitor); _signals.at(_state)->accept(visitor); }
         void traverse(vsg::RecordTraversal& visitor) const override { SceneObject::traverse(visitor); _signals.at(_state)->accept(visitor); }
@@ -52,20 +57,13 @@ namespace route
 
         std::array<vsg::ref_ptr<vsg::Node>,3> _signals;
 
-    private:
+        State _state = CLOSED;
 
-        enum State
-        {
-            G,
-            Y,
-            R
-        };
+        bool _fstate = false;
 
-        State _state = R;
-
-        AutoBlockSignal3 *_front;
+        AutoBlockSignal3 *_front = nullptr;
     };
-
+/*
     class AutoBlockSignal4 : public vsg::Inherit<AutoBlockSignal3, AutoBlockSignal4>
     {
     public:
@@ -103,6 +101,6 @@ namespace route
         State _state = R;
 
         AutoBlockSignal4 *_front;
-    };
+    };*/
 }
 #endif // SIGNAL_H

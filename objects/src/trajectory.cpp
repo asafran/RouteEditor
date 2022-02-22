@@ -19,6 +19,74 @@
 
 namespace route
 {
+    Trajectory::Trajectory(std::string name,
+                           vsg::ref_ptr<RailConnector> bwdPoint,
+                           vsg::ref_ptr<RailConnector> fwdPoint)
+        : QObject(nullptr), vsg::Inherit<vsg::Group, Trajectory>()
+        , _fwdPoint(fwdPoint)
+        , _bwdPoint(bwdPoint)
+    {
+        setValue(app::NAME, name);
+
+        fwdPoint->setBwd(this);
+        bwdPoint->setFwd(this);
+    }
+
+    Trajectory::Trajectory() : QObject(nullptr) {}
+
+    Trajectory::~Trajectory() {}
+
+    void Trajectory::detatch()
+    {
+        disconnect(_fwdPoint, nullptr, _bwdPoint, nullptr);
+        disconnect(_bwdPoint, nullptr, _fwdPoint, nullptr);
+
+        _bwdPoint->setFwdNull(this);
+        _fwdPoint->setBwdNull(this);
+    }
+
+    void Trajectory::connectSignalling()
+    {
+        auto front = _fwdPoint->getFwd(this);
+        auto back =  _bwdPoint->getBwd(this);
+        bool frontReversed = front.second;
+        bool backReversed = back.second;
+
+        disconnect(_fwdPoint, frontReversed ? &RailConnector::sendFwdState : &RailConnector::sendBwdState, nullptr, nullptr);
+        disconnect(_fwdPoint, frontReversed ? &RailConnector::sendFwdRef : &RailConnector::sendBwdRef, nullptr, nullptr);
+        disconnect(_fwdPoint, frontReversed ? &RailConnector::sendFwdUnref : &RailConnector::sendBwdUnref, nullptr, nullptr);
+
+        disconnect(_bwdPoint, backReversed ? &RailConnector::sendBwdState : &RailConnector::sendFwdState, nullptr, nullptr);
+        disconnect(_bwdPoint, backReversed ? &RailConnector::sendBwdRef : &RailConnector::sendFwdRef, nullptr, nullptr);
+        disconnect(_bwdPoint, backReversed ? &RailConnector::sendBwdUnref : &RailConnector::sendFwdUnref, nullptr, nullptr);
+
+        connect(_fwdPoint, frontReversed ? &RailConnector::sendFwdState : &RailConnector::sendBwdState,
+                _bwdPoint, backReversed ? &RailConnector::receiveFwdDirState : &RailConnector::receiveBwdDirState);
+        connect(_fwdPoint, frontReversed ? &RailConnector::sendFwdRef : &RailConnector::sendBwdRef,
+                _bwdPoint, backReversed ? &RailConnector::receiveFwdDirRef : &RailConnector::receiveBwdDirRef);
+        connect(_fwdPoint, frontReversed ? &RailConnector::sendFwdUnref : &RailConnector::sendBwdUnref,
+                _bwdPoint, backReversed ? &RailConnector::receiveFwdDirUnref : &RailConnector::receiveBwdDirUnref);
+
+        connect(_bwdPoint, backReversed ? &RailConnector::sendBwdState : &RailConnector::sendFwdState,
+                _fwdPoint, frontReversed ? &RailConnector::receiveFwdDirState : &RailConnector::receiveBwdDirState);
+        connect(_bwdPoint, backReversed ? &RailConnector::sendBwdRef : &RailConnector::sendFwdRef,
+                _fwdPoint, frontReversed ? &RailConnector::receiveFwdDirRef : &RailConnector::receiveBwdDirRef);
+        connect(_bwdPoint, backReversed ? &RailConnector::sendBwdUnref : &RailConnector::sendFwdUnref,
+                _fwdPoint, frontReversed ? &RailConnector::receiveFwdDirUnref : &RailConnector::receiveBwdDirUnref);
+    }
+
+    void Trajectory::updateAttached()
+    {
+        auto computeTransform = [this](vsg::MatrixTransform& transform)
+        {
+            double coord = 0.0;
+            if(transform.getValue(app::PROP, coord))
+                transform.matrix = getMatrixAt(coord);
+        };
+        LambdaVisitor<decltype (computeTransform), vsg::MatrixTransform> ct(computeTransform);
+        Trajectory::accept(ct);
+    }
+
     SplineTrajectory::SplineTrajectory(std::string name,
                                        vsg::ref_ptr<RailConnector> bwdPoint,
                                        vsg::ref_ptr<RailConnector> fwdPoint,
@@ -26,7 +94,7 @@ namespace route
                                        std::string railPath,
                                        std::string fillPath,
                                        vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge)
-      : vsg::Inherit<Trajectory, SplineTrajectory>(name)
+      : vsg::Inherit<Trajectory, SplineTrajectory>(name, bwdPoint, fwdPoint)
       , _builder(builder)
       , _track(vsg::MatrixTransform::create())
       , _railPath(railPath)
@@ -34,12 +102,7 @@ namespace route
       , _sleeper(sleeper)
       , _sleepersDistance(distance)
       , _gaudge(gaudge)
-      , _fwdPoint(fwdPoint)
-      , _bwdPoint(bwdPoint)
     {
-
-        fwdPoint->setBwd(this);
-        bwdPoint->setFwd(this);
 
         reloadData();
         //subgraphRequiresLocalFrustum = false;
@@ -186,24 +249,28 @@ namespace route
         updateAttached();
     }
 
-    void SplineTrajectory::detatch()
-    {
-        _bwdPoint->setFwdNull(this);
-        _fwdPoint->setBwdNull(this);
-    }
-
     void SplineTrajectory::setFwdPoint(RailConnector *rc)
     {
+        disconnect(_fwdPoint, nullptr, _bwdPoint, nullptr);
+        disconnect(_bwdPoint, nullptr, _fwdPoint, nullptr);
+
         _fwdPoint->setBwdNull(this);
         _fwdPoint = rc;
         _fwdPoint->setBwd(this);
+
+        connectSignalling();
     }
 
     void SplineTrajectory::setBwdPoint(RailConnector *rc)
     {
+        disconnect(_fwdPoint, nullptr, _bwdPoint, nullptr);
+        disconnect(_bwdPoint, nullptr, _fwdPoint, nullptr);
+
         _bwdPoint->setFwdNull(this);
         _bwdPoint = rc;
         _bwdPoint->setFwd(this);
+
+        connectSignalling();
     }
 
     vsg::ref_ptr<vsg::VertexIndexDraw> SplineTrajectory::createGeometry(const vsg::vec3 &offset,
@@ -305,18 +372,6 @@ namespace route
 
     }
 
-    void SplineTrajectory::updateAttached()
-    {
-        auto computeTransform = [this](vsg::MatrixTransform& transform)
-        {
-            double coord = 0.0;
-            if(transform.getValue(app::PROP, coord))
-                transform.matrix = getMatrixAt(coord);
-        };
-        LambdaVisitor<decltype (computeTransform), vsg::MatrixTransform> ct(computeTransform);
-        Trajectory::accept(ct);
-    }
-
     std::pair<std::vector<SplineTrajectory::VertexData>, vsg::ref_ptr<vsg::Data>> SplineTrajectory::loadData(std::string path)
     {
         QFileInfo fi(path.c_str());
@@ -380,16 +435,6 @@ namespace route
         return vsg::mix(findFloorPoint(i)->getTilt(), findFloorPoint(i + 1.0)->getTilt(), fr);
     }
 
-    vsg::ref_ptr<RailConnector> SplineTrajectory::getBwdPoint() const
-    {
-        return _bwdPoint;
-    }
-
-    vsg::ref_ptr<RailConnector> SplineTrajectory::getFwdPoint() const
-    {
-        return _fwdPoint;
-    }
-
     void SplineTrajectory::add(vsg::ref_ptr<RailPoint> rp, bool autoRotate)
     {
         SplineInverter<vsg::dvec3, double> inverter(*_railSpline);
@@ -442,39 +487,74 @@ namespace route
         _fillTexture = fill.second;
     }
 
+    PointsTrajectory::PointsTrajectory(std::string name,
+                                       vsg::ref_ptr<RailConnector> bwdPoint,
+                                       vsg::ref_ptr<RailConnector> fwdPoint,
+                                       vsg::ref_ptr<vsg::AnimationPath> path)
+        : vsg::Inherit<Trajectory, PointsTrajectory>(name, bwdPoint, fwdPoint)
+        , _path(path)
+    {
+
+    }
+
+    PointsTrajectory::PointsTrajectory()
+    {
+
+    }
+
+    PointsTrajectory::~PointsTrajectory()
+    {
+
+    }
+
+    vsg::dvec3 PointsTrajectory::getCoordinate(double x) const
+    {
+        return localToWorld * _path->computeLocation(x).position;
+    }
+
+    double PointsTrajectory::invert(const vsg::dvec3 vec) const
+    {
+        return 0.0;
+    }
+
+    vsg::dmat4 PointsTrajectory::getMatrixAt(double x) const
+    {
+        return localToWorld * _path->computeMatrix(x);
+    }
+
+    vsg::dmat4 PointsTrajectory::getLocalMatrixAt(double x) const
+    {
+        return _path->computeMatrix(x);
+    }
+
     Junction::Junction(std::string name,
-                       vsg::ref_ptr<RailConnector> bwdPoint,
-                       vsg::ref_ptr<RailConnector> fwdPoint,
-                       vsg::ref_ptr<RailConnector> fwd2Point,
                        vsg::ref_ptr<vsg::AnimationPath> strait,
                        vsg::ref_ptr<vsg::AnimationPath> side,
                        vsg::ref_ptr<vsg::AnimationPath> switcherPath,
+                       vsg::ref_ptr<vsg::Node> mrk,
+                       vsg::ref_ptr<vsg::Node> box,
                        vsg::ref_ptr<vsg::Node> rails,
                        vsg::ref_ptr<vsg::MatrixTransform> switcher)
-      : vsg::Inherit<Trajectory, Junction>(name)
-      , _strait(strait)
-      , _side(side)
-      , _fwdPoint(fwdPoint)
-      , _fwd2Point(fwd2Point)
-      , _bwdPoint(bwdPoint)
+      : vsg::Inherit<SceneObject, Junction>(box, rails)
     {
-        Q_ASSERT(_side->locations.size() > 1);
-        Q_ASSERT(_strait->locations.size() > 1);
+        Q_ASSERT(side->locations.size() > 1);
+        Q_ASSERT(strait->locations.size() > 1);
 
+        _switcherPoint = SwitchConnector::create(mrk, box, strait->locations.cbegin()->second.position);
 
-        fwdPoint->setBwd(this);
-        fwd2Point->setBwd(this);
-        bwdPoint->setFwd(this);
+        auto fwdStrPoint = StaticConnector::create(mrk, box, strait->locations.crbegin()->second.position);
+        auto fwdSiPoint = StaticConnector::create(mrk, box, side->locations.crbegin()->second.position);
+
+        _strait = PointsTrajectory::create(name + "_str", _switcherPoint, fwdStrPoint, strait);
+        _side = PointsTrajectory::create(name + "_side", _switcherPoint, fwdSiPoint, side);
     }
 
     Junction::Junction()
-      : vsg::Inherit<Trajectory, Junction>()
+      : vsg::Inherit<SceneObject, Junction>()
     {
     }
     Junction::~Junction()
     {
-        _bwdPoint->setFwd(nullptr);
-        _fwdPoint->setBwd(nullptr);
     }
     //------------------------------------------------------------------------------
     //
@@ -488,9 +568,6 @@ namespace route
         input.read("sideTrajecory", _side);
         input.read("switcher", _switcher);
 
-        input.read("fwdPoint", _fwdPoint);
-        input.read("fwd2Point", _fwd2Point);
-        input.read("bwdPoint", _bwdPoint);
     }
 
     void Junction::write(vsg::Output& output) const
@@ -501,43 +578,21 @@ namespace route
         output.write("sideTrajecory", _side);
         output.write("switcher", _switcher);
 
-        output.write("fwdPoint", _fwdPoint);
-        output.write("fwd2Point", _fwd2Point);
-        output.write("bwdPoint", _bwdPoint);
     }
 
     void Junction::setPosition(const vsg::dvec3 &pos)
     {
         _position = pos;
         auto mat = transform(vsg::dmat4());
-        _fwdPoint->localToWorld = mat;
-        _fwd2Point->localToWorld = mat;
-        _bwdPoint->localToWorld = mat;
+        _strait->localToWorld = mat;
+        _side->localToWorld = mat;
     }
 
     void Junction::setRotation(const vsg::dquat &rot)
     {
         _quat = rot;
         auto mat = transform(vsg::dmat4());
-        _fwdPoint->localToWorld = mat;
-        _fwd2Point->localToWorld = mat;
-        _bwdPoint->localToWorld = mat;
-    }
-
-    vsg::dvec3 Junction::getCoordinate(double x) const
-    {
-        auto &path = _state ? _side : _strait;
-        return transform(vsg::dmat4()) * path->computeLocation(x).position;
-    }
-
-    double Junction::invert(const vsg::dvec3 vec) const
-    {
-        return 0.0;
-    }
-
-    vsg::dmat4 Junction::getMatrixAt(double x) const
-    {
-        auto &path = _state ? _side : _strait;
-        return transform(path->computeMatrix(x));
+        _strait->localToWorld = mat;
+        _side->localToWorld = mat;
     }
 }

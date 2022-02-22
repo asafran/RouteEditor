@@ -16,6 +16,7 @@ namespace route
 {
     class Trajectory;
     class SplineTrajectory;
+    class Signal;
 
     class SceneObject : public vsg::Inherit<vsg::Transform, SceneObject>
     {
@@ -178,7 +179,25 @@ namespace route
         friend class ::PointsModel;
     };
 
-    class RailConnector : public vsg::Inherit<RailPoint, RailConnector>
+    enum Code
+    {
+        W,
+        R,
+        YR,
+        Y,
+        G,
+        CodeCount
+    };
+
+    enum State
+    {
+        OPENED,
+        DANGER,
+        CLOSED,
+        RESTR
+    };
+
+    class RailConnector : public QObject, public vsg::Inherit<RailPoint, RailConnector>
     {
     public:
         RailConnector(vsg::ref_ptr<vsg::Node> loaded,
@@ -197,7 +216,7 @@ namespace route
 
         std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const;
 
-        void setFwd(Trajectory *caller);
+        virtual void setFwd(Trajectory *caller);
 
         void setBwd(Trajectory *caller);
 
@@ -207,7 +226,31 @@ namespace route
 
         bool isFree() const;
 
+        void setSignal(vsg::ref_ptr<Signal> signal);
+
+        void setReverseSignal(vsg::ref_ptr<Signal> signal);
+
         Trajectory *fwdTrajectory = nullptr;
+
+        vsg::ref_ptr<Signal> fwdSignal;
+        vsg::ref_ptr<Signal> bwdSignal;
+
+    public slots:
+        void receiveBwdDirState(route::State state);
+        void receiveFwdDirState(route::State state);
+
+        void receiveFwdRef();
+        void receiveBwdUnref();
+
+    signals:
+        void sendFwdCode(route::Code code);
+        void sendBwdCode(route::Code code);
+
+        void sendFwdState(route::State state);
+        void sendBwdState(route::State state);
+
+    protected:
+        bool _reverser = false;
     };
 
     class StaticConnector : public vsg::Inherit<RailConnector, StaticConnector>
@@ -222,6 +265,23 @@ namespace route
 
         void setPosition(const vsg::dvec3& position) override;
         void setRotation(const vsg::dquat& rotation) override;
+    };
+
+    class SwitchConnector : public vsg::Inherit<StaticConnector, SwitchConnector>
+    {
+    public:
+        SwitchConnector(vsg::ref_ptr<vsg::Node> loaded,
+                        vsg::ref_ptr<vsg::Node> box,
+                        const vsg::dvec3 &pos);
+        SwitchConnector();
+
+        virtual ~SwitchConnector();
+
+        void setFwd(Trajectory *caller);
+
+        void switchState(bool state);
+
+        Trajectory *sideTrajectory = nullptr;
     };
 }
 

@@ -5,6 +5,7 @@
 #include <vsg/io/read.h>
 #include <vsg/traversals/ComputeBounds.h>
 #include <vsg/nodes/LOD.h>
+#include "signal.h"
 #include "topology.h"
 
 namespace route
@@ -224,11 +225,13 @@ namespace route
     RailConnector::RailConnector(vsg::ref_ptr<vsg::Node> loaded,
                                  vsg::ref_ptr<vsg::Node> box,
                                  const vsg::dvec3 &pos)
-        : vsg::Inherit<RailPoint, RailConnector>(loaded, box, pos)
-    {
-    }
+        : QObject(nullptr)
+        , vsg::Inherit<RailPoint, RailConnector>(loaded, box, pos) {}
+
     RailConnector::RailConnector()
-        : vsg::Inherit<RailPoint, RailConnector>() {}
+        : vsg::Inherit<RailPoint, RailConnector>()
+        , QObject(nullptr) {}
+
     RailConnector::~RailConnector() {}
 
     void RailConnector::read(vsg::Input &input)
@@ -236,6 +239,8 @@ namespace route
         RailPoint::read(input);
 
         input.read("sndTraj", fwdTrajectory);
+        input.read("fwdSignal", _fwdSignal);
+        input.read("bwdSignal", _bwdSignal);
     }
 
     void RailConnector::write(vsg::Output &output) const
@@ -243,6 +248,12 @@ namespace route
         RailPoint::write(output);
 
         output.write("sndTraj", fwdTrajectory);
+        output.write("fwdSignal", _fwdSignal);
+        output.write("bwdSignal", _bwdSignal);
+        if(_fwdSignal)
+            connect(this, &RailConnector::sendBwdState, _fwdSignal.get(), &Signal::receiveState);
+        if(_bwdSignal)
+            connect(this, &RailConnector::sendFwdState, _bwdSignal.get(), &Signal::receiveState);
     }
 
     void RailConnector::recalculate()
@@ -253,6 +264,8 @@ namespace route
 
     std::pair<Trajectory*, bool> RailConnector::getFwd(const Trajectory *caller) const
     {
+        if(!_reverser)
+            return std::make_pair(fwdTrajectory, false);
         bool reversed = caller == fwdTrajectory;
         auto trj = reversed ? trajectory : fwdTrajectory;
         return std::make_pair(trj, reversed);
@@ -260,6 +273,8 @@ namespace route
 
     std::pair<Trajectory*, bool> RailConnector::getBwd(const Trajectory *caller) const
     {
+        if(!_reverser)
+            return std::make_pair(trajectory, false);
         bool reversed = caller == trajectory;
         auto trj = reversed ? fwdTrajectory : trajectory;
         return std::make_pair(trj, reversed);
@@ -267,18 +282,24 @@ namespace route
 
     void RailConnector::setFwd(Trajectory *caller)
     {
-        if(fwdTrajectory != nullptr)
-            trajectory = caller;
-        else
+        if(fwdTrajectory == nullptr)
             fwdTrajectory = caller;
+        else if(trajectory == nullptr)
+        {
+            _reverser = true;
+            trajectory = caller;
+        }
     }
 
     void RailConnector::setBwd(Trajectory *caller)
     {
-        if(trajectory != nullptr)
-            fwdTrajectory = caller;
-        else
+        if(trajectory == nullptr)
             trajectory = caller;
+        else if(fwdTrajectory == nullptr)
+        {
+            _reverser = true;
+            fwdTrajectory = caller;
+        }
     }
     void RailConnector::setFwdNull(Trajectory *caller)
     {
@@ -289,6 +310,7 @@ namespace route
             trajectory = fwdTrajectory;
             fwdTrajectory = nullptr;
         }
+        _reverser = false;
     }
 
     void RailConnector::setBwdNull(Trajectory *caller)
@@ -300,11 +322,22 @@ namespace route
             fwdTrajectory = trajectory;
             trajectory = nullptr;
         }
+        _reverser = false;
+        fwdTrajectory->co
     }
 
     bool RailConnector::isFree() const
     {
         return trajectory == nullptr || fwdTrajectory == nullptr;
+    }
+
+    void RailConnector::setSignal(vsg::ref_ptr<Signal> signal)
+    {
+    }
+
+    void RailConnector::setReverseSignal(vsg::ref_ptr<Signal> signal)
+    {
+
     }
 
     StaticConnector::StaticConnector(vsg::ref_ptr<vsg::Node> loaded,
@@ -322,5 +355,38 @@ namespace route
     void StaticConnector::setPosition(const vsg::dvec3 &position) {}
 
     void StaticConnector::setRotation(const vsg::dquat &rotation) {}
+
+    SwitchConnector::SwitchConnector(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, const vsg::dvec3 &pos)
+    {
+
+    }
+
+    SwitchConnector::SwitchConnector()
+    {
+
+    }
+
+    SwitchConnector::~SwitchConnector()
+    {
+
+    }
+
+    void SwitchConnector::setFwd(Trajectory *caller)
+    {
+        if(fwdTrajectory == nullptr)
+            fwdTrajectory = caller;
+        else if(sideTrajectory == nullptr)
+            sideTrajectory = caller;
+        else if(trajectory == nullptr)
+        {
+            _reverser = true;
+            trajectory = caller;
+        }
+    }
+
+    void SwitchConnector::switchState(bool state)
+    {
+
+    }
 
 }
