@@ -1,4 +1,5 @@
 #include "signal.h"
+#include "LambdaVisitor.h"
 
 namespace route
 {
@@ -23,18 +24,33 @@ namespace route
 
     void Signal::Ref()
     {
-        vcount++;
+        _vcount++;
+        update();
     }
 
     void Signal::Unref()
     {
-        vcount--;
+        _vcount--;
+        update();
     }
 
-    AutoBlockSignal3::AutoBlockSignal3(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box)
+    AutoBlockSignal3::AutoBlockSignal3(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
         : vsg::Inherit<Signal, AutoBlockSignal3>(loaded, box)
+        , _fstate(fstate)
     {
-
+        _signals.fill(vsg::ref_ptr<vsg::Light>());
+        auto findLights = [this](vsg::Light& l) mutable
+        {
+            l.intensity = 0.0f;
+            if(l.name == "R_0")
+                _signals[R] = vsg::ref_ptr<vsg::Light>(&l);
+            else if(l.name == "Y_0")
+                _signals[Y] = vsg::ref_ptr<vsg::Light>(&l);
+            else if(l.name == "G_0")
+                _signals[G] = vsg::ref_ptr<vsg::Light>(&l);
+        };
+        LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
+        loaded->accept(lv);
     }
 
     AutoBlockSignal3::AutoBlockSignal3()
@@ -71,14 +87,48 @@ namespace route
         output.write("frontSignal", _front);
     }
 
-    void AutoBlockSignal3::setFwd(AutoBlockSignal3 *_front)
+    void AutoBlockSignal3::update()
     {
-
+        State state = CLOSED;
+        if(_vcount == 0)
+        {
+            switch(_front)
+            {
+            case route::PREPARE_CLOSED:
+                if(_fstate)
+                    state = PREPARE_PREAPRE;
+                else
+                    state = OPENED;
+                break;
+            case route::CLOSED:
+                state = PREPARE_CLOSED;
+                break;
+            case route::RESTR:
+                if(_repeater)
+                    state = PREPARE_RESTR;
+                else
+                    state = OPENED;
+                break;
+            default:
+                state = OPENED;
+                break;
+            }
+        }
+        if(_state != state)
+        {
+            _signals.at(R)->intensity = (state == CLOSED) ? _intensity : 0.0f;
+            _signals.at(G)->intensity = (state == OPENED) ? _intensity : 0.0f;
+            _signals.at(Y)->intensity = (state == PREPARE_CLOSED) ? _intensity : 0.0f;
+            _state = state;
+            emit sendState(state);
+        }
     }
+
 
     void AutoBlockSignal3::setFwdState(route::State state)
     {
-
+        _front = state;
+        update();
     }
 
 

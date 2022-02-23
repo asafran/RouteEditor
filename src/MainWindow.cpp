@@ -10,6 +10,7 @@
 #include "LambdaVisitor.h"
 #include "ParentVisitor.h"
 #include "ContentManager.h"
+#include "SignalManager.h"
 
 #include "Painter.h"
 
@@ -149,6 +150,8 @@ void MainWindow::initializeTools()
     toolbox->addItem(rpe, tr("Изменить параметры путеовй точки"));
     auto cm = new ContentManager(database, contentRoot + "/objects/objects", toolbox);
     toolbox->addItem(cm, tr("Добавить объект"));
+    auto sm = new SignalManager(database, contentRoot + "/objects/trackside/signals/");
+    toolbox->addItem(sm, tr("Добавить сигнал"));
     rm = new AddRails(database, contentRoot + "/objects/rails", toolbox);
     toolbox->addItem(rm, tr("Добавить рельсы"));
     auto pt = new Painter(database, toolbox);

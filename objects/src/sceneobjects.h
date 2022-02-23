@@ -192,9 +192,11 @@ namespace route
     enum State
     {
         OPENED,
-        DANGER,
+        PREPARE_CLOSED,
         CLOSED,
-        RESTR
+        RESTR,
+        PREPARE_PREAPRE,
+        PREPARE_RESTR
     };
 
     class RailConnector : public QObject, public vsg::Inherit<RailPoint, RailConnector>
@@ -231,10 +233,14 @@ namespace route
 
         void setReverseSignal(vsg::ref_ptr<Signal> signal);
 
+
         Trajectory *fwdTrajectory = nullptr;
 
-        vsg::ref_ptr<Signal> fwdSignal;
-        vsg::ref_ptr<Signal> bwdSignal;
+        void traverse(vsg::RecordTraversal& visitor) const override;
+
+        vsg::ref_ptr<Signal> fwdSignal() const;
+
+        vsg::ref_ptr<Signal> bwdSignal() const;
 
     public slots:
         void receiveBwdDirState(route::State state);
@@ -259,6 +265,9 @@ namespace route
 
     protected:
         bool _reverser = false;
+
+        vsg::ref_ptr<Signal> _fwdSignal;
+        vsg::ref_ptr<Signal> _bwdSignal;
     };
 
     class StaticConnector : public vsg::Inherit<RailConnector, StaticConnector>

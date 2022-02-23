@@ -4,6 +4,7 @@
 #include "sceneobjects.h"
 #include "trajectory.h"
 #include <vsg/nodes/Switch.h>
+#include <vsg/nodes/Light.h>
 #include "Constants.h"
 
 namespace route
@@ -20,25 +21,28 @@ namespace route
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-    public slots:
+        virtual void update() = 0;
         virtual void setFwdState(route::State state) = 0;
         void Ref();
         void Unref();
 
     signals:
         void sendCode(route::Code code);
+        void sendState(route::State state);
 
     protected:
         vsg::ref_ptr<Trajectory> _code;
 
-        int vcount = 0;
+        int _vcount = 0;
+
+        float _intensity = 3.0f;
     };
 
     class AutoBlockSignal3 : public vsg::Inherit<Signal, AutoBlockSignal3>
     {
         Q_OBJECT
     public:
-        AutoBlockSignal3(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box);
+        AutoBlockSignal3(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
         AutoBlockSignal3();
 
         virtual ~AutoBlockSignal3();
@@ -46,24 +50,30 @@ namespace route
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        void setFwd(AutoBlockSignal3 *_front);
+        void update() override;
 
-        void traverse(vsg::Visitor& visitor) override { Transform::traverse(visitor); _signals.at(_state)->accept(visitor); }
-        void traverse(vsg::ConstVisitor& visitor) const override { Transform::traverse(visitor); _signals.at(_state)->accept(visitor); }
-        void traverse(vsg::RecordTraversal& visitor) const override { SceneObject::traverse(visitor); _signals.at(_state)->accept(visitor); }
+        enum Sig
+        {
+            R,
+            Y,
+            G,
+            GY
+        };
 
-    public slots:
         void setFwdState(route::State state) override;
 
     protected:
 
-        std::array<vsg::ref_ptr<vsg::Node>,3> _signals;
+        std::array<vsg::ref_ptr<vsg::Light>,3> _signals;
 
-        State _state = CLOSED;
+        State _state = OPENED;
+
+        State _front = CLOSED;
+
+        Sig _signal = G;
 
         bool _fstate = false;
-
-        AutoBlockSignal3 *_front = nullptr;
+        bool _repeater = false;
     };
 /*
     class AutoBlockSignal4 : public vsg::Inherit<AutoBlockSignal3, AutoBlockSignal4>

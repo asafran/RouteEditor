@@ -118,7 +118,7 @@ namespace route
 
         void connectSignalling();
 
-        void setBusy(simulator::Vehicle *vehicle) { _vehicles_on_traj.insert(vehicle); }
+        void setBusy() { emit sendRef(); }//_vehicles_on_traj.insert(vehicle); }
 
         void removeBusy(simulator::Vehicle *vehicle) { _vehicles_on_traj.remove(vehicle); }
 
@@ -156,6 +156,9 @@ namespace route
     signals:
         void sendFwdCode(route::Code code);
         void sendBwdCode(route::Code code);
+
+        void sendRef();
+        void sendUnref();
 
         void transmitFwdCode(route::Code code);
         void transmitBwdCode(route::Code code);

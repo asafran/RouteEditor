@@ -31,9 +31,6 @@ private:
 
     QModelIndex _activeGroup;
 
-    QString _loadedPath;
-    vsg::ref_ptr<vsg::Node> _loaded;
-
     QDir modelsDir;
 
     QFileSystemModel *_fsmodel;

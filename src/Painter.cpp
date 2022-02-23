@@ -22,6 +22,13 @@ Painter::~Painter()
 
 void Painter::intersection(const FindNode &isection)
 {
+    if((isection.keyModifier & vsg::MODKEY_Control) == 0)
+        isection.trajectory->connectSignalling();
+    else
+        isection.trajectory->setBusy();
+
+
+    /*
     vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel(_database->getDatabase()->getObject<vsg::EllipsoidModel>("EllipsoidModel"));
     if(!isection.terrain || !ellipsoidModel)
         return;
@@ -63,7 +70,7 @@ void Painter::intersection(const FindNode &isection)
 
             //sg.traverse(*this);
         }
-        /*
+
         void apply(vsg::CullNode& cn) override
         {
             auto group = cn.child.cast<vsg::StateGroup>();
@@ -82,7 +89,7 @@ void Painter::intersection(const FindNode &isection)
         void apply(vsg::DescriptorImage& di) override
         {
             if (!di.imageInfoList.empty()) imageInfo = di.imageInfoList[0]; // contextID=0, and only one imageData
-        }*/
+        }
 
         static void find(const vsg::Node* node, vsg::ref_ptr<vsg::Data> texture)
         {
@@ -96,7 +103,7 @@ void Painter::intersection(const FindNode &isection)
 
     FindTexture::find(isection.terrain, vsg::read_cast<vsg::Data>("/home/asafr/RRS/objects/rails/rails/Grid.png", _database->builder->options));
     _database->builder->compileTraversal->compile(const_cast<vsg::MatrixTransform*>(isection.terrain));
-/*
+
     if(!textureImageInfo)
     {
         vsg::Path textureFile("textures/lz.vsgb");
@@ -127,11 +134,12 @@ void Painter::intersection(const FindNode &isection)
     _database->getRoot()->addChild(builder->createBox(info, state));
 
     const_cast<vsg::MatrixTransform*>(isection.terrain)->children.clear();
-*/
+
     auto min = ellipsoidModel->convertECEFToLatLongAltitude(matrix * cb.bounds.min);
     auto max = ellipsoidModel->convertECEFToLatLongAltitude(matrix * cb.bounds.max);
     auto position = ellipsoidModel->convertECEFToLatLongAltitude(isection.worldIntersection) - min;
     auto size = max - min;
     volatile auto xcoeff = position.x / size.x;
     volatile auto ycoeff = position.y / size.y;
+    */
 }

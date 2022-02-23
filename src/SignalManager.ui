@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SignalManager</class>
+ <widget class="QWidget" name="SignalManager">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>435</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <property name="locale">
+   <locale language="Russian" country="Russia"/>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QCheckBox" name="removeBox">
+     <property name="text">
+      <string>Удалить сигнал</string>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="reverseBox">
+     <property name="text">
+      <string>В обратную сторону</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QComboBox" name="typeBox">
+     <item>
+      <property name="text">
+       <string>Проходной</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTreeView" name="fileView"/>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="fstateBox">
+     <property name="text">
+      <string>Четырехзначная блокировка</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>removeBox</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>fileView</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>217</x>
+     <y>20</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>217</x>
+     <y>160</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>removeBox</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>reverseBox</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>217</x>
+     <y>20</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>217</x>
+     <y>50</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>removeBox</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>fstateBox</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>217</x>
+     <y>20</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>217</x>
+     <y>278</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

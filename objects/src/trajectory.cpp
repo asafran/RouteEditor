@@ -60,6 +60,11 @@ namespace route
         disconnect(_bwdPoint, backReversed ? &RailConnector::sendBwdRef : &RailConnector::sendFwdRef, nullptr, nullptr);
         disconnect(_bwdPoint, backReversed ? &RailConnector::sendBwdUnref : &RailConnector::sendFwdUnref, nullptr, nullptr);
 
+        connect(this, &Trajectory::sendRef, _fwdPoint, frontReversed ? &RailConnector::receiveBwdDirRef : &RailConnector::receiveFwdDirRef);
+        connect(this, &Trajectory::sendRef, _bwdPoint, backReversed ? &RailConnector::receiveFwdDirRef : &RailConnector::receiveBwdDirRef);
+        connect(this, &Trajectory::sendUnref, _fwdPoint, frontReversed ? &RailConnector::receiveBwdDirUnref : &RailConnector::receiveFwdDirUnref);
+        connect(this, &Trajectory::sendUnref, _bwdPoint, backReversed ? &RailConnector::receiveFwdDirUnref : &RailConnector::receiveBwdDirUnref);
+
         connect(_fwdPoint, frontReversed ? &RailConnector::sendFwdState : &RailConnector::sendBwdState,
                 _bwdPoint, backReversed ? &RailConnector::receiveFwdDirState : &RailConnector::receiveBwdDirState);
         connect(_fwdPoint, frontReversed ? &RailConnector::sendFwdRef : &RailConnector::sendBwdRef,

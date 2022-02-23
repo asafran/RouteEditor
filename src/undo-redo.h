@@ -46,6 +46,83 @@ private:
 
 };
 
+class AddFwdSignal : public QUndoCommand
+{
+public:
+    AddFwdSignal(route::RailConnector *rc,
+            vsg::ref_ptr<route::Signal> sig,
+            QUndoCommand *parent = nullptr)
+        : QUndoCommand(parent)
+        , _rc(rc)
+        , _sig(sig)
+    {
+        setText(QObject::tr("Добавлен сигнал"));
+    }
+    void undo() override
+    {
+        _rc->setSignal(vsg::ref_ptr<route::Signal>());
+    }
+    void redo() override
+    {
+        _rc->setSignal(_sig);
+    }
+private:
+    vsg::ref_ptr<route::RailConnector> _rc;
+    vsg::ref_ptr<route::Signal> _sig;
+
+};
+class AddBwdSignal : public QUndoCommand
+{
+public:
+    AddBwdSignal(route::RailConnector *rc,
+            vsg::ref_ptr<route::Signal> sig,
+            QUndoCommand *parent = nullptr)
+        : QUndoCommand(parent)
+        , _rc(rc)
+        , _sig(sig)
+    {
+        setText(QObject::tr("Добавлен сигнал"));
+    }
+    void undo() override
+    {
+        _rc->setReverseSignal(vsg::ref_ptr<route::Signal>());
+    }
+    void redo() override
+    {
+        _rc->setReverseSignal(_sig);
+    }
+private:
+    vsg::ref_ptr<route::RailConnector> _rc;
+    vsg::ref_ptr<route::Signal> _sig;
+
+};
+class RemoveSignal : public QUndoCommand
+{
+public:
+    RemoveSignal(route::RailConnector *rc,
+            QUndoCommand *parent = nullptr)
+        : QUndoCommand(parent)
+        , _rc(rc)
+        , _fwdSig(rc->fwdSignal())
+        , _bwdSig(rc->bwdSignal())
+    {
+        setText(QObject::tr("Удалены сигналы"));
+    }
+    void undo() override
+    {
+        _rc->setSignal(_fwdSig);
+        _rc->setReverseSignal(_bwdSig);
+    }
+    void redo() override
+    {
+        _rc->setSignal(vsg::ref_ptr<route::Signal>());
+        _rc->setReverseSignal(vsg::ref_ptr<route::Signal>());
+    }
+private:
+    vsg::ref_ptr<route::RailConnector> _rc;
+    vsg::ref_ptr<route::Signal> _fwdSig;
+    vsg::ref_ptr<route::Signal> _bwdSig;
+};
 class RemoveNode : public QUndoCommand
 {
 public:

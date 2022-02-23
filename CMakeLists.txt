@@ -22,6 +22,9 @@ set(SOURCES
     src/ContentManager.h
     src/ContentManager.cpp
     src/ContentManager.ui
+    src/SignalManager.h
+    src/SignalManager.cpp
+    src/SignalManager.ui
     src/tool.h
     src/tool.cpp
     src/Painter.h
