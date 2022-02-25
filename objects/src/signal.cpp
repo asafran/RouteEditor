@@ -22,15 +22,10 @@ namespace route
 
     }
 
-    void Signal::Ref()
+    void Signal::Ref(int c)
     {
-        _vcount++;
-        update();
-    }
-
-    void Signal::Unref()
-    {
-        _vcount--;
+        _vcount += c;
+        Q_ASSERT(_vcount >= 0);
         update();
     }
 

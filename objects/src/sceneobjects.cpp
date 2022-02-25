@@ -305,6 +305,7 @@ namespace route
         {
             trajectory = fwdTrajectory;
             fwdTrajectory = nullptr;
+            trajectory->connectSignalling();
         }
         _reverser = false;
     }
@@ -317,6 +318,7 @@ namespace route
         {
             fwdTrajectory = trajectory;
             trajectory = nullptr;
+            fwdTrajectory->connectSignalling();
         }
         _reverser = false;
     }
@@ -370,22 +372,22 @@ namespace route
             _bwdSignal->setFwdState(state);
     }
 
-    void RailConnector::receiveFwdDirRef()
+    void RailConnector::receiveFwdDirRef(int c)
     {
         if(!_bwdSignal)
-            emit sendFwdRef();
+            emit sendFwdRef(c);
         else
-            _bwdSignal->Ref();
+            _bwdSignal->Ref(c);
     }
 
-    void RailConnector::receiveBwdDirRef()
+    void RailConnector::receiveBwdDirRef(int c)
     {
         if(!_fwdSignal)
-            emit sendBwdRef();
+            emit sendBwdRef(c);
         else
-            _fwdSignal->Ref();
+            _fwdSignal->Ref(c);
     }
-
+/*
     void RailConnector::receiveFwdDirUnref()
     {
         if(!_bwdSignal)
@@ -401,7 +403,7 @@ namespace route
         else
             _fwdSignal->Unref();
     }
-
+*/
     vsg::ref_ptr<Signal> RailConnector::bwdSignal() const
     {
         return _bwdSignal;
@@ -429,18 +431,16 @@ namespace route
     void StaticConnector::setRotation(const vsg::dquat &rotation) {}
 
     SwitchConnector::SwitchConnector(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, const vsg::dvec3 &pos)
+        : vsg::Inherit<StaticConnector, SwitchConnector>(loaded, box, pos)
     {
-
     }
 
     SwitchConnector::SwitchConnector()
     {
-
     }
 
     SwitchConnector::~SwitchConnector()
     {
-
     }
 
     void SwitchConnector::setFwd(Trajectory *caller)
@@ -456,7 +456,33 @@ namespace route
         }
     }
 
+    std::pair<Trajectory *, bool> SwitchConnector::getFwd(const Trajectory *caller) const
+    {
+        return std::make_pair(_state ? sideTrajectory : fwdTrajectory, false);
+    }
+
+    std::pair<Trajectory *, bool> SwitchConnector::getBwd(const Trajectory *caller) const
+    {
+        if(!_reverser)
+            return std::make_pair(trajectory, false);
+        bool reversed = caller == trajectory;
+        auto trj = reversed ? (_state ? sideTrajectory : fwdTrajectory) : trajectory;
+        return std::make_pair(trj, reversed);
+    }
+
     void SwitchConnector::switchState(bool state)
+    {
+        if(state == _state)
+            return;
+
+    }
+
+    void SwitchConnector::receiveBwdSideDirState(State state)
+    {
+
+    }
+
+    void SwitchConnector::receiveBwdSideDirRef(int c)
     {
 
     }

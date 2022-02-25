@@ -28,8 +28,7 @@ namespace route
     {
         setValue(app::NAME, name);
 
-        fwdPoint->setBwd(this);
-        bwdPoint->setFwd(this);
+        attach();
     }
 
     Trajectory::Trajectory() : QObject(nullptr) {}
@@ -40,9 +39,19 @@ namespace route
     {
         disconnect(_fwdPoint, nullptr, _bwdPoint, nullptr);
         disconnect(_bwdPoint, nullptr, _fwdPoint, nullptr);
+        disconnect(this, nullptr, _bwdPoint, nullptr);
+        disconnect(this, nullptr, _fwdPoint, nullptr);
 
         _bwdPoint->setFwdNull(this);
         _fwdPoint->setBwdNull(this);
+    }
+
+    void Trajectory::attach()
+    {
+        _fwdPoint->setBwd(this);
+        _bwdPoint->setFwd(this);
+
+        connectSignalling();
     }
 
     void Trajectory::connectSignalling()
@@ -54,30 +63,30 @@ namespace route
 
         disconnect(_fwdPoint, frontReversed ? &RailConnector::sendFwdState : &RailConnector::sendBwdState, nullptr, nullptr);
         disconnect(_fwdPoint, frontReversed ? &RailConnector::sendFwdRef : &RailConnector::sendBwdRef, nullptr, nullptr);
-        disconnect(_fwdPoint, frontReversed ? &RailConnector::sendFwdUnref : &RailConnector::sendBwdUnref, nullptr, nullptr);
+        //disconnect(_fwdPoint, frontReversed ? &RailConnector::sendFwdUnref : &RailConnector::sendBwdUnref, nullptr, nullptr);
 
         disconnect(_bwdPoint, backReversed ? &RailConnector::sendBwdState : &RailConnector::sendFwdState, nullptr, nullptr);
         disconnect(_bwdPoint, backReversed ? &RailConnector::sendBwdRef : &RailConnector::sendFwdRef, nullptr, nullptr);
-        disconnect(_bwdPoint, backReversed ? &RailConnector::sendBwdUnref : &RailConnector::sendFwdUnref, nullptr, nullptr);
+        //disconnect(_bwdPoint, backReversed ? &RailConnector::sendBwdUnref : &RailConnector::sendFwdUnref, nullptr, nullptr);
 
         connect(this, &Trajectory::sendRef, _fwdPoint, frontReversed ? &RailConnector::receiveBwdDirRef : &RailConnector::receiveFwdDirRef);
         connect(this, &Trajectory::sendRef, _bwdPoint, backReversed ? &RailConnector::receiveFwdDirRef : &RailConnector::receiveBwdDirRef);
-        connect(this, &Trajectory::sendUnref, _fwdPoint, frontReversed ? &RailConnector::receiveBwdDirUnref : &RailConnector::receiveFwdDirUnref);
-        connect(this, &Trajectory::sendUnref, _bwdPoint, backReversed ? &RailConnector::receiveFwdDirUnref : &RailConnector::receiveBwdDirUnref);
+        //connect(this, &Trajectory::sendUnref, _fwdPoint, frontReversed ? &RailConnector::receiveBwdDirUnref : &RailConnector::receiveFwdDirUnref);
+        //connect(this, &Trajectory::sendUnref, _bwdPoint, backReversed ? &RailConnector::receiveFwdDirUnref : &RailConnector::receiveBwdDirUnref);
 
         connect(_fwdPoint, frontReversed ? &RailConnector::sendFwdState : &RailConnector::sendBwdState,
                 _bwdPoint, backReversed ? &RailConnector::receiveFwdDirState : &RailConnector::receiveBwdDirState);
         connect(_fwdPoint, frontReversed ? &RailConnector::sendFwdRef : &RailConnector::sendBwdRef,
                 _bwdPoint, backReversed ? &RailConnector::receiveFwdDirRef : &RailConnector::receiveBwdDirRef);
-        connect(_fwdPoint, frontReversed ? &RailConnector::sendFwdUnref : &RailConnector::sendBwdUnref,
-                _bwdPoint, backReversed ? &RailConnector::receiveFwdDirUnref : &RailConnector::receiveBwdDirUnref);
+        //connect(_fwdPoint, frontReversed ? &RailConnector::sendFwdUnref : &RailConnector::sendBwdUnref,
+                //_bwdPoint, backReversed ? &RailConnector::receiveFwdDirUnref : &RailConnector::receiveBwdDirUnref);
 
         connect(_bwdPoint, backReversed ? &RailConnector::sendBwdState : &RailConnector::sendFwdState,
-                _fwdPoint, frontReversed ? &RailConnector::receiveFwdDirState : &RailConnector::receiveBwdDirState);
+                _fwdPoint, frontReversed ? &RailConnector::receiveBwdDirState : &RailConnector::receiveFwdDirState);
         connect(_bwdPoint, backReversed ? &RailConnector::sendBwdRef : &RailConnector::sendFwdRef,
-                _fwdPoint, frontReversed ? &RailConnector::receiveFwdDirRef : &RailConnector::receiveBwdDirRef);
-        connect(_bwdPoint, backReversed ? &RailConnector::sendBwdUnref : &RailConnector::sendFwdUnref,
-                _fwdPoint, frontReversed ? &RailConnector::receiveFwdDirUnref : &RailConnector::receiveBwdDirUnref);
+                _fwdPoint, frontReversed ? &RailConnector::receiveBwdDirRef : &RailConnector::receiveFwdDirRef);
+        //connect(_bwdPoint, backReversed ? &RailConnector::sendBwdUnref : &RailConnector::sendFwdUnref,
+                //_fwdPoint, frontReversed ? &RailConnector::receiveBwdDirUnref : &RailConnector::receiveFwdDirUnref);
     }
 
     void Trajectory::updateAttached()
@@ -502,10 +511,32 @@ namespace route
 
     }
 
-    PointsTrajectory::PointsTrajectory()
+    PointsTrajectory::PointsTrajectory(std::string name,
+                                       vsg::ref_ptr<SwitchConnector> bwdPoint,
+                                       vsg::ref_ptr<RailConnector> fwdPoint,
+                                       vsg::ref_ptr<vsg::AnimationPath> path)
+        : vsg::Inherit<Trajectory, PointsTrajectory>()
+        , _path(path)
     {
+        setValue(app::NAME, name);
 
+         _bwdPoint = bwdPoint;
+         _fwdPoint = fwdPoint;
+
+        fwdPoint->setBwd(this);
+        bwdPoint->setFwd(this);
+
+        connect(this, &Trajectory::sendRef, fwdPoint, &RailConnector::receiveFwdDirRef);
+        connect(this, &Trajectory::sendRef, bwdPoint, &SwitchConnector::receiveBwdSideDirRef);
+
+        connect(fwdPoint, &RailConnector::sendBwdState, bwdPoint, &SwitchConnector::receiveBwdSideDirState);
+        connect(fwdPoint, &RailConnector::sendBwdRef, bwdPoint, &SwitchConnector::receiveBwdSideDirRef);
+
+        connect(bwdPoint, &SwitchConnector::sendFwdSideState, fwdPoint, &RailConnector::receiveFwdDirState);
+        connect(bwdPoint, &SwitchConnector::sendFwdSideRef, fwdPoint, &RailConnector::receiveFwdDirRef);
     }
+
+    PointsTrajectory::PointsTrajectory() {}
 
     PointsTrajectory::~PointsTrajectory()
     {
@@ -560,7 +591,7 @@ namespace route
         auto fwdStrPoint = StaticConnector::create(mrk, box, strait->locations.crbegin()->second.position);
         auto fwdSiPoint = StaticConnector::create(mrk, box, side->locations.crbegin()->second.position);
 
-        _strait = PointsTrajectory::create(name + "_str", _switcherPoint, fwdStrPoint, strait);
+        _strait = PointsTrajectory::create(name + "_str", _switcherPoint.cast<RailConnector>(), fwdStrPoint, strait);
         _side = PointsTrajectory::create(name + "_side", _switcherPoint, fwdSiPoint, side);
     }
 

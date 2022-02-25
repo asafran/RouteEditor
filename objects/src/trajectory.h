@@ -110,6 +110,8 @@ namespace route
 
         void detatch();
 
+        void attach();
+
         std::pair<Trajectory*, bool> getFwd() const { return _fwdPoint->getFwd(this); }
         std::pair<Trajectory*, bool> getBwd() const { return _bwdPoint->getBwd(this); }
 
@@ -157,8 +159,7 @@ namespace route
         void sendFwdCode(route::Code code);
         void sendBwdCode(route::Code code);
 
-        void sendRef();
-        void sendUnref();
+        void sendRef(int c = 1);
 
         void transmitFwdCode(route::Code code);
         void transmitBwdCode(route::Code code);
@@ -299,6 +300,10 @@ namespace route
                          vsg::ref_ptr<RailConnector> bwdPoint,
                          vsg::ref_ptr<RailConnector> fwdPoint,
                          vsg::ref_ptr<vsg::AnimationPath> path);
+        PointsTrajectory(std::string name,
+                         vsg::ref_ptr<SwitchConnector> bwdPoint,
+                         vsg::ref_ptr<RailConnector> fwdPoint,
+                         vsg::ref_ptr<vsg::AnimationPath> path);
         PointsTrajectory();
 
         virtual ~PointsTrajectory();
@@ -371,7 +376,7 @@ namespace route
         vsg::ref_ptr<PointsTrajectory>     _side;
         vsg::ref_ptr<RailConnector>     _switcherPoint;
 
-        bool _state; //true if switched
+        bool _state = false; //true if switched
     };
 }
 

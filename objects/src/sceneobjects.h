@@ -215,9 +215,9 @@ namespace route
 
         void recalculate() override;
 
-        std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const;
+        virtual std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const;
 
-        std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const;
+        virtual std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const;
 
         virtual void setFwd(Trajectory *caller);
 
@@ -246,10 +246,10 @@ namespace route
         void receiveBwdDirState(route::State state);
         void receiveFwdDirState(route::State state);
 
-        void receiveFwdDirRef();
-        void receiveBwdDirRef();
-        void receiveFwdDirUnref();
-        void receiveBwdDirUnref();
+        void receiveFwdDirRef(int c);
+        void receiveBwdDirRef(int c);
+        //void receiveFwdDirUnref(int c);
+        //void receiveBwdDirUnref(int c);
 
     signals:
         void sendFwdCode(route::Code code);
@@ -258,10 +258,10 @@ namespace route
         void sendFwdState(route::State state);
         void sendBwdState(route::State state);
 
-        void sendFwdRef();
-        void sendBwdRef();
-        void sendFwdUnref();
-        void sendBwdUnref();
+        void sendFwdRef(int c);
+        void sendBwdRef(int c);
+        //void sendFwdUnref();
+        //void sendBwdUnref();
 
     protected:
         bool _reverser = false;
@@ -295,11 +295,35 @@ namespace route
 
         virtual ~SwitchConnector();
 
-        void setFwd(Trajectory *caller);
+        void setFwd(Trajectory *caller) override;
+
+        std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const override;
+
+        std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const override;
 
         void switchState(bool state);
 
         Trajectory *sideTrajectory = nullptr;
+
+    public slots:
+        void receiveBwdSideDirState(route::State state);
+
+        void receiveBwdSideDirRef(int c);
+        //void receiveFwdDirUnref(int c);
+        //void receiveBwdDirUnref(int c);
+
+    signals:
+        void sendFwdSideCode(route::Code code);
+
+        void sendFwdSideState(route::State state);
+
+        void sendFwdSideRef(int c);
+
+    private:
+        bool _state = false;
+        int _strcount = 0;
+        int _sidecount = 0;
+        int _backcount = 0;
     };
 }
 

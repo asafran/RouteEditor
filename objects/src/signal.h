@@ -21,10 +21,9 @@ namespace route
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        virtual void update() = 0;
-        virtual void setFwdState(route::State state) = 0;
-        void Ref();
-        void Unref();
+        virtual void update() {};
+        void setFwdState(route::State state) { _front = state; update(); };
+        void Ref(int c);
 
     signals:
         void sendCode(route::Code code);
@@ -33,9 +32,13 @@ namespace route
     protected:
         vsg::ref_ptr<Trajectory> _code;
 
+        State _front = CLOSED;
+
         int _vcount = 0;
 
         float _intensity = 3.0f;
+
+
     };
 
     class AutoBlockSignal3 : public vsg::Inherit<Signal, AutoBlockSignal3>
@@ -67,8 +70,6 @@ namespace route
         std::array<vsg::ref_ptr<vsg::Light>,3> _signals;
 
         State _state = OPENED;
-
-        State _front = CLOSED;
 
         Sig _signal = G;
 
