@@ -244,26 +244,6 @@ void DatabaseManager::writeTiles() noexcept
     };
     LambdaVisitor<decltype (removeParents), vsg::Node> lvmp(removeParents);
 
-    auto removePoints = [](vsg::Switch& sw)
-    {
-        auto points = std::find_if(sw.children.begin(), sw.children.end(), [](const vsg::Switch::Child &ch)
-        {
-            return (ch.mask & route::Points) != 0;
-        });
-        sw.children.erase(points);
-        /*
-        for (auto it = sw.children.begin(); it != sw.children.end(); ++it)
-        {
-            if (it->mask == route::Points)
-            {
-                auto group = it->node.cast<vsg::Group>();
-                group->children.clear();
-                break;
-            }
-        }*/
-    };
-    LambdaVisitor<decltype (removePoints), vsg::Switch> lvp(removePoints);
-    tilesModel->getRoot()->accept(lvp);
     tilesModel->getRoot()->accept(lv);
     tilesModel->getRoot()->accept(lvmp);
 

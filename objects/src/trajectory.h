@@ -367,16 +367,16 @@ namespace route
             t_traverse(*this, visitor);
         }
 
-        void setState(bool state) { _state = state; }
+        void setState(bool state);
 
     private:
         vsg::ref_ptr<vsg::MatrixTransform> _switcher;
 
         vsg::ref_ptr<PointsTrajectory>     _strait;
         vsg::ref_ptr<PointsTrajectory>     _side;
-        vsg::ref_ptr<RailConnector>     _switcherPoint;
+        vsg::ref_ptr<SwitchConnector>     _switcherPoint;
 
-        bool _state = false; //true if switched
+        //bool _state = false; //true if switched
     };
 }
 

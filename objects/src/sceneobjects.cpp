@@ -148,6 +148,8 @@ namespace route
         , _copyBufferCmd(copy)
         , _vertex(point)
     {
+        auto norm = vsg::normalize(ltw * vsg::dvec3(*point));
+        _world_quat = vsg::dquat(vsg::dvec3(0.0, 0.0, 1.0), norm);
     }
     TerrainPoint::~TerrainPoint() {}
 
@@ -433,6 +435,11 @@ namespace route
     SwitchConnector::SwitchConnector(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, const vsg::dvec3 &pos)
         : vsg::Inherit<StaticConnector, SwitchConnector>(loaded, box, pos)
     {
+        _fwdSignal = route::Signal::create(vsg::Node::create(), vsg::Node::create());
+        _bwdSignal = route::Signal::create(vsg::Node::create(), vsg::Node::create());
+        _sideCounter = route::Signal::create(vsg::Node::create(), vsg::Node::create());
+
+        _state = false;
     }
 
     SwitchConnector::SwitchConnector()
@@ -455,7 +462,7 @@ namespace route
             trajectory = caller;
         }
     }
-
+/*
     std::pair<Trajectory *, bool> SwitchConnector::getFwd(const Trajectory *caller) const
     {
         return std::make_pair(_state ? sideTrajectory : fwdTrajectory, false);
@@ -469,22 +476,90 @@ namespace route
         auto trj = reversed ? (_state ? sideTrajectory : fwdTrajectory) : trajectory;
         return std::make_pair(trj, reversed);
     }
-
+*/
     void SwitchConnector::switchState(bool state)
     {
         if(state == _state)
             return;
+        if(state)
+        {
+            emit sendFwdSideRef(_bwdSignal->_vcount);
+            emit sendFwdRef(-_bwdSignal->_vcount);
 
+            emit sendBwdState(_sideCounter->_front);
+            emit sendFwdSideState(_bwdSignal->_front);
+
+            emit sendBwdRef(_sideCounter->_vcount);
+            emit sendBwdRef(-_fwdSignal->_vcount);
+
+            emit sendFwdSideRef(-1);
+            emit sendFwdRef(1);
+
+            _state = state;
+        }
+        else
+        {
+            emit sendFwdRef(_bwdSignal->_vcount);
+            emit sendFwdSideRef(-_bwdSignal->_vcount);
+
+            emit sendBwdState(_fwdSignal->_front);
+            emit sendFwdState(_bwdSignal->_front);
+
+            emit sendBwdRef(_fwdSignal->_vcount);
+            emit sendBwdRef(-_sideCounter->_vcount);
+
+            emit sendFwdSideRef(1);
+            emit sendFwdRef(-1);
+
+            _state = state;
+        }
+        auto tmp = sideTrajectory;
+        sideTrajectory = fwdTrajectory;
+        fwdTrajectory = tmp;
     }
 
     void SwitchConnector::receiveBwdSideDirState(State state)
     {
+        _sideCounter->setFwdState(state);
+        if(_state)
+            emit sendBwdState(state);
+    }
 
+    void SwitchConnector::receiveBwdDirState(State state)
+    {
+        _fwdSignal->setFwdState(state);
+        if(!_state)
+            emit sendBwdState(state);
+    }
+
+    void SwitchConnector::receiveFwdDirState(State state)
+    {
+        _bwdSignal->setFwdState(state);
+        if(_state)
+            emit sendFwdSideState(state);
+        else
+            emit sendFwdState(state);
+    }
+
+    void SwitchConnector::receiveFwdDirRef(int c)
+    {
+        _bwdSignal->Ref(c);
+        if(_state)
+            emit sendFwdSideRef(c);
+    }
+
+    void SwitchConnector::receiveBwdDirRef(int c)
+    {
+        _fwdSignal->Ref(c);
+        if(!_state)
+            emit sendBwdRef(c);
     }
 
     void SwitchConnector::receiveBwdSideDirRef(int c)
     {
-
+        _sideCounter->Ref(c);
+        if(_state)
+            emit sendBwdRef(c);
     }
 
 }

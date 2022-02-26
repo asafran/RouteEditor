@@ -18,8 +18,10 @@ namespace route
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        void traverse(vsg::Visitor& visitor) override { Group::traverse(visitor); }
-        void traverse(vsg::ConstVisitor& visitor) const override { Group::traverse(visitor); }
+        void traverse(vsg::Visitor& visitor) override
+        { if ((visitor.traversalMask & (visitor.overrideMask | route::Tracks)) != vsg::MASK_OFF) Group::traverse(visitor); }
+        void traverse(vsg::ConstVisitor& visitor) const override
+        { if ((visitor.traversalMask & (visitor.overrideMask | route::Tracks)) != vsg::MASK_OFF) Group::traverse(visitor); }
         void traverse(vsg::RecordTraversal& visitor) const override { Group::traverse(visitor); }
 
         //void assignBuilder(vsg::ref_ptr<vsg::Builder> builder);

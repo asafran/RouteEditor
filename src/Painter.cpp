@@ -22,10 +22,7 @@ Painter::~Painter()
 
 void Painter::intersection(const FindNode &isection)
 {
-    if((isection.keyModifier & vsg::MODKEY_Control) == 0)
-        isection.trajectory->connectSignalling();
-    else
-        isection.trajectory->setBusy();
+    isection.trajectory->setBusy();
 
 
     /*

@@ -215,9 +215,9 @@ namespace route
 
         void recalculate() override;
 
-        virtual std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const;
+        std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const;
 
-        virtual std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const;
+        std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const;
 
         virtual void setFwd(Trajectory *caller);
 
@@ -243,11 +243,11 @@ namespace route
         vsg::ref_ptr<Signal> bwdSignal() const;
 
     public slots:
-        void receiveBwdDirState(route::State state);
-        void receiveFwdDirState(route::State state);
+        virtual void receiveBwdDirState(route::State state);
+        virtual void receiveFwdDirState(route::State state);
 
-        void receiveFwdDirRef(int c);
-        void receiveBwdDirRef(int c);
+        virtual void receiveFwdDirRef(int c);
+        virtual void receiveBwdDirRef(int c);
         //void receiveFwdDirUnref(int c);
         //void receiveBwdDirUnref(int c);
 
@@ -287,6 +287,7 @@ namespace route
 
     class SwitchConnector : public vsg::Inherit<StaticConnector, SwitchConnector>
     {
+        Q_OBJECT
     public:
         SwitchConnector(vsg::ref_ptr<vsg::Node> loaded,
                         vsg::ref_ptr<vsg::Node> box,
@@ -297,20 +298,23 @@ namespace route
 
         void setFwd(Trajectory *caller) override;
 
-        std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const override;
+        //std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const override;
 
-        std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const override;
+        //std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const override;
 
         void switchState(bool state);
 
         Trajectory *sideTrajectory = nullptr;
 
     public slots:
+        void receiveBwdSideDirRef(int c);
         void receiveBwdSideDirState(route::State state);
 
-        void receiveBwdSideDirRef(int c);
-        //void receiveFwdDirUnref(int c);
-        //void receiveBwdDirUnref(int c);
+        void receiveBwdDirState(route::State state) override;
+        void receiveFwdDirState(route::State state) override;
+
+        void receiveFwdDirRef(int c) override;
+        void receiveBwdDirRef(int c) override;
 
     signals:
         void sendFwdSideCode(route::Code code);
@@ -320,10 +324,9 @@ namespace route
         void sendFwdSideRef(int c);
 
     private:
-        bool _state = false;
-        int _strcount = 0;
-        int _sidecount = 0;
-        int _backcount = 0;
+        bool _state;
+
+        vsg::ref_ptr<route::Signal> _sideCounter;
     };
 }
 

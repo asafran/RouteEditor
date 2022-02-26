@@ -143,10 +143,14 @@ public:
     void undo() override
     {
         _row = _model->addNode(_group, _node);
+        if(auto trj = _node.cast<route::Trajectory>(); trj)
+            trj->attach();
     }
     void redo() override
     {
         _model->removeNode(_model->index(_row, 0, _group));
+        if(auto trj = _node.cast<route::Trajectory>(); trj)
+            trj->detatch();
     }
 private:
     SceneModel *_model;

@@ -118,14 +118,4 @@ namespace route
             emit sendState(state);
         }
     }
-
-
-    void AutoBlockSignal3::setFwdState(route::State state)
-    {
-        _front = state;
-        update();
-    }
-
-
-
 }

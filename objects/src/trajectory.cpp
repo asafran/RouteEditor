@@ -534,6 +534,8 @@ namespace route
 
         connect(bwdPoint, &SwitchConnector::sendFwdSideState, fwdPoint, &RailConnector::receiveFwdDirState);
         connect(bwdPoint, &SwitchConnector::sendFwdSideRef, fwdPoint, &RailConnector::receiveFwdDirRef);
+
+        fwdPoint->receiveFwdDirRef(1);
     }
 
     PointsTrajectory::PointsTrajectory() {}
@@ -640,5 +642,10 @@ namespace route
         auto mat = transform(vsg::dmat4());
         _strait->localToWorld = mat;
         _side->localToWorld = mat;
+    }
+
+    void Junction::setState(bool state)
+    {
+        _switcherPoint->switchState(state);
     }
 }

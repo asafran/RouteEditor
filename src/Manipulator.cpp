@@ -48,7 +48,7 @@ void Manipulator::setMask(uint32_t mask)
 }
 void Manipulator::apply(vsg::KeyPressEvent& keyPress)
 {
-     _keyModifier |= keyPress.keyModifier;
+     _keyModifier = keyPress.keyModifier;
 
      switch (keyPress.keyBase) {
      case vsg::KEY_M:
@@ -322,7 +322,7 @@ vsg::LineSegmentIntersector::Intersections Manipulator::intersections(uint32_t m
 {
     auto intersector = vsg::LineSegmentIntersector::create(*_camera, pointerEvent.x, pointerEvent.y);
     intersector->traversalMask = mask;
-    _database->root->accept(*intersector);
+    _database->tilesModel->getRoot()->accept(*intersector);
 
     if (intersector->intersections.empty()) return vsg::LineSegmentIntersector::Intersections();
 

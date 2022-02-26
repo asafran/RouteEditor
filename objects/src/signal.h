@@ -21,8 +21,8 @@ namespace route
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        virtual void update() {};
-        void setFwdState(route::State state) { _front = state; update(); };
+        virtual void update() { }
+        void setFwdState(route::State state) { _front = state; update(); }
         void Ref(int c);
 
     signals:
@@ -38,7 +38,7 @@ namespace route
 
         float _intensity = 3.0f;
 
-
+        friend class route::SwitchConnector;
     };
 
     class AutoBlockSignal3 : public vsg::Inherit<Signal, AutoBlockSignal3>
@@ -62,8 +62,6 @@ namespace route
             G,
             GY
         };
-
-        void setFwdState(route::State state) override;
 
     protected:
 
