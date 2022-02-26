@@ -1,5 +1,6 @@
 #include "signal.h"
 #include "LambdaVisitor.h"
+#include <QPauseAnimation>
 
 namespace route
 {
@@ -33,19 +34,56 @@ namespace route
         : vsg::Inherit<Signal, AutoBlockSignal3>(loaded, box)
         , _fstate(fstate)
     {
-        _signals.fill(vsg::ref_ptr<vsg::Light>());
-        auto findLights = [this](vsg::Light& l) mutable
+        //_signals.fill(vsg::ref_ptr<vsg::Light>());
+        vsg::ref_ptr<vsg::Light> r;
+        vsg::ref_ptr<vsg::Light> y;
+        vsg::ref_ptr<vsg::Light> g;
+        auto findLights = [&r, &y, &g](vsg::Light& l) mutable
         {
             l.intensity = 0.0f;
             if(l.name == "R_0")
-                _signals[R] = vsg::ref_ptr<vsg::Light>(&l);
+                r = vsg::ref_ptr<vsg::Light>(&l);
             else if(l.name == "Y_0")
-                _signals[Y] = vsg::ref_ptr<vsg::Light>(&l);
+                y = vsg::ref_ptr<vsg::Light>(&l);
             else if(l.name == "G_0")
-                _signals[G] = vsg::ref_ptr<vsg::Light>(&l);
+                g = vsg::ref_ptr<vsg::Light>(&l);
         };
         LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
         loaded->accept(lv);
+
+        _ranim = new LightAnimation(r, this);
+        _ranim->setDuration(1000);
+        _ranim->setStartValue(0.0f);
+        _ranim->setEndValue(_intensity);
+
+        _yanim = new LightAnimation(y, this);
+        _yanim->setDuration(1000);
+        _yanim->setStartValue(0.0f);
+        _yanim->setEndValue(_intensity);
+
+        _ganim = new LightAnimation(g, this);
+        _ganim->setDuration(1000);
+        _ganim->setStartValue(0.0f);
+        _ganim->setEndValue(_intensity);
+
+        //_ganim->start();
+
+        _loop = new QSequentialAnimationGroup(this);
+
+        auto back = new LightAnimation(y, _loop);
+        back->setDuration(1000);
+        back->setStartValue(_intensity);
+        back->setEndValue(0.0f);
+
+        auto pause = new QPauseAnimation(_loop);
+        pause->setDuration(500);
+
+        _loop->addAnimation(_yanim);
+        _loop->addAnimation(pause);
+        _loop->addAnimation(back);
+
+        _loop->setLoopCount(-1);
+        _loop->start();
     }
 
     AutoBlockSignal3::AutoBlockSignal3()
@@ -62,11 +100,6 @@ namespace route
     {
         Signal::read(input);
 
-        for (auto& child : _signals)
-        {
-            input.readObject("Signal", child);
-        }
-
         input.read("frontSignal", _front);
     }
 
@@ -74,10 +107,6 @@ namespace route
     {
         Signal::write(output);
 
-        for (const auto& child : _signals)
-        {
-            output.writeObject("Signal", child.get());
-        }
 
         output.write("frontSignal", _front);
     }
@@ -111,9 +140,91 @@ namespace route
         }
         if(_state != state)
         {
-            _signals.at(R)->intensity = (state == CLOSED) ? _intensity : 0.0f;
-            _signals.at(G)->intensity = (state == OPENED) ? _intensity : 0.0f;
-            _signals.at(Y)->intensity = (state == PREPARE_CLOSED) ? _intensity : 0.0f;
+            switch (_state) {
+            case route::RESTR:
+                break;
+            case route::OPENED:
+            {
+                _ganim->setDirection(QAbstractAnimation::Backward);
+                _ganim->start();
+                break;
+            }
+            case route::PREPARE_CLOSED:
+            {
+                _yanim->setDirection(QAbstractAnimation::Backward);
+                _yanim->start();
+                break;
+            }
+            case route::PREPARE_PREAPRE:
+            {
+                _yanim->setDirection(QAbstractAnimation::Backward);
+                //_yanim->start();
+
+                _ganim->setDirection(QAbstractAnimation::Backward);
+                //_ganim->start();
+
+                QParallelAnimationGroup *group = new QParallelAnimationGroup;
+                group->addAnimation(_yanim);
+                group->addAnimation(_ganim);
+
+                group->start(QAbstractAnimation::DeleteWhenStopped);
+                break;
+            }
+            case route::PREPARE_RESTR:
+            {
+                _loop->stop();
+                break;
+            }
+            case route::CLOSED:
+            {
+                _ranim->setDirection(QAbstractAnimation::Backward);
+                _ranim->start();
+                break;
+            }
+            default:
+                break;
+            }
+
+            switch (state) {
+            case route::OPENED:
+            {
+                _ganim->setDirection(QAbstractAnimation::Forward);
+                _ganim->start();
+                break;
+            }
+            case route::PREPARE_CLOSED:
+            {
+                _yanim->setDirection(QAbstractAnimation::Forward);
+                _yanim->start();
+                break;
+            }
+            case route::PREPARE_PREAPRE:
+            {
+                _yanim->setDirection(QAbstractAnimation::Forward);
+
+                _ganim->setDirection(QAbstractAnimation::Forward);
+
+                QParallelAnimationGroup *group = new QParallelAnimationGroup;
+                group->addAnimation(_yanim);
+                group->addAnimation(_ganim);
+
+                group->start(QAbstractAnimation::DeleteWhenStopped);
+                break;
+            }
+            case route::PREPARE_RESTR:
+            {
+                _loop->start();
+                break;
+            }
+            case route::CLOSED:
+            {
+                _ranim->setDirection(QAbstractAnimation::Forward);
+                _ranim->start();
+                break;
+            }
+            default:
+                break;
+            }
             _state = state;
             emit sendState(state);
         }

@@ -3,9 +3,13 @@
 
 #include "sceneobjects.h"
 #include "trajectory.h"
+#include "lightanimation.h"
 #include <vsg/nodes/Switch.h>
 #include <vsg/nodes/Light.h>
 #include "Constants.h"
+#include <QSequentialAnimationGroup>
+#include <QPropertyAnimation>
+#include <QParallelAnimationGroup>
 
 namespace route
 {
@@ -65,7 +69,11 @@ namespace route
 
     protected:
 
-        std::array<vsg::ref_ptr<vsg::Light>,3> _signals;
+        LightAnimation *_ranim;
+        LightAnimation *_yanim;
+        LightAnimation *_ganim;
+
+        QSequentialAnimationGroup *_loop;
 
         State _state = OPENED;
 

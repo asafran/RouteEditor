@@ -6,6 +6,8 @@ set(SOURCES
     src/ParentVisitor.cpp
     src/ParentVisitor.h
     src/Constants.h
+    src/lightanimation.h
+    src/lightanimation.cpp
     src/tools.h
 )
 
