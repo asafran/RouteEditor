@@ -66,7 +66,7 @@ namespace route
         _ganim->setStartValue(0.0f);
         _ganim->setEndValue(_intensity);
 
-        //_ganim->start();
+        _ganim->start();
 
         _loop = new QSequentialAnimationGroup(this);
 
@@ -83,7 +83,6 @@ namespace route
         _loop->addAnimation(back);
 
         _loop->setLoopCount(-1);
-        _loop->start();
     }
 
     AutoBlockSignal3::AutoBlockSignal3()
@@ -229,4 +228,93 @@ namespace route
             emit sendState(state);
         }
     }
+
+    StSignal::StSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
+        : vsg::Inherit<AutoBlockSignal3, StSignal>(loaded, box, fstate) {}
+
+
+    StSignal::StSignal() {}
+
+
+    StSignal::~StSignal() {}
+
+
+    void StSignal::read(vsg::Input &input)
+    {
+
+    }
+
+
+    void StSignal::write(vsg::Output &output) const
+    {
+
+    }
+
+
+    void StSignal::update()
+    {
+
+    }
+
+
+    void StSignal::open(FwdHint hint)
+    {
+        _restrHint = hint;
+        update();
+    }
+
+
+    void StSignal::close()
+    {
+        _restrHint = CLOSE_SIG;
+        update();
+    }
+
+    EnterSignal::EnterSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
+        : vsg::Inherit<StSignal, EnterSignal>(loaded, box, fstate)
+    {
+
+    }
+
+    EnterSignal::EnterSignal() {}
+
+    EnterSignal::~EnterSignal() {}
+
+    void EnterSignal::read(vsg::Input &input)
+    {
+
+    }
+
+    void EnterSignal::write(vsg::Output &output) const
+    {
+
+    }
+
+    void EnterSignal::update()
+    {
+
+    }
+
+    ExitSignal::ExitSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
+        : vsg::Inherit<StSignal, ExitSignal>(loaded, box, fstate) {}
+
+    ExitSignal::ExitSignal() {}
+
+    ExitSignal::~ExitSignal() {}
+
+    void ExitSignal::read(vsg::Input &input)
+    {
+
+    }
+
+    void ExitSignal::write(vsg::Output &output) const
+    {
+
+    }
+
+    void ExitSignal::update()
+    {
+
+    }
+
 }

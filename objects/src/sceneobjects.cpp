@@ -348,6 +348,24 @@ namespace route
             connect(_bwdSignal, &Signal::sendState, this, &RailConnector::sendFwdState);
     }
 
+    void RailConnector::traverse(vsg::Visitor &visitor)
+    {
+        Transform::traverse(visitor);
+        if(_fwdSignal)
+            _fwdSignal->accept(visitor);
+        if(_bwdSignal)
+            _bwdSignal->accept(visitor);
+    }
+
+    void RailConnector::traverse(vsg::ConstVisitor &visitor) const
+    {
+        Transform::traverse(visitor);
+        if(_fwdSignal)
+            _fwdSignal->accept(visitor);
+        if(_bwdSignal)
+            _bwdSignal->accept(visitor);
+    }
+
     void RailConnector::traverse(vsg::RecordTraversal &visitor) const
     {
         SceneObject::traverse(visitor);

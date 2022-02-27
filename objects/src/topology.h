@@ -5,6 +5,7 @@
 #include "sceneobjects.h"
 #include "signal.h"
 #include "trajectory.h"
+#include "interlocking.h"
 
 namespace route
 {
@@ -27,6 +28,8 @@ namespace route
         //void assignBuilder(vsg::ref_ptr<vsg::Builder> builder);
 
         //std::map<std::string, vsg::ref_ptr<SplineTrajectory>> trajectories;
+
+        std::map<std::string, vsg::ref_ptr<Station>> stations;
 
     protected:
 

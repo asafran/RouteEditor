@@ -38,6 +38,8 @@ namespace route
 
         State _front = CLOSED;
 
+        State _state = OPENED;
+
         int _vcount = 0;
 
         float _intensity = 3.0f;
@@ -59,14 +61,6 @@ namespace route
 
         void update() override;
 
-        enum Sig
-        {
-            R,
-            Y,
-            G,
-            GY
-        };
-
     protected:
 
         LightAnimation *_ranim;
@@ -75,51 +69,77 @@ namespace route
 
         QSequentialAnimationGroup *_loop;
 
-        State _state = OPENED;
-
-        Sig _signal = G;
-
         bool _fstate = false;
         bool _repeater = false;
     };
-/*
-    class AutoBlockSignal4 : public vsg::Inherit<AutoBlockSignal3, AutoBlockSignal4>
+
+    class StSignal : public vsg::Inherit<AutoBlockSignal3, StSignal>
     {
+        Q_OBJECT
     public:
-        AutoBlockSignal4(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box);
-        AutoBlockSignal4();
+        StSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        StSignal();
 
-        template<class N, class V>
-        static void t_traverse(N& node, V& visitor)
-        {
-            if(node._state == GY)
-            {
-                node._signals.at(G)->accept(visitor);
-                node._signals.at(Y)->accept(visitor);
-            }
-            else
-                node._signals.at(node._state)->accept(visitor);
-        }
+        virtual ~StSignal();
 
-        void traverse(vsg::Visitor& visitor) override { Transform::traverse(visitor); t_traverse(*this, visitor); }
-        void traverse(vsg::ConstVisitor& visitor) const override { Transform::traverse(visitor); t_traverse(*this, visitor); }
-        void traverse(vsg::RecordTraversal& visitor) const override { SceneObject::traverse(visitor); t_traverse(*this, visitor); }
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
 
-    public slots:
         void update() override;
 
-    private:
-        enum State
+        enum FwdHint
         {
-            G,
-            Y,
-            R,
-            GY
+            CLOSE_SIG,
+            NO,
+            RESTR40,
+            RESTR60,
+            RESTR80,
+            PREP_RESTR80
         };
 
-        State _state = R;
+        void open(FwdHint hint);
+        void close();
 
-        AutoBlockSignal4 *_front;
-    };*/
+    protected:
+
+        FwdHint _restrHint = CLOSE_SIG;
+    };
+
+    class EnterSignal : public vsg::Inherit<StSignal, EnterSignal>
+    {
+        Q_OBJECT
+    public:
+        EnterSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        EnterSignal();
+
+        virtual ~EnterSignal();
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
+        void update() override;
+
+    protected:
+
+    };
+
+    class ExitSignal : public vsg::Inherit<StSignal, ExitSignal>
+    {
+        Q_OBJECT
+    public:
+        ExitSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        ExitSignal();
+
+        virtual ~ExitSignal();
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
+        void update() override;
+
+    protected:
+
+    };
+
 }
 #endif // SIGNAL_H

@@ -6,6 +6,10 @@ set(SOURCES
     src/ParentVisitor.cpp
     src/ParentVisitor.h
     src/Constants.h
+    src/interlocking.h
+    src/interlocking.cpp
+    src/stmodels.h
+    src/stmodels.cpp
     src/lightanimation.h
     src/lightanimation.cpp
     src/tools.h

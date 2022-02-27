@@ -4,6 +4,7 @@
 #include <vsg/traversals/ComputeBounds.h>
 #include "ParentVisitor.h"
 #include "tools.h"
+#include "stmodels.h"
 #include <QSignalBlocker>
 
 ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidget *parent) : Tool(database, parent)
@@ -12,9 +13,11 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 {
     ui->setupUi(this);
 
-    setSpinEanbled(false);
+    //setSpinEanbled(false);
 
     auto stack = _database->undoStack;
+
+    ui->stationBox->setModel(new StationsModel(_database->topology));
 
     connect(stack, &QUndoStack::indexChanged, this, &ObjectPropertiesEditor::updateData);
 
@@ -171,6 +174,11 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
         if(_firstObject->getValue(app::PARENT, mt))
             stack->push(new MoveObjectOnTraj(mt, d));
     });
+
+    connect(ui->nameEdit, &QLineEdit::textEdited, this, [stack, this](const QString &text)
+    {
+        stack->push(new RenameObject(_firstObject.get(), text));
+    });
 }
 
 ObjectPropertiesEditor::~ObjectPropertiesEditor()
@@ -293,6 +301,7 @@ void ObjectPropertiesEditor::select(const QModelIndex &index, route::SceneObject
 
 void ObjectPropertiesEditor::setSpinEanbled(bool enabled)
 {
+    ui->nameEdit->setEnabled(enabled);
     ui->ecefXspin->setEnabled(enabled);
     ui->ecefYspin->setEnabled(enabled);
     ui->ecefZspin->setEnabled(enabled);
@@ -318,9 +327,12 @@ void ObjectPropertiesEditor::updateData()
     QSignalBlocker l9(ui->rotZspin);
     QSignalBlocker l10(ui->trjCoordspin);
 
-    setSpinEanbled(_firstObject && !_firstObject->is_compatible(typeid (route::SplineTrajectory)));
+    setEnabled(_firstObject && !_firstObject->is_compatible(typeid (route::SplineTrajectory)));
+    //setSpinEanbled(_firstObject && !_firstObject->is_compatible(typeid (route::SplineTrajectory)));
     if(!_firstObject)
         return;
+
+    ui->stationBox->setEnabled(_firstObject->is_compatible(typeid (route::Signal)));
 
     if(_firstObject->is_compatible(typeid (route::RailPoint)))
     {
@@ -338,6 +350,10 @@ void ObjectPropertiesEditor::updateData()
     else
         ui->trjCoordspin->setEnabled(false);
 
+    ui->nameEdit->clear();
+    std::string name;
+    if(_firstObject->getValue(app::NAME, name))
+        ui->nameEdit->setText(name.c_str());
 
     auto position = _firstObject->getPosition();
     ui->ecefXspin->setValue(position.x);

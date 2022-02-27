@@ -164,7 +164,7 @@ class RenameObject : public QUndoCommand
 {
 public:
     RenameObject(vsg::Object *obj, const QString &name, QUndoCommand *parent = nullptr) : QUndoCommand(parent)
-        , _obj(obj)
+        , _object(obj)
         , _newName(name.toStdString())
     {
         obj->getValue(app::NAME, _oldName);
@@ -172,16 +172,30 @@ public:
     }
     void undo() override
     {
-        _obj->setValue(app::NAME, _oldName);
+        _object->setValue(app::NAME, _oldName);
     }
     void redo() override
     {
-        _obj->setValue(app::NAME, _newName);
+        _object->setValue(app::NAME, _newName);
+    }
+    int id() const override
+    {
+        return 10;
+    }
+    bool mergeWith(const QUndoCommand *other) override
+    {
+        if (other->id() != id())
+            return false;
+        auto rcmd = static_cast<const RenameObject*>(other);
+        if(rcmd->_object != _object)
+            return false;
+        _newName = rcmd->_newName;
+        return true;
     }
 private:
-    vsg::ref_ptr<vsg::Object> _obj;
+    vsg::ref_ptr<vsg::Object> _object;
     std::string _oldName;
-    const std::string _newName;
+    std::string _newName;
 
 };
 /*

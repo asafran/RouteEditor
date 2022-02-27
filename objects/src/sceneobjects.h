@@ -233,9 +233,10 @@ namespace route
 
         void setReverseSignal(vsg::ref_ptr<Signal> signal);
 
-
         Trajectory *fwdTrajectory = nullptr;
 
+        void traverse(vsg::Visitor& visitor) override;
+        void traverse(vsg::ConstVisitor& visitor) const override;
         void traverse(vsg::RecordTraversal& visitor) const override;
 
         vsg::ref_ptr<Signal> fwdSignal() const;

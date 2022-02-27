@@ -289,9 +289,9 @@ int SceneModel::rowCount(const QModelIndex &parent) const
 }
 QVariant SceneModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid()) {
+    if (!index.isValid())
         return QVariant();
-    }
+
     auto nodeInfo = static_cast<vsg::Node*>(index.internalPointer());
 
     //Q_ASSERT(nodeInfo != nullptr);
