@@ -35,6 +35,24 @@ private:
     vsg::ref_ptr<route::Routes> _r;
 };
 
+class RouteCmdModel : public QAbstractListModel
+{
+    Q_OBJECT
+public:
+    explicit RouteCmdModel(vsg::ref_ptr<route::Route> r, QObject *parent = nullptr);
+
+    ~RouteCmdModel();
+
+    int rowCount(const QModelIndex &parent) const;
+    QVariant data(const QModelIndex &index, int role) const;
+
+    bool insertCmd(vsg::ref_ptr<route::Command> cmd);
+    bool removeRows(int row, int count, const QModelIndex &parent);
+
+private:
+    vsg::ref_ptr<route::Route> _r;
+};
+
 class StationsModel : public QAbstractListModel
 {
     Q_OBJECT
@@ -46,8 +64,10 @@ public:
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     QVariant data(const QModelIndex &index, int role) const;
 
-    void fetchMore(const QModelIndex &parent);
-    bool canFetchMore(const QModelIndex &parent) const;
+    route::Station* station(const QModelIndex &index) const;
+
+    //void fetchMore(const QModelIndex &parent);
+    //bool canFetchMore(const QModelIndex &parent) const;
 
     bool setData(const QModelIndex &index, const QVariant &value, int role);
 
@@ -56,7 +76,27 @@ public:
 
 private:
     vsg::ref_ptr<route::Topology> _topology;
-    int _fetched = 0;
+};
+
+class StagesModel : public QAbstractListModel
+{
+    Q_OBJECT
+public:
+    explicit StagesModel(QObject *parent = nullptr);
+
+    ~StagesModel();
+
+    void setStation(route::Station* station);
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const;
+    QVariant data(const QModelIndex &index, int role) const;
+
+    //bool insertStage(route::Station* to, vsg::ref_ptr<route::Stage> stg);
+    void reset();
+    bool removeRows(int row, int count, const QModelIndex &parent);
+
+private:
+    vsg::ref_ptr<route::Station> _station;
 };
 
 #endif // ROUTESMODEL_H

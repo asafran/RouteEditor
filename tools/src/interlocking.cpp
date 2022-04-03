@@ -2,7 +2,7 @@
 
 namespace route
 {
-    JunctionCommand::JunctionCommand(vsg::ref_ptr<Junction> j, bool state)
+    JunctionCommand::JunctionCommand(Junction *j, bool state)
         : vsg::Inherit<Command, JunctionCommand>()
         , _j(j)
         , _hint(state)
@@ -27,7 +27,7 @@ namespace route
     {
     }
 
-    SignalCommand::SignalCommand(vsg::ref_ptr<StSignal> sig, StSignal::FwdHint hint)
+    SignalCommand::SignalCommand(StSignal *sig, StSignal::FwdHint hint)
         : vsg::Inherit<Command, SignalCommand>()
         , _sig(sig)
         , _hint(hint)
@@ -80,29 +80,29 @@ namespace route
 
     bool Route::disassemble()
     {
-        for(const auto& trj : _trajs)
+        for(const auto& trj : trajs)
             if(trj->isBusy())
                 return false;
-        for(auto& cmd : _commands) cmd.disassemble();
-        for(auto& cmd : _jcommands) cmd.disassemble();
+        for(auto& cmd : commands) cmd->disassemble();
         return true;
     }
     bool Route::assemble()
     {
-        for(const auto& trj : _trajs)
+        for(const auto& trj : trajs)
             if(trj->isBusy())
                 return false;
-        for(auto& cmd : _commands) cmd.assemble();
-        for(auto& cmd : _jcommands) cmd.assemble();
+        for(auto& cmd : commands) cmd->assemble();
         return true;
     }
 
     bool Route::onlyJcts()
     {
-        for(const auto& trj : _trajs)
+        for(const auto& trj : trajs)
             if(trj->isBusy())
                 return false;
-        for(auto& cmd : _jcommands) cmd.assemble();
+        for(auto& cmd : commands)
+            if(cmd->is_compatible(typeid(JunctionCommand)))
+                cmd->assemble();
         return true;
     }
 
@@ -135,4 +135,48 @@ namespace route
     {
 
     }
+
+    Stage::Stage() : vsg::Inherit<vsg::Object, Stage>()
+    {
+
+    }
+
+    void Stage::read(vsg::Input &input)
+    {
+
+    }
+
+    void Stage::write(vsg::Output &output) const
+    {
+
+    }
+
+    StageCommand::StageCommand(Stage *stg, bool dir)
+        : vsg::Inherit<Command, StageCommand>()
+        , _stg(stg)
+        , _dir(dir)
+    {
+
+    }
+
+    void StageCommand::assemble()
+    {
+
+    }
+
+    void StageCommand::disassemble()
+    {
+
+    }
+
+    void StageCommand::read(vsg::Input &input)
+    {
+
+    }
+
+    void StageCommand::write(vsg::Output &output) const
+    {
+
+    }
+
 }

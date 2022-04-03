@@ -195,7 +195,7 @@ namespace route
         PREPARE_CLOSED,
         CLOSED,
         RESTR,
-        PREPARE_PREAPRE,
+        PREPARE_PREPARE,
         PREPARE_RESTR
     };
 

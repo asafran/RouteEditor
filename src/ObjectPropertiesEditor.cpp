@@ -4,7 +4,6 @@
 #include <vsg/traversals/ComputeBounds.h>
 #include "ParentVisitor.h"
 #include "tools.h"
-#include "stmodels.h"
 #include <QSignalBlocker>
 
 ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidget *parent) : Tool(database, parent)
@@ -18,6 +17,9 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
     auto stack = _database->undoStack;
 
     ui->stationBox->setModel(new StationsModel(_database->topology));
+
+    _sgmodel = new StagesModel();
+    ui->stageBox->setModel(_sgmodel);
 
     connect(stack, &QUndoStack::indexChanged, this, &ObjectPropertiesEditor::updateData);
 
@@ -179,11 +181,68 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
     {
         stack->push(new RenameObject(_firstObject.get(), text));
     });
+
+    connect(ui->stationBox, &QComboBox::currentIndexChanged, this, [this](int idx)
+    {
+        auto sig = _firstObject.cast<route::Signal>();
+        Q_ASSERT(sig);
+        if(_stidx != _database->topology->stations.end())
+            _stidx->second->rsignals.erase(sig);
+        if(idx == -1)
+        {
+            sig->station.clear();
+            return;
+        }
+        _stidx = std::next(_database->topology->stations.begin(), idx);
+        _stidx->second->rsignals.insert({sig, route::Routes::create()});
+        sig->station = _stidx->first;
+
+        _sgmodel->setStation(_stidx->second);
+    });
+
+    connect(ui->stageBox, &QComboBox::currentIndexChanged, this, [this](int idx)
+    {
+        //Q_ASSERT(ui->isOnStageBox->isChecked());
+        ui->isOnStageBox->setChecked(false);
+        _sgidx = std::next(_stidx->second->stages.begin(), ui->stageBox->currentIndex());
+        ui->isOnStageBox->setChecked(true);
+    });
+
+    connect(ui->revStageBox, &QCheckBox::clicked, this, [this](bool state)
+    {
+        Q_ASSERT(ui->isOnStageBox->isChecked());
+        ui->revStageBox->setChecked(!state);
+        ui->isOnStageBox->setChecked(false);
+        ui->revStageBox->setChecked(state);
+        ui->revStageBox->setChecked(true);
+    });
+
+    connect(ui->isOnStageBox, &QCheckBox::toggled, this, [this](bool state)
+    {
+        auto sig = _firstObject.cast<route::Signal>();
+        Q_ASSERT(sig);
+
+        auto &vec = ui->revStageBox->isChecked() ? _sgidx->second->bwdSignals : _sgidx->second->fwdSignals;
+
+        if(state)
+            vec.push_back(sig);
+        else
+        {
+            auto found = std::find(vec.begin(), vec.end(), sig);
+            Q_ASSERT(found != vec.end());
+            vec.erase(found);
+        }
+    });
 }
 
 ObjectPropertiesEditor::~ObjectPropertiesEditor()
 {
     delete ui;
+}
+
+void ObjectPropertiesEditor::updateStages()
+{
+    _sgmodel->reset();
 }
 
 void ObjectPropertiesEditor::updateRotation(double)
@@ -332,12 +391,26 @@ void ObjectPropertiesEditor::updateData()
     if(!_firstObject)
         return;
 
-    ui->stationBox->setEnabled(_firstObject->is_compatible(typeid (route::Signal)));
-
     if(_firstObject->is_compatible(typeid (route::RailPoint)))
     {
         //ui->rotXspin->setEnabled(false);
         ui->rotYspin->setEnabled(false);
+        ui->stationBox->setEnabled(false);
+    }
+    else if(_firstObject->is_compatible(typeid (route::Signal)))
+    {
+        ui->stationBox->setEnabled(true);
+        ui->stageBox->setEnabled(true);
+        _stidx = _database->topology->stations.find(_firstObject.cast<route::Signal>()->station);
+        if(_stidx != _database->topology->stations.end())
+            ui->stationBox->setCurrentIndex(std::distance(_database->topology->stations.begin(), _stidx));
+        else
+            ui->stationBox->setCurrentIndex(-1);
+    }
+    else
+    {
+        ui->stationBox->setEnabled(false);
+        ui->stageBox->setEnabled(false);
     }
 
     vsg::MatrixTransform *rmt = nullptr;

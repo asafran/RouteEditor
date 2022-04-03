@@ -48,8 +48,14 @@ set(SOURCES
     src/PointsModel.cpp
     src/SceneObjectVisitor.h
     src/SceneObjectVisitor.cpp
+    src/StageDialog.cpp
+    src/StageDialog.h
+    src/StageDialog.ui
     src/undo-redo.h
     src/undo-redo.cpp
+    src/InterlockDialog.h
+    src/InterlockDialog.cpp
+    src/InterlockDialog.ui
     src/main.cpp
 )
 

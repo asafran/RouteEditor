@@ -46,83 +46,138 @@ private:
 
 };
 
-class AddFwdSignal : public QUndoCommand
+class AddSignal : public QUndoCommand
 {
 public:
-    AddFwdSignal(route::RailConnector *rc,
-            vsg::ref_ptr<route::Signal> sig,
-            QUndoCommand *parent = nullptr)
+    AddSignal(route::RailConnector *rc,
+              vsg::ref_ptr<route::Signal> sig,
+              vsg::ref_ptr<route::Topology> topo,
+              QUndoCommand *parent = nullptr)
         : QUndoCommand(parent)
         , _rc(rc)
-        , _sig(sig)
-    {
-        setText(QObject::tr("Добавлен сигнал"));
-    }
+        , _sig(sig) {}
+
     void undo() override
     {
         _rc->setSignal(vsg::ref_ptr<route::Signal>());
+        if(_sig->station.empty())
+            return;
+        try {
+            auto sigs = _topo->stations.at(_sig->station)->rsignals;
+            _routes = sigs.at(_sig.get());
+            sigs.erase(_sig.get());
+        }  catch (std::out_of_range) {}
     }
     void redo() override
     {
         _rc->setSignal(_sig);
+        if(_sig->station.empty())
+            return;
+        try {
+            auto sigs = _topo->stations.at(_sig->station)->rsignals;
+            if(!_routes)
+                _routes = route::Routes::create();
+            sigs.insert({_sig, _routes});
+        }  catch (std::out_of_range) {}
     }
-private:
+protected:
     vsg::ref_ptr<route::RailConnector> _rc;
     vsg::ref_ptr<route::Signal> _sig;
+    vsg::ref_ptr<route::Routes> _routes;
+    vsg::ref_ptr<route::Topology> _topo;
 
 };
-class AddBwdSignal : public QUndoCommand
+
+class AddFwdSignal : public AddSignal
+{
+public:
+    AddFwdSignal(route::RailConnector *rc,
+                 vsg::ref_ptr<route::Signal> sig,
+                 vsg::ref_ptr<route::Topology> topo,
+                 QUndoCommand *parent = nullptr)
+        : AddSignal(rc, sig, topo, parent)
+    {
+        setText(QObject::tr("Добавлен сигнал, направление вперед"));
+    }
+
+    void undo() override
+    {
+        _rc->setSignal(vsg::ref_ptr<route::Signal>());
+        AddSignal::undo();
+    }
+    void redo() override
+    {
+        _rc->setSignal(_sig);
+        AddSignal::redo();
+    }
+};
+
+class AddBwdSignal : public AddSignal
 {
 public:
     AddBwdSignal(route::RailConnector *rc,
-            vsg::ref_ptr<route::Signal> sig,
-            QUndoCommand *parent = nullptr)
-        : QUndoCommand(parent)
-        , _rc(rc)
-        , _sig(sig)
+                 vsg::ref_ptr<route::Signal> sig,
+                 vsg::ref_ptr<route::Topology> topo,
+                 QUndoCommand *parent = nullptr)
+        : AddSignal(rc, sig, topo, parent)
     {
-        setText(QObject::tr("Добавлен сигнал"));
+        setText(QObject::tr("Добавлен сигнал, направление назад"));
     }
+
     void undo() override
     {
         _rc->setReverseSignal(vsg::ref_ptr<route::Signal>());
+        AddSignal::undo();
     }
     void redo() override
     {
         _rc->setReverseSignal(_sig);
+        AddSignal::redo();
     }
-private:
-    vsg::ref_ptr<route::RailConnector> _rc;
-    vsg::ref_ptr<route::Signal> _sig;
 
 };
-class RemoveSignal : public QUndoCommand
+class RemoveBwdSignal : public AddBwdSignal
 {
 public:
-    RemoveSignal(route::RailConnector *rc,
-            QUndoCommand *parent = nullptr)
-        : QUndoCommand(parent)
-        , _rc(rc)
-        , _fwdSig(rc->fwdSignal())
-        , _bwdSig(rc->bwdSignal())
+    RemoveBwdSignal(route::RailConnector *rc,
+                    vsg::ref_ptr<route::Topology> topo,
+                    QUndoCommand *parent = nullptr)
+        : AddBwdSignal(rc, rc->bwdSignal(), topo, parent)
     {
-        setText(QObject::tr("Удалены сигналы"));
+        setText(QObject::tr("Удален сигнал, направление назад"));
     }
+
     void undo() override
     {
-        _rc->setSignal(_fwdSig);
-        _rc->setReverseSignal(_bwdSig);
+        AddBwdSignal::redo();
     }
     void redo() override
     {
-        _rc->setSignal(vsg::ref_ptr<route::Signal>());
-        _rc->setReverseSignal(vsg::ref_ptr<route::Signal>());
+        AddBwdSignal::undo();
     }
-private:
-    vsg::ref_ptr<route::RailConnector> _rc;
-    vsg::ref_ptr<route::Signal> _fwdSig;
-    vsg::ref_ptr<route::Signal> _bwdSig;
 };
+
+class RemoveFwdSignal : public AddFwdSignal
+{
+public:
+    RemoveFwdSignal(route::RailConnector *rc,
+                    vsg::ref_ptr<route::Topology> topo,
+                    QUndoCommand *parent = nullptr)
+        : AddFwdSignal(rc, rc->fwdSignal(), topo, parent)
+    {
+        setText(QObject::tr("Удален сигнал, направление вперед"));
+    }
+
+    void undo() override
+    {
+        AddFwdSignal::redo();
+    }
+    void redo() override
+    {
+        AddFwdSignal::undo();
+    }
+};
+
 class RemoveNode : public QUndoCommand
 {
 public:

@@ -2,6 +2,7 @@
 #define OBJECTPROPERTIESEDITOR_H
 
 #include "tool.h"
+#include "stmodels.h"
 #include <QItemSelectionModel>
 #include <vsg/viewer/EllipsoidModel.h>
 
@@ -27,6 +28,8 @@ public slots:
     void move(const vsg::dvec3 &delta);
     void selectObject(route::SceneObject *object);
 
+    void updateStages();
+
     void updateRotation(double);
 
 signals:
@@ -43,6 +46,8 @@ private:
 
     Ui::ObjectPropertiesEditor *ui;
 
+    StagesModel *_sgmodel;
+
     vsg::ref_ptr<vsg::EllipsoidModel> _ellipsoidModel;
 
     vsg::ref_ptr<route::SceneObject> _firstObject;
@@ -50,6 +55,9 @@ private:
     std::map<QModelIndex, route::SceneObject*> _selectedObjects;
 
     bool _single = true;
+
+    std::map<std::string, vsg::ref_ptr<route::Station>>::iterator _stidx;
+    std::map<route::Station*, vsg::ref_ptr<route::Stage>>::iterator _sgidx;
 };
 
 #endif // OBJECTPROPERTIESEDITOR_H

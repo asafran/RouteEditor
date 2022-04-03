@@ -11,6 +11,8 @@ class RouteEndModel;
 
 namespace route
 {
+    class Stage;
+
     class Command : public vsg::Inherit<vsg::Object, Command>
     {
     public:
@@ -24,7 +26,7 @@ namespace route
     class JunctionCommand : public vsg::Inherit<Command, JunctionCommand>
     {
     public:
-        JunctionCommand(vsg::ref_ptr<Junction> j, bool state);
+        JunctionCommand(Junction *j, bool state);
 
         void assemble() override;
         void disassemble() override;
@@ -32,7 +34,6 @@ namespace route
         void read(vsg::Input &input) override;
         void write(vsg::Output &output) const override;
 
-    private:
         vsg::ref_ptr<Junction> _j;
         bool _hint;
     };
@@ -40,7 +41,7 @@ namespace route
     class SignalCommand : public vsg::Inherit<Command, SignalCommand>
     {
     public:
-        SignalCommand(vsg::ref_ptr<StSignal> sig, StSignal::FwdHint hint);
+        SignalCommand(StSignal *sig, StSignal::FwdHint hint);
 
         void assemble() override;
         void disassemble() override;
@@ -48,9 +49,23 @@ namespace route
         void read(vsg::Input &input) override;
         void write(vsg::Output &output) const override;
 
-    private:
         vsg::ref_ptr<StSignal> _sig;
         StSignal::FwdHint _hint;
+    };
+
+    class StageCommand : public vsg::Inherit<Command, StageCommand>
+    {
+    public:
+        StageCommand(Stage *stg, bool dir);
+
+        void assemble() override;
+        void disassemble() override;
+
+        void read(vsg::Input &input) override;
+        void write(vsg::Output &output) const override;
+
+        vsg::ref_ptr<Stage> _stg;
+        bool _dir;
     };
 
     class Route : public QObject, public vsg::Inherit<vsg::Object, Route>
@@ -66,14 +81,14 @@ namespace route
         bool assemble();
         bool onlyJcts();
 
+        std::vector<vsg::ref_ptr<Command>> commands;
+        std::vector<vsg::ref_ptr<Trajectory>> trajs;
+
     public slots:
         void passed(int ref);
 
     private:
-        std::vector<Command> _commands; //other
-        std::vector<JunctionCommand> _jcommands;
         int _count = 0;
-        std::vector<vsg::ref_ptr<Trajectory>> _trajs;
     };
 
     class Routes : public vsg::Inherit<vsg::Object, Routes>
@@ -84,10 +99,19 @@ namespace route
         void read(vsg::Input &input) override;
         void write(vsg::Output &output) const override;
 
-    private:
-        std::map<Signal*, Route> _routes;
+        std::map<Signal*, vsg::ref_ptr<Route>> routes;
+    };
 
-        friend class ::RouteEndModel;
+    class Stage : public vsg::Inherit<vsg::Object, Stage>
+    {
+    public:
+        Stage();
+
+        void read(vsg::Input &input) override;
+        void write(vsg::Output &output) const override;
+
+        std::vector<Signal*> fwdSignals;
+        std::vector<Signal*> bwdSignals;
     };
 
     class Station : public vsg::Inherit<vsg::Object, Station>
@@ -98,10 +122,8 @@ namespace route
         void read(vsg::Input &input) override;
         void write(vsg::Output &output) const override;
 
-    private:
-        std::map<Signal*, Routes> _signals;
-
-        friend class ::RouteBeginModel;
+        std::map<Signal*, vsg::ref_ptr<Routes>> rsignals;
+        std::map<Station*, vsg::ref_ptr<Stage>> stages;
     };
 }
 

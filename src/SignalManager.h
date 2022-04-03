@@ -22,7 +22,9 @@ private:
     //bool addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &isection);
     enum Types
     {
-        Auto
+        Auto,
+        Enter,
+        Exit
     };
 
     Ui::SignalManager *ui;

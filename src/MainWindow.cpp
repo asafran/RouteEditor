@@ -7,6 +7,7 @@
 #include <QErrorMessage>
 #include <QMessageBox>
 #include "undo-redo.h"
+#include "InterlockDialog.h"
 #include "LambdaVisitor.h"
 #include "ParentVisitor.h"
 #include "ContentManager.h"
@@ -132,6 +133,11 @@ MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
             ui->statusbar->showMessage(tr("Выберите объекты для создания слоя"), 3000);
     });
 
+    connect(ui->actionSig, &QAction::triggered, this, [this]()
+    {
+        InterlockDialog dialog(database, this);
+        dialog.exec();
+    });
 }
 
 

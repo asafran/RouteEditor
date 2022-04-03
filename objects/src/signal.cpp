@@ -119,7 +119,7 @@ namespace route
             {
             case route::PREPARE_CLOSED:
                 if(_fstate)
-                    state = PREPARE_PREAPRE;
+                    state = PREPARE_PREPARE;
                 else
                     state = OPENED;
                 break;
@@ -154,7 +154,7 @@ namespace route
                 _yanim->start();
                 break;
             }
-            case route::PREPARE_PREAPRE:
+            case route::PREPARE_PREPARE:
             {
                 _yanim->setDirection(QAbstractAnimation::Backward);
                 //_yanim->start();
@@ -197,7 +197,7 @@ namespace route
                 _yanim->start();
                 break;
             }
-            case route::PREPARE_PREAPRE:
+            case route::PREPARE_PREPARE:
             {
                 _yanim->setDirection(QAbstractAnimation::Forward);
 
@@ -273,7 +273,44 @@ namespace route
     EnterSignal::EnterSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
         : vsg::Inherit<StSignal, EnterSignal>(loaded, box, fstate)
     {
+        vsg::ref_ptr<vsg::Light> y2;
+        vsg::ref_ptr<vsg::Light> w;
+        auto findLights = [&w, &y2](vsg::Light& l) mutable
+        {
+            l.intensity = 0.0f;
+            if(l.name == "W_0")
+                w = vsg::ref_ptr<vsg::Light>(&l);
+            else if(l.name == "Y_1")
+                y2 = vsg::ref_ptr<vsg::Light>(&l);
+        };
+        LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
+        loaded->accept(lv);
 
+        _wanim = new LightAnimation(w, this);
+        _wanim->setDuration(1000);
+        _wanim->setStartValue(0.0f);
+        _wanim->setEndValue(_intensity);
+
+        _y2anim = new LightAnimation(y2, this);
+        _y2anim->setDuration(1000);
+        _y2anim->setStartValue(0.0f);
+        _y2anim->setEndValue(_intensity);
+
+        _wloop = new QSequentialAnimationGroup(this);
+
+        auto back = new LightAnimation(w, _loop);
+        back->setDuration(1000);
+        back->setStartValue(_intensity);
+        back->setEndValue(0.0f);
+
+        auto pause = new QPauseAnimation(_loop);
+        pause->setDuration(500);
+
+        _loop->addAnimation(_wanim);
+        _loop->addAnimation(pause);
+        _loop->addAnimation(back);
+
+        _loop->setLoopCount(-1);
     }
 
     EnterSignal::EnterSignal() {}
@@ -292,7 +329,123 @@ namespace route
 
     void EnterSignal::update()
     {
+        /*
+        State state = CLOSED;
+        if(_vcount == 0)
+        {
+            switch(_front)
+            {
+            case route::PREPARE_CLOSED:
+                if(_fstate)
+                    state = PREPARE_PREPARE;
+                else
+                    state = OPENED;
+                break;
+            case route::CLOSED:
+                state = PREPARE_CLOSED;
+                break;
+            case route::RESTR:
+                //if(_repeater)
+                    state = PREPARE_RESTR;
+                //else
+                    //state = OPENED;
+                break;
+            default:
+                state = OPENED;
+                break;
+            }
+        }
+        if(_state != state)
+        {
+            switch (_state) {
+            case route::RESTR:
+                break;
+            case route::OPENED:
+            {
+                _ganim->setDirection(QAbstractAnimation::Backward);
+                _ganim->start();
+                break;
+            }
+            case route::PREPARE_CLOSED:
+            {
+                _yanim->setDirection(QAbstractAnimation::Backward);
+                _yanim->start();
+                break;
+            }
+            case route::PREPARE_PREPARE:
+            {
+                _yanim->setDirection(QAbstractAnimation::Backward);
+                //_yanim->start();
 
+                _ganim->setDirection(QAbstractAnimation::Backward);
+                //_ganim->start();
+
+                QParallelAnimationGroup *group = new QParallelAnimationGroup;
+                group->addAnimation(_yanim);
+                group->addAnimation(_ganim);
+
+                group->start(QAbstractAnimation::DeleteWhenStopped);
+                break;
+            }
+            case route::PREPARE_RESTR:
+            {
+                _loop->stop();
+                break;
+            }
+            case route::CLOSED:
+            {
+                _ranim->setDirection(QAbstractAnimation::Backward);
+                _ranim->start();
+                break;
+            }
+            default:
+                break;
+            }
+
+            switch (state) {
+            case route::OPENED:
+            {
+                _ganim->setDirection(QAbstractAnimation::Forward);
+                _ganim->start();
+                break;
+            }
+            case route::PREPARE_CLOSED:
+            {
+                _yanim->setDirection(QAbstractAnimation::Forward);
+                _yanim->start();
+                break;
+            }
+            case route::PREPARE_PREPARE:
+            {
+                _yanim->setDirection(QAbstractAnimation::Forward);
+
+                _ganim->setDirection(QAbstractAnimation::Forward);
+
+                QParallelAnimationGroup *group = new QParallelAnimationGroup;
+                group->addAnimation(_yanim);
+                group->addAnimation(_ganim);
+
+                group->start(QAbstractAnimation::DeleteWhenStopped);
+                break;
+            }
+            case route::PREPARE_RESTR:
+            {
+                _loop->start();
+                break;
+            }
+            case route::CLOSED:
+            {
+                _ranim->setDirection(QAbstractAnimation::Forward);
+                _ranim->start();
+                break;
+            }
+            default:
+                break;
+            }
+            _state = state;
+            emit sendState(state);
+        }
+        */
     }
 
     ExitSignal::ExitSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)

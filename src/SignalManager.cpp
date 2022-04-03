@@ -28,7 +28,10 @@ void SignalManager::intersection(const FindNode &isection)
         return;
     if(ui->removeBox->isChecked())
     {
-        _database->undoStack->push(new RemoveSignal(isection.connector));
+        if(ui->reverseBox->isChecked())
+            _database->undoStack->push(new RemoveBwdSignal(isection.connector, _database->topology));
+        else
+            _database->undoStack->push(new RemoveFwdSignal(isection.connector, _database->topology));
         return;
     }
     if(ui->fileView->selectionModel()->selectedIndexes().isEmpty())
@@ -65,19 +68,24 @@ void SignalManager::intersection(const FindNode &isection)
 
     vsg::ref_ptr<route::Signal> sig;
 
+    bool fstate = ui->fstateBox->isChecked();
+
     switch (ui->typeBox->currentIndex()) {
     case Auto:
-    {
-        sig = route::AutoBlockSignal3::create(lod, _database->getStdWireBox(), ui->fstateBox->isChecked());
+        sig = route::AutoBlockSignal3::create(lod, _database->getStdWireBox(), fstate);
         break;
-    }
+    case Exit:
+        sig = route::ExitSignal::create(lod, _database->getStdWireBox(), fstate);
+        break;
+    case Enter:
+        sig = route::EnterSignal::create(lod, _database->getStdWireBox(), fstate);
     }
     sig->recalculateWireframe();
 
     if(!isection.connector->fwdSignal() && !ui->reverseBox->isChecked())
-        _database->undoStack->push(new AddFwdSignal(isection.connector, sig));
+        _database->undoStack->push(new AddFwdSignal(isection.connector, sig, _database->topology));
     else if(!isection.connector->bwdSignal() && ui->reverseBox->isChecked())
-        _database->undoStack->push(new AddBwdSignal(isection.connector, sig));
+        _database->undoStack->push(new AddBwdSignal(isection.connector, sig, _database->topology));
 
     emit sendStatusText(tr("Добавлен объект %1").arg(path.c_str()), 2000);
 }

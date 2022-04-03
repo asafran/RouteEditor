@@ -253,7 +253,7 @@
      <x>0</x>
      <y>0</y>
      <width>1920</width>
-     <height>36</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -273,6 +273,7 @@
     </property>
     <addaction name="actionUndo"/>
     <addaction name="actionRedo"/>
+    <addaction name="actionSig"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menu"/>
@@ -332,6 +333,11 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionSig">
+   <property name="text">
+    <string>Сигнализация</string>
    </property>
   </action>
  </widget>

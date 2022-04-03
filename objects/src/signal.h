@@ -29,6 +29,8 @@ namespace route
         void setFwdState(route::State state) { _front = state; update(); }
         void Ref(int c);
 
+        std::string station;
+
     signals:
         void sendCode(route::Code code);
         void sendState(route::State state);
@@ -87,7 +89,7 @@ namespace route
 
         void update() override;
 
-        enum FwdHint
+        enum FwdHint : int
         {
             CLOSE_SIG,
             NO,
@@ -120,7 +122,10 @@ namespace route
         void update() override;
 
     protected:
+        LightAnimation *_y2anim;
+        LightAnimation *_wanim;
 
+        QSequentialAnimationGroup *_wloop;
     };
 
     class ExitSignal : public vsg::Inherit<StSignal, ExitSignal>
