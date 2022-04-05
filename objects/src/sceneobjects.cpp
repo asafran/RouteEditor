@@ -310,26 +310,38 @@ namespace route
     void RailConnector::setFwdNull(Trajectory *caller)
     {
         if(caller == fwdTrajectory)
-            fwdTrajectory = nullptr;
-        else if(caller == trajectory)
         {
-            trajectory = fwdTrajectory;
-            fwdTrajectory = nullptr;
-            trajectory->connectSignalling();
+            if(_reverser)
+            {
+                fwdTrajectory = trajectory;
+                trajectory = nullptr;
+                fwdTrajectory->connectSignalling();
+            }
+            else
+                fwdTrajectory = nullptr;
         }
+        else if(caller == trajectory)
+            trajectory = nullptr;
+
         _reverser = false;
     }
 
     void RailConnector::setBwdNull(Trajectory *caller)
     {
         if(caller == trajectory)
-            trajectory = nullptr;
-        else if(caller == fwdTrajectory)
         {
-            fwdTrajectory = trajectory;
-            trajectory = nullptr;
-            fwdTrajectory->connectSignalling();
+            if(_reverser)
+            {
+                trajectory = fwdTrajectory;
+                fwdTrajectory = nullptr;
+                trajectory->connectSignalling();
+            }
+            else
+                trajectory = nullptr;
         }
+        else if(caller == fwdTrajectory)
+            fwdTrajectory = nullptr;
+
         _reverser = false;
     }
 
