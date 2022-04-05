@@ -547,12 +547,24 @@ namespace route
 
     void PointsTrajectory::read(vsg::Input &input)
     {
+        Group::read(input);
 
+        input.read("ltw", localToWorld);
+        input.read("path", _path);
+
+        input.read("fwdPoint", _fwdPoint);
+        input.read("bwdPoint", _bwdPoint);
     }
 
     void PointsTrajectory::write(vsg::Output &output) const
     {
+        Group::write(output);
 
+        output.write("ltw", localToWorld);
+        output.write("path", _path);
+
+        output.write("fwdPoint", _fwdPoint);
+        output.write("bwdPoint", _bwdPoint);
     }
 
     vsg::dvec3 PointsTrajectory::getCoordinate(double x) const
@@ -593,8 +605,8 @@ namespace route
         auto fwdStrPoint = StaticConnector::create(mrk, box, strait->locations.crbegin()->second.position);
         auto fwdSiPoint = StaticConnector::create(mrk, box, side->locations.crbegin()->second.position);
 
-        _strait = PointsTrajectory::create(name + "_str", _switcherPoint.cast<RailConnector>(), fwdStrPoint, strait);
-        _side = PointsTrajectory::create(name + "_side", _switcherPoint, fwdSiPoint, side);
+        _strait = PointsTrajectory::create(name + "_str", _switcherPoint.cast<RailConnector>(), fwdStrPoint, strait); //as traj
+        _side = PointsTrajectory::create(name + "_side", _switcherPoint, fwdSiPoint, side); //as side
     }
 
     Junction::Junction()

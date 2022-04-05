@@ -101,6 +101,7 @@ void RailsPointEditor::intersection(const FindNode& isection)
                 auto traj = front ? isection.connector->trajectory : isection.connector->fwdTrajectory;
                 if(auto straj = traj->cast<route::SplineTrajectory>(); straj)
                     _database->undoStack->push(new ConnectRails(connector, straj, front));
+                clearSelection();
             }
         }
         return;

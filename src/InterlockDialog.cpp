@@ -1,5 +1,6 @@
 #include "InterlockDialog.h"
 #include "ui_InterlockDialog.h"
+#include "RouteCmdDialog.h"
 
 InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
     : QDialog(parent)
@@ -17,6 +18,13 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
     ui->endList->setEnabled(false);
     ui->cmdList->setEnabled(false);
 
+    _beginModel = new RouteBeginModel(this);
+    _endModel = new RouteEndModel(this);
+    _cmdModel = new RouteCmdModel(this);
+    ui->beginList->setModel(_beginModel);
+    ui->endList->setModel(_endModel);
+    ui->cmdList->setModel(_cmdModel);
+
     connect(ui->searchLine, &QLineEdit::textChanged, _sorter, &TilesSorter::setFilterWildcard);
     /*connect(ui->tilesView->selectionModel(), &QItemSelectionModel::selectionChanged, sorter, &TilesSorter::viewSelectSlot);
     connect(ui->tilesView, &QTreeView::doubleClicked, sorter, &TilesSorter::viewDoubleClicked);
@@ -25,6 +33,7 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
     connect(sorter, &TilesSorter::viewExpandSignal, ui->tilesView, &QTreeView::expand);*/
 
     ui->stationBox->setModel(new StationsModel(_database->topology));
+    ui->stationBox->setCurrentIndex(0);
 
     connect(ui->stationBox, &QComboBox::currentIndexChanged, this, [this](int idx)
     {
@@ -38,11 +47,7 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
         ui->sigView->selectionModel()->clear();
         ui->endList->setEnabled(false);
         ui->cmdList->setEnabled(false);
-        auto m = ui->beginList->model();
-        auto nm = new RouteBeginModel(_station);
-        ui->beginList->setModel(nm);
-        ui->sigView->setModel(nm);
-        delete m;
+        _beginModel->setStation(_station);
     });
 
     connect(ui->beginList, &QListView::clicked, this, [this](const QModelIndex &index)
@@ -53,10 +58,8 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
             return;
         }
         _begin = std::next(_station->rsignals.begin(), index.row())->second;
-        auto m = ui->endList->model();
-        ui->endList->setModel(new RouteEndModel(_begin));
+        _endModel->setRoutes(_begin);
         ui->endList->setEnabled(true);
-        delete m;
     });
 
     connect(ui->endList, &QListView::clicked, this, [this](const QModelIndex &index)
@@ -67,16 +70,15 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
             return;
         }
         _route = std::next(_begin->routes.begin(), index.row())->second;
-        auto m = ui->cmdList->model();
-        ui->cmdList->setModel(new RouteCmdModel(_route));
+        _cmdModel->setRoute(_route);
         ui->cmdList->setEnabled(true);
-        delete m;
     });
 
     connect(ui->addRouteButt, &QPushButton::pressed, this, &InterlockDialog::addRoute);
     connect(ui->addJButt, &QPushButton::pressed, this, &InterlockDialog::addJcts);
     connect(ui->addTrajsButt, &QPushButton::pressed, this, &InterlockDialog::addTrajs);
     connect(ui->addSigButt, &QPushButton::pressed, this, &InterlockDialog::addSignal);
+    connect(ui->addRouteCmdButt, &QPushButton::pressed, this, &InterlockDialog::addRouteCommand);
 }
 
 InterlockDialog::~InterlockDialog()
@@ -170,13 +172,26 @@ void InterlockDialog::addRoute()
 
     _route = route::Route::create();
     _begin->routes.insert({signal->first, _route});
-    auto m = ui->endList->model();
-    ui->endList->setModel(new RouteEndModel(_begin));
+    _endModel->setRoutes(_begin);
     ui->endList->setEnabled(true);
-    delete m;
 
-    auto mr = ui->cmdList->model();
-    ui->cmdList->setModel(new RouteCmdModel(_route));
+    _cmdModel->setRoute(_route);
     ui->cmdList->setEnabled(true);
-    delete mr;
+}
+
+void InterlockDialog::addRouteCommand()
+{
+    if(!_station || !_route)
+    {
+        return;
+    }
+
+    RouteCmdDialog dialog(_database, this);
+    dialog.exec();
+
+    if(!dialog.route)
+        return;
+
+     _route->commands.push_back(route::RouteCommand::create(_route.get()));
+
 }

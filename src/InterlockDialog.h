@@ -23,16 +23,19 @@ public slots:
     void addJcts();
     void addSignal();
     void addRoute();
+    void addRouteCommand();
 
 private:
     Ui::InterlockDialog *ui;
 
     DatabaseManager *_database;
 
+    RouteBeginModel *_beginModel;
+    RouteEndModel *_endModel;
+    RouteCmdModel *_cmdModel;
+
     vsg::ref_ptr<route::Station> _station;
-
     vsg::ref_ptr<route::Routes> _begin;
-
     vsg::ref_ptr<route::Route> _route;
 
     TilesSorter *_sorter;

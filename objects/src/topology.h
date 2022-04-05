@@ -25,41 +25,19 @@ namespace route
         { if ((visitor.traversalMask & (visitor.overrideMask | route::Tracks)) != vsg::MASK_OFF) Group::traverse(visitor); }
         void traverse(vsg::RecordTraversal& visitor) const override { Group::traverse(visitor); }
 
-        //void assignBuilder(vsg::ref_ptr<vsg::Builder> builder);
-
-        //std::map<std::string, vsg::ref_ptr<SplineTrajectory>> trajectories;
-
         std::map<std::string, vsg::ref_ptr<Station>> stations;
-
-    protected:
-
-        //Map<std::string, Junction*> junctions;
-        //QMap<std::string, Signal*> signal;
-        //std::vector<vsg::ref_ptr<Trackside>>     trackside;
 
     };
 
-    class TopologyVisitor : vsg::ConstVisitor
+    class TopologyVisitor : public vsg::Visitor
     {
     public:
+        vsg::ref_ptr<vsg::Builder> builder;
 
-        QMap<QString, Junction*> junctions;
-        QMap<QString, Signal*> signal;
-        QMap<QString, Trajectory*> trajectories;
-
-        void apply(const vsg::Transform& node) override
+        void apply(vsg::Group& node) override
         {
-            if(auto object = node.cast<route::SceneObject>(); object)
-            {
-                /*
-                if(auto traj = node.cast<route::Trajectory>(); traj)
-                    trajectories.insert(traj)
-                else if(auto conn = node.cast<route::RailConnector>(); conn)
-                    connector = conn;
-                else if(auto point = node.cast<route::RailPoint>(); point)
-                    trackpoint = point;
-                 */
-            }
+            if(auto traj = node.cast<route::SplineTrajectory>(); traj)
+                traj->_builder = builder;
         }
     };
 }

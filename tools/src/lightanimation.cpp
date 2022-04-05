@@ -2,7 +2,7 @@
 
 LightAnimation::LightAnimation(vsg::ref_ptr<vsg::Light> l, QObject *parent)
     : QVariantAnimation{parent}
-    , _light(l)
+    , light(l)
 {
 
 }
@@ -10,5 +10,5 @@ LightAnimation::LightAnimation(vsg::ref_ptr<vsg::Light> l, QObject *parent)
 
 void LightAnimation::updateCurrentValue(const QVariant &value)
 {
-    _light->intensity = value.toFloat();
+    light->intensity = value.toFloat();
 }

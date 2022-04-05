@@ -180,6 +180,8 @@ namespace route
 
         input.read("tangent", _tangent);
         input.read("tilt", _tilt);
+        input.read("catheight", _cheight);
+
         input.read("fstTraj", trajectory);
     }
 
@@ -189,6 +191,8 @@ namespace route
 
         output.write("tangent", _tangent);
         output.write("tilt", _tilt);
+        output.write("catheight", _cheight);
+
         output.write("fstTraj", trajectory);
     }
 
@@ -240,18 +244,22 @@ namespace route
     {
         RailPoint::read(input);
 
-        input.read("sndTraj", fwdTrajectory);
         input.read("_fwdSignal", _fwdSignal);
         input.read("_bwdSignal", _bwdSignal);
+        input.read("reverser", _reverser);
+
+        input.read("sndTraj", fwdTrajectory);
     }
 
     void RailConnector::write(vsg::Output &output) const
     {
         RailPoint::write(output);
 
-        output.write("sndTraj", fwdTrajectory);
         output.write("_fwdSignal", _fwdSignal);
         output.write("_bwdSignal", _bwdSignal);
+        output.write("reverser", _reverser);
+
+        output.write("sndTraj", fwdTrajectory);
     }
 
     void RailConnector::recalculate()
@@ -466,6 +474,26 @@ namespace route
 
     SwitchConnector::~SwitchConnector()
     {
+    }
+
+    void SwitchConnector::read(vsg::Input &input)
+    {
+        RailConnector::read(input);
+
+        input.read("default", _state);
+        input.read("counter", _sideCounter);
+
+        input.read("sideTraj", sideTrajectory);
+    }
+
+    void SwitchConnector::write(vsg::Output &output) const
+    {
+        RailConnector::write(output);
+
+        output.write("default", _state);
+        output.write("counter", _sideCounter);
+
+        output.write("sideTraj", sideTrajectory);
     }
 
     void SwitchConnector::setFwd(Trajectory *caller)

@@ -25,6 +25,9 @@ set(SOURCES
     src/SignalManager.h
     src/SignalManager.cpp
     src/SignalManager.ui
+    src/RouteCmdDialog.h
+    src/RouteCmdDialog.cpp
+    src/RouteCmdDialog.ui
     src/tool.h
     src/tool.cpp
     src/Painter.h
@@ -48,9 +51,6 @@ set(SOURCES
     src/PointsModel.cpp
     src/SceneObjectVisitor.h
     src/SceneObjectVisitor.cpp
-    src/StageDialog.cpp
-    src/StageDialog.h
-    src/StageDialog.ui
     src/undo-redo.h
     src/undo-redo.cpp
     src/InterlockDialog.h

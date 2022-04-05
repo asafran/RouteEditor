@@ -28,9 +28,12 @@ DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Builder> in_bui
             topology = route::Topology::create();
             _database->setObject(app::TOPOLOGY, topology);
         }
-        //topology->assignBuilder(builder);
+        route::TopologyVisitor tv;
+        tv.builder = builder;
+        topology->accept(tv);
 
-    builder->options->objectCache->add(topology, app::TOPOLOGY);
+
+    //builder->options->objectCache->add(topology, app::TOPOLOGY);
 
     vsg::StateInfo si;
     si.lighting = false;

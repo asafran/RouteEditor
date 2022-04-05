@@ -11,8 +11,7 @@ class RouteEndModel;
 
 namespace route
 {
-    class Stage;
-
+    class Route;
     class Command : public vsg::Inherit<vsg::Object, Command>
     {
     public:
@@ -53,10 +52,10 @@ namespace route
         StSignal::FwdHint _hint;
     };
 
-    class StageCommand : public vsg::Inherit<Command, StageCommand>
+    class RouteCommand : public vsg::Inherit<Command, RouteCommand>
     {
     public:
-        StageCommand(Stage *stg, bool dir);
+        RouteCommand(Route *rt);
 
         void assemble() override;
         void disassemble() override;
@@ -64,8 +63,7 @@ namespace route
         void read(vsg::Input &input) override;
         void write(vsg::Output &output) const override;
 
-        vsg::ref_ptr<Stage> _stg;
-        bool _dir;
+        vsg::ref_ptr<Route> _rt;
     };
 
     class Route : public QObject, public vsg::Inherit<vsg::Object, Route>
@@ -102,18 +100,6 @@ namespace route
         std::map<Signal*, vsg::ref_ptr<Route>> routes;
     };
 
-    class Stage : public vsg::Inherit<vsg::Object, Stage>
-    {
-    public:
-        Stage();
-
-        void read(vsg::Input &input) override;
-        void write(vsg::Output &output) const override;
-
-        std::vector<Signal*> fwdSignals;
-        std::vector<Signal*> bwdSignals;
-    };
-
     class Station : public vsg::Inherit<vsg::Object, Station>
     {
     public:
@@ -123,7 +109,6 @@ namespace route
         void write(vsg::Output &output) const override;
 
         std::map<Signal*, vsg::ref_ptr<Routes>> rsignals;
-        std::map<Station*, vsg::ref_ptr<Stage>> stages;
     };
 }
 

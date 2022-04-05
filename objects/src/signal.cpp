@@ -15,12 +15,16 @@ namespace route
     {
         SceneObject::read(input);
 
+        input.read("station", station);
+        input.read("intensity", _intensity);
     }
 
     void Signal::write(vsg::Output &output) const
     {
         SceneObject::write(output);
 
+        output.write("station", station);
+        output.write("intensity", _intensity);
     }
 
     void Signal::Ref(int c)
@@ -30,8 +34,8 @@ namespace route
         update();
     }
 
-    AutoBlockSignal3::AutoBlockSignal3(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
-        : vsg::Inherit<Signal, AutoBlockSignal3>(loaded, box)
+    AutoBlockSignal::AutoBlockSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
+        : vsg::Inherit<Signal, AutoBlockSignal>(loaded, box)
         , _fstate(fstate)
     {
         //_signals.fill(vsg::ref_ptr<vsg::Light>());
@@ -51,6 +55,23 @@ namespace route
         LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
         loaded->accept(lv);
 
+        if(!r)
+            throw SigException{"R_0"};
+        else if(!y)
+            throw SigException{"Y_0"};
+        else if(!g)
+            throw SigException{"G_0"};
+
+        initSigs(r, y, g);
+    }
+
+    AutoBlockSignal::AutoBlockSignal()
+    {
+
+    }
+
+    void AutoBlockSignal::initSigs(vsg::ref_ptr<vsg::Light> r, vsg::ref_ptr<vsg::Light> y, vsg::ref_ptr<vsg::Light> g)
+    {
         _ranim = new LightAnimation(r, this);
         _ranim->setDuration(1000);
         _ranim->setStartValue(0.0f);
@@ -85,32 +106,38 @@ namespace route
         _loop->setLoopCount(-1);
     }
 
-    AutoBlockSignal3::AutoBlockSignal3()
+    AutoBlockSignal::~AutoBlockSignal()
     {
 
     }
 
-    AutoBlockSignal3::~AutoBlockSignal3()
-    {
-
-    }
-
-    void AutoBlockSignal3::read(vsg::Input &input)
+    void AutoBlockSignal::read(vsg::Input &input)
     {
         Signal::read(input);
 
-        input.read("frontSignal", _front);
+        vsg::ref_ptr<vsg::Light> r;
+        vsg::ref_ptr<vsg::Light> y;
+        vsg::ref_ptr<vsg::Light> g;
+
+        input.read("R_0", r);
+        input.read("Y_0", y);
+        input.read("G_0", g);
+
+        initSigs(r, y, g);
     }
 
-    void AutoBlockSignal3::write(vsg::Output &output) const
+    void AutoBlockSignal::write(vsg::Output &output) const
     {
         Signal::write(output);
 
+        output.write("R_0", _ranim->light);
+        output.write("Y_0", _yanim->light);
+        output.write("G_0", _ganim->light);
 
         output.write("frontSignal", _front);
     }
 
-    void AutoBlockSignal3::update()
+    void AutoBlockSignal::update()
     {
         State state = CLOSED;
         if(_vcount == 0)
@@ -230,7 +257,7 @@ namespace route
     }
 
     StSignal::StSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
-        : vsg::Inherit<AutoBlockSignal3, StSignal>(loaded, box, fstate) {}
+        : vsg::Inherit<AutoBlockSignal, StSignal>(loaded, box, fstate) {}
 
 
     StSignal::StSignal() {}
@@ -273,25 +300,37 @@ namespace route
     EnterSignal::EnterSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
         : vsg::Inherit<StSignal, EnterSignal>(loaded, box, fstate)
     {
-        vsg::ref_ptr<vsg::Light> y2;
+        vsg::ref_ptr<vsg::Light> y1;
         vsg::ref_ptr<vsg::Light> w;
-        auto findLights = [&w, &y2](vsg::Light& l) mutable
+        auto findLights = [&w, &y1](vsg::Light& l) mutable
         {
             l.intensity = 0.0f;
             if(l.name == "W_0")
                 w = vsg::ref_ptr<vsg::Light>(&l);
             else if(l.name == "Y_1")
-                y2 = vsg::ref_ptr<vsg::Light>(&l);
+                y1 = vsg::ref_ptr<vsg::Light>(&l);
         };
         LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
         loaded->accept(lv);
 
+        if(!w)
+            throw SigException{"W_0"};
+        else if(!y1)
+            throw SigException{"Y_1"};
+
+        initSigs(y1, w);
+    }
+
+    EnterSignal::EnterSignal() {}
+
+    void EnterSignal::initSigs(vsg::ref_ptr<vsg::Light> y1, vsg::ref_ptr<vsg::Light> w)
+    {
         _wanim = new LightAnimation(w, this);
         _wanim->setDuration(1000);
         _wanim->setStartValue(0.0f);
         _wanim->setEndValue(_intensity);
 
-        _y2anim = new LightAnimation(y2, this);
+        _y2anim = new LightAnimation(y1, this);
         _y2anim->setDuration(1000);
         _y2anim->setStartValue(0.0f);
         _y2anim->setEndValue(_intensity);
@@ -313,13 +352,19 @@ namespace route
         _loop->setLoopCount(-1);
     }
 
-    EnterSignal::EnterSignal() {}
-
     EnterSignal::~EnterSignal() {}
 
     void EnterSignal::read(vsg::Input &input)
     {
+        AutoBlockSignal::read(input);
 
+        vsg::ref_ptr<vsg::Light> y1;
+        vsg::ref_ptr<vsg::Light> w;
+
+        input.read("Y_1", y1);
+        input.read("W_0", w);
+
+        initSigs(y1, w);
     }
 
     void EnterSignal::write(vsg::Output &output) const

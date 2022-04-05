@@ -285,7 +285,7 @@ namespace route
 
         vsg::ref_ptr<vsg::Node> _sleeper;
 
-        friend class Topology;
+        friend class TopologyVisitor;
 
         friend class ::PointsModel;
 

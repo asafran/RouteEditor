@@ -41,6 +41,21 @@
        <string>Проходной</string>
       </property>
      </item>
+     <item>
+      <property name="text">
+       <string>Выходной</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Входной</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Маршрутный</string>
+      </property>
+     </item>
     </widget>
    </item>
    <item>

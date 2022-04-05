@@ -194,10 +194,20 @@ QWindow* MainWindow::initilizeVSGwindow()
     vsg::RegisterWithObjectFactoryProxy<route::RailPoint>();
     vsg::RegisterWithObjectFactoryProxy<route::RailConnector>();
     vsg::RegisterWithObjectFactoryProxy<route::StaticConnector>();
-    vsg::RegisterWithObjectFactoryProxy<route::AutoBlockSignal3>();
+    vsg::RegisterWithObjectFactoryProxy<route::SwitchConnector>();
+
+    vsg::RegisterWithObjectFactoryProxy<route::Signal>();
+    vsg::RegisterWithObjectFactoryProxy<route::AutoBlockSignal>();
+    vsg::RegisterWithObjectFactoryProxy<route::ExitSignal>();
+    vsg::RegisterWithObjectFactoryProxy<route::EnterSignal>();
+
+    vsg::RegisterWithObjectFactoryProxy<route::SplineTrajectory>();
+    vsg::RegisterWithObjectFactoryProxy<route::PointsTrajectory>();
+    vsg::RegisterWithObjectFactoryProxy<route::Junction>();
+
     vsg::RegisterWithObjectFactoryProxy<PointsGroup>();
     vsg::RegisterWithObjectFactoryProxy<route::Topology>();
-    vsg::RegisterWithObjectFactoryProxy<route::SplineTrajectory>();
+
 
     builder = vsg::Builder::create();
     builder->options = options;

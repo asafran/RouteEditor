@@ -9,9 +9,11 @@ class RouteBeginModel : public QAbstractListModel
 {
     Q_OBJECT
 public:
-    explicit RouteBeginModel(vsg::ref_ptr<route::Station> st, QObject *parent = nullptr);
+    explicit RouteBeginModel(QObject *parent = nullptr, route::Station* st = nullptr);
 
     ~RouteBeginModel();
+
+    void setStation(route::Station* st);
 
     int rowCount(const QModelIndex &parent) const;
     QVariant data(const QModelIndex &index, int role) const;
@@ -24,9 +26,11 @@ class RouteEndModel : public QAbstractListModel
 {
     Q_OBJECT
 public:
-    explicit RouteEndModel(vsg::ref_ptr<route::Routes> r, QObject *parent = nullptr);
+    explicit RouteEndModel(QObject *parent = nullptr, route::Routes* r = nullptr);
 
     ~RouteEndModel();
+
+    void setRoutes(route::Routes* r);
 
     int rowCount(const QModelIndex &parent) const;
     QVariant data(const QModelIndex &index, int role) const;
@@ -39,9 +43,11 @@ class RouteCmdModel : public QAbstractListModel
 {
     Q_OBJECT
 public:
-    explicit RouteCmdModel(vsg::ref_ptr<route::Route> r, QObject *parent = nullptr);
+    explicit RouteCmdModel(QObject *parent = nullptr, route::Route* r = nullptr);
 
     ~RouteCmdModel();
+
+    void setRoute(route::Route* r);
 
     int rowCount(const QModelIndex &parent) const;
     QVariant data(const QModelIndex &index, int role) const;
@@ -76,27 +82,6 @@ public:
 
 private:
     vsg::ref_ptr<route::Topology> _topology;
-};
-
-class StagesModel : public QAbstractListModel
-{
-    Q_OBJECT
-public:
-    explicit StagesModel(QObject *parent = nullptr);
-
-    ~StagesModel();
-
-    void setStation(route::Station* station);
-
-    int rowCount(const QModelIndex &parent = QModelIndex()) const;
-    QVariant data(const QModelIndex &index, int role) const;
-
-    //bool insertStage(route::Station* to, vsg::ref_ptr<route::Stage> stg);
-    void reset();
-    bool removeRows(int row, int count, const QModelIndex &parent);
-
-private:
-    vsg::ref_ptr<route::Station> _station;
 };
 
 #endif // ROUTESMODEL_H

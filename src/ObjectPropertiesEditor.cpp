@@ -12,14 +12,9 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 {
     ui->setupUi(this);
 
-    //setSpinEanbled(false);
-
     auto stack = _database->undoStack;
 
     ui->stationBox->setModel(new StationsModel(_database->topology));
-
-    _sgmodel = new StagesModel();
-    ui->stageBox->setModel(_sgmodel);
 
     connect(stack, &QUndoStack::indexChanged, this, &ObjectPropertiesEditor::updateData);
 
@@ -117,32 +112,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
         else
             move(delta);
     });
-/*
-    connect(ui->rotXspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
-    {
-        auto rad = qDegreesToRadians(d);
-        stack->push(new RotateObject(_firstObject, vsg::dquat(rad - _xrot, vsg::dvec3(1.0, 0.0, 0.0))));
-        _xrot = rad;
-        if(_selectedObjects.size() != 1)
-            emit sendStatusText(tr("Вращение нескольких объектов не поддерживается"), 2000);
-    });
-    connect(ui->rotYspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
-    {
-        auto rad = qDegreesToRadians(d);
-        stack->push(new RotateObject(_firstObject, vsg::dquat(rad - _yrot, vsg::dvec3(0.0, 1.0, 0.0))));
-        _yrot = rad;
-        if(_selectedObjects.size() != 1)
-            emit sendStatusText(tr("Вращение нескольких объектов не поддерживается"), 2000);
-    });
-    connect(ui->rotZspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
-    {
-        auto rad = qDegreesToRadians(d);
-        stack->push(new RotateObject(_firstObject, vsg::dquat(rad - _zrot, vsg::dvec3(0.0, 0.0, 1.0))));
-        _zrot = rad;
-        if(_selectedObjects.size() != 1)
-            emit sendStatusText(tr("Вращение нескольких объектов не поддерживается"), 2000);
-    });
-    */
+
     connect(ui->rotXspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updateRotation);
     connect(ui->rotYspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updateRotation);
     connect(ui->rotZspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updateRotation);
@@ -186,63 +156,23 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
     {
         auto sig = _firstObject.cast<route::Signal>();
         Q_ASSERT(sig);
-        if(_stidx != _database->topology->stations.end())
-            _stidx->second->rsignals.erase(sig);
+        if(_idx != _database->topology->stations.end())
+            _idx->second->rsignals.erase(sig);
         if(idx == -1)
         {
             sig->station.clear();
             return;
         }
-        _stidx = std::next(_database->topology->stations.begin(), idx);
-        _stidx->second->rsignals.insert({sig, route::Routes::create()});
-        sig->station = _stidx->first;
+        _idx = std::next(_database->topology->stations.begin(), idx);
+        _idx->second->rsignals.insert({sig, route::Routes::create()});
+        sig->station = _idx->first;
 
-        _sgmodel->setStation(_stidx->second);
-    });
-
-    connect(ui->stageBox, &QComboBox::currentIndexChanged, this, [this](int idx)
-    {
-        //Q_ASSERT(ui->isOnStageBox->isChecked());
-        ui->isOnStageBox->setChecked(false);
-        _sgidx = std::next(_stidx->second->stages.begin(), ui->stageBox->currentIndex());
-        ui->isOnStageBox->setChecked(true);
-    });
-
-    connect(ui->revStageBox, &QCheckBox::clicked, this, [this](bool state)
-    {
-        Q_ASSERT(ui->isOnStageBox->isChecked());
-        ui->revStageBox->setChecked(!state);
-        ui->isOnStageBox->setChecked(false);
-        ui->revStageBox->setChecked(state);
-        ui->revStageBox->setChecked(true);
-    });
-
-    connect(ui->isOnStageBox, &QCheckBox::toggled, this, [this](bool state)
-    {
-        auto sig = _firstObject.cast<route::Signal>();
-        Q_ASSERT(sig);
-
-        auto &vec = ui->revStageBox->isChecked() ? _sgidx->second->bwdSignals : _sgidx->second->fwdSignals;
-
-        if(state)
-            vec.push_back(sig);
-        else
-        {
-            auto found = std::find(vec.begin(), vec.end(), sig);
-            Q_ASSERT(found != vec.end());
-            vec.erase(found);
-        }
     });
 }
 
 ObjectPropertiesEditor::~ObjectPropertiesEditor()
 {
     delete ui;
-}
-
-void ObjectPropertiesEditor::updateStages()
-{
-    _sgmodel->reset();
 }
 
 void ObjectPropertiesEditor::updateRotation(double)
@@ -400,18 +330,14 @@ void ObjectPropertiesEditor::updateData()
     else if(_firstObject->is_compatible(typeid (route::Signal)))
     {
         ui->stationBox->setEnabled(true);
-        ui->stageBox->setEnabled(true);
-        _stidx = _database->topology->stations.find(_firstObject.cast<route::Signal>()->station);
-        if(_stidx != _database->topology->stations.end())
-            ui->stationBox->setCurrentIndex(std::distance(_database->topology->stations.begin(), _stidx));
+        _idx = _database->topology->stations.find(_firstObject.cast<route::Signal>()->station);
+        if(_idx != _database->topology->stations.end())
+            ui->stationBox->setCurrentIndex(std::distance(_database->topology->stations.begin(), _idx));
         else
             ui->stationBox->setCurrentIndex(-1);
     }
     else
-    {
         ui->stationBox->setEnabled(false);
-        ui->stageBox->setEnabled(false);
-    }
 
     vsg::MatrixTransform *rmt = nullptr;
     if(_firstObject->getValue(app::PARENT, rmt))

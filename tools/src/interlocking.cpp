@@ -136,45 +136,29 @@ namespace route
 
     }
 
-    Stage::Stage() : vsg::Inherit<vsg::Object, Stage>()
+    RouteCommand::RouteCommand(Route *rt)
+        : vsg::Inherit<Command, RouteCommand>()
+        , _rt(rt)
     {
 
     }
 
-    void Stage::read(vsg::Input &input)
+    void RouteCommand::assemble()
+    {
+        _rt->assemble();
+    }
+
+    void RouteCommand::disassemble()
+    {
+        _rt->disassemble();
+    }
+
+    void RouteCommand::read(vsg::Input &input)
     {
 
     }
 
-    void Stage::write(vsg::Output &output) const
-    {
-
-    }
-
-    StageCommand::StageCommand(Stage *stg, bool dir)
-        : vsg::Inherit<Command, StageCommand>()
-        , _stg(stg)
-        , _dir(dir)
-    {
-
-    }
-
-    void StageCommand::assemble()
-    {
-
-    }
-
-    void StageCommand::disassemble()
-    {
-
-    }
-
-    void StageCommand::read(vsg::Input &input)
-    {
-
-    }
-
-    void StageCommand::write(vsg::Output &output) const
+    void RouteCommand::write(vsg::Output &output) const
     {
 
     }

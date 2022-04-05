@@ -23,8 +23,9 @@ private:
     enum Types
     {
         Auto,
+        Exit,
         Enter,
-        Exit
+        Routing
     };
 
     Ui::SignalManager *ui;

@@ -297,6 +297,9 @@ namespace route
 
         virtual ~SwitchConnector();
 
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
         void setFwd(Trajectory *caller) override;
 
         //std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const override;

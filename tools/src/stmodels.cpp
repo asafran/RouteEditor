@@ -1,19 +1,26 @@
 #include "stmodels.h"
 
-RouteBeginModel::RouteBeginModel(vsg::ref_ptr<route::Station> st, QObject *parent)
+RouteBeginModel::RouteBeginModel(QObject *parent, route::Station *st)
     : QAbstractListModel{parent}
     , _st(st) {}
 
 RouteBeginModel::~RouteBeginModel() {}
 
+void RouteBeginModel::setStation(route::Station *st)
+{
+    beginResetModel();
+    _st = st;
+    endResetModel();
+}
+
 int RouteBeginModel::rowCount(const QModelIndex &parent) const
 {
-    return _st->rsignals.size();
+    return _st.valid() ? _st->rsignals.size() : 0;
 }
 
 QVariant RouteBeginModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || !(role == Qt::DisplayRole && role == Qt::EditRole))
+    if (!_st || !index.isValid() || !(role == Qt::DisplayRole && role == Qt::EditRole))
         return QVariant();
     Q_ASSERT(index.row() < _st->rsignals.size());
     auto it = std::next(_st->rsignals.cbegin(), index.row());
@@ -24,20 +31,27 @@ QVariant RouteBeginModel::data(const QModelIndex &index, int role) const
     return tr("Без литеры");
 }
 
-RouteEndModel::RouteEndModel(vsg::ref_ptr<route::Routes> r, QObject *parent)
+RouteEndModel::RouteEndModel(QObject *parent, route::Routes *r)
     : QAbstractListModel{parent}
     , _r(r) {}
 
 RouteEndModel::~RouteEndModel() {}
 
+void RouteEndModel::setRoutes(route::Routes *r)
+{
+    beginResetModel();
+    _r = r;
+    endResetModel();
+}
+
 int RouteEndModel::rowCount(const QModelIndex &parent) const
 {
-    return _r->routes.size();
+    return _r.valid() ? _r->routes.size() : 0;
 }
 
 QVariant RouteEndModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || !(role == Qt::DisplayRole && role == Qt::EditRole))
+    if (!_r || !index.isValid() || !(role == Qt::DisplayRole && role == Qt::EditRole))
         return QVariant();
     Q_ASSERT(index.row() < _r->routes.size());
     auto it = std::next(_r->routes.cbegin(), index.row());
@@ -132,11 +146,18 @@ bool StationsModel::removeRows(int row, int count, const QModelIndex &parent)
     return true;
 }
 
-RouteCmdModel::RouteCmdModel(vsg::ref_ptr<route::Route> r, QObject *parent)
+RouteCmdModel::RouteCmdModel(QObject *parent, route::Route* r)
     : QAbstractListModel{parent}
     , _r(r) {}
 
 RouteCmdModel::~RouteCmdModel() {}
+
+void RouteCmdModel::setRoute(route::Route *r)
+{
+    beginResetModel();
+    _r = r;
+    endResetModel();
+}
 
 int RouteCmdModel::rowCount(const QModelIndex &parent) const
 {
@@ -188,68 +209,4 @@ QVariant RouteCmdModel::data(const QModelIndex &index, int role) const
         return tr("Без имени");
     }
     return QVariant();
-}
-
-StagesModel::StagesModel(QObject *parent)
-    : QAbstractListModel(parent)
-{
-
-}
-
-StagesModel::~StagesModel()
-{
-
-}
-
-void StagesModel::setStation(route::Station *station)
-{
-    beginResetModel();
-    _station = station;
-    endResetModel();
-}
-
-int StagesModel::rowCount(const QModelIndex &parent) const
-{
-    return _station->stages.size();
-}
-
-QVariant StagesModel::data(const QModelIndex &index, int role) const
-{
-    if (!index.isValid() || !(role == Qt::DisplayRole || role == Qt::EditRole))
-        return QVariant();
-    Q_ASSERT(index.row() < _station->stages.size());
-    auto it = std::next(_station->stages.cbegin(), index.row());
-
-    std::string begin;
-    _station->getValue(app::NAME, begin);
-    std::string end;
-    it->first->getValue(app::NAME, end);
-    return (begin + " ===>>> " + end).c_str();
-}
-
-void StagesModel::reset()
-{
-    beginResetModel();
-    endResetModel();
-}
-/*
-bool StagesModel::insertStage(route::Station* to, vsg::ref_ptr<route::Stage> stg)
-{
-    if(_station->stages.find(to) != _station->stages.end())
-        return false;
-    beginResetModel();
-    _station->stages.insert({to, stg});
-    endResetModel();
-    return true;
-}
-*/
-bool StagesModel::removeRows(int row, int count, const QModelIndex &parent)
-{
-    if(count != 1)
-        return false;
-    beginRemoveRows(QModelIndex(), row, 1);
-    _station->stages.erase(std::next(_station->stages.begin(), row));
-    endRemoveRows();
-    emit dataChanged(index(0), index(rowCount()));
-    return true;
 }

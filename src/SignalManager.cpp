@@ -70,16 +70,23 @@ void SignalManager::intersection(const FindNode &isection)
 
     bool fstate = ui->fstateBox->isChecked();
 
-    switch (ui->typeBox->currentIndex()) {
-    case Auto:
-        sig = route::AutoBlockSignal3::create(lod, _database->getStdWireBox(), fstate);
-        break;
-    case Exit:
-        sig = route::ExitSignal::create(lod, _database->getStdWireBox(), fstate);
-        break;
-    case Enter:
-        sig = route::EnterSignal::create(lod, _database->getStdWireBox(), fstate);
+    try {
+        switch (ui->typeBox->currentIndex()) {
+        case Auto:
+            sig = route::AutoBlockSignal::create(lod, _database->getStdWireBox(), fstate);
+            break;
+        case Exit:
+            sig = route::ExitSignal::create(lod, _database->getStdWireBox(), fstate);
+            break;
+        case Enter:
+            sig = route::EnterSignal::create(lod, _database->getStdWireBox(), fstate);
+        case Routing:
+            break;
+        }
+    }  catch (route::SigException e) {
+        emit sendStatusText(tr("Отсутствует сигнал %1").arg(e.errL), 2000);
     }
+
     sig->recalculateWireframe();
 
     if(!isection.connector->fwdSignal() && !ui->reverseBox->isChecked())

@@ -13,6 +13,11 @@
 
 namespace route
 {
+    class SigException
+    {
+    public:
+        QString errL;
+    };
     class Signal : public QObject, public vsg::Inherit<SceneObject, Signal>
     {
         Q_OBJECT
@@ -36,8 +41,6 @@ namespace route
         void sendState(route::State state);
 
     protected:
-        vsg::ref_ptr<Trajectory> _code;
-
         State _front = CLOSED;
 
         State _state = OPENED;
@@ -49,14 +52,14 @@ namespace route
         friend class route::SwitchConnector;
     };
 
-    class AutoBlockSignal3 : public vsg::Inherit<Signal, AutoBlockSignal3>
+    class AutoBlockSignal : public vsg::Inherit<Signal, AutoBlockSignal>
     {
         Q_OBJECT
     public:
-        AutoBlockSignal3(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
-        AutoBlockSignal3();
+        AutoBlockSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        AutoBlockSignal();
 
-        virtual ~AutoBlockSignal3();
+        virtual ~AutoBlockSignal();
 
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
@@ -73,9 +76,12 @@ namespace route
 
         bool _fstate = false;
         bool _repeater = false;
+
+    private:
+        void initSigs(vsg::ref_ptr<vsg::Light> r, vsg::ref_ptr<vsg::Light> y, vsg::ref_ptr<vsg::Light> g);
     };
 
-    class StSignal : public vsg::Inherit<AutoBlockSignal3, StSignal>
+    class StSignal : public vsg::Inherit<AutoBlockSignal, StSignal>
     {
         Q_OBJECT
     public:
@@ -126,6 +132,9 @@ namespace route
         LightAnimation *_wanim;
 
         QSequentialAnimationGroup *_wloop;
+
+    private:
+        void initSigs(vsg::ref_ptr<vsg::Light> y2, vsg::ref_ptr<vsg::Light> w);
     };
 
     class ExitSignal : public vsg::Inherit<StSignal, ExitSignal>
