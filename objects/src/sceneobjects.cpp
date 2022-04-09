@@ -350,22 +350,22 @@ namespace route
         return trajectory == nullptr || fwdTrajectory == nullptr;
     }
 
-    void RailConnector::setSignal(vsg::ref_ptr<Signal> signal)
+    void RailConnector::setSignal(vsg::ref_ptr<signalling::Signal> signal)
     {
         if(_fwdSignal)
             disconnect(_fwdSignal, nullptr, this, nullptr);
         _fwdSignal = signal;
         if(_fwdSignal)
-            connect(_fwdSignal, &Signal::sendState, this, &RailConnector::sendBwdState);
+            connect(_fwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendBwdState);
     }
 
-    void RailConnector::setReverseSignal(vsg::ref_ptr<Signal> signal)
+    void RailConnector::setReverseSignal(vsg::ref_ptr<signalling::Signal> signal)
     {
         if(_bwdSignal)
             disconnect(_bwdSignal, nullptr, this, nullptr);
         _bwdSignal = signal;
         if(_bwdSignal)
-            connect(_bwdSignal, &Signal::sendState, this, &RailConnector::sendFwdState);
+            connect(_bwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendFwdState);
     }
 
     void RailConnector::traverse(vsg::Visitor &visitor)
@@ -395,7 +395,7 @@ namespace route
             _bwdSignal->accept(visitor);
     }
 
-    void RailConnector::receiveBwdDirState(State state)
+    void RailConnector::receiveBwdDirState(signalling::State state)
     {
         if(!_fwdSignal)
             emit sendBwdState(state);
@@ -404,7 +404,7 @@ namespace route
 
     }
 
-    void RailConnector::receiveFwdDirState(State state)
+    void RailConnector::receiveFwdDirState(signalling::State state)
     {
         if(!_bwdSignal)
             emit sendFwdState(state);
@@ -444,12 +444,12 @@ namespace route
             _fwdSignal->Unref();
     }
 */
-    vsg::ref_ptr<Signal> RailConnector::bwdSignal() const
+    vsg::ref_ptr<signalling::Signal> RailConnector::bwdSignal() const
     {
         return _bwdSignal;
     }
 
-    vsg::ref_ptr<Signal> RailConnector::fwdSignal() const
+    vsg::ref_ptr<signalling::Signal> RailConnector::fwdSignal() const
     {
         return _fwdSignal;
     }
@@ -473,9 +473,9 @@ namespace route
     SwitchConnector::SwitchConnector(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, const vsg::dvec3 &pos)
         : vsg::Inherit<StaticConnector, SwitchConnector>(loaded, box, pos)
     {
-        _fwdSignal = route::Signal::create(vsg::Node::create(), vsg::Node::create());
-        _bwdSignal = route::Signal::create(vsg::Node::create(), vsg::Node::create());
-        _sideCounter = route::Signal::create(vsg::Node::create(), vsg::Node::create());
+        _fwdSignal = signalling::Signal::create(vsg::Node::create(), vsg::Node::create());
+        _bwdSignal = signalling::Signal::create(vsg::Node::create(), vsg::Node::create());
+        _sideCounter = signalling::Signal::create(vsg::Node::create(), vsg::Node::create());
 
         _state = false;
     }
@@ -576,21 +576,21 @@ namespace route
         fwdTrajectory = tmp;
     }
 
-    void SwitchConnector::receiveBwdSideDirState(State state)
+    void SwitchConnector::receiveBwdSideDirState(signalling::State state)
     {
         _sideCounter->setFwdState(state);
         if(_state)
             emit sendBwdState(state);
     }
 
-    void SwitchConnector::receiveBwdDirState(State state)
+    void SwitchConnector::receiveBwdDirState(signalling::State state)
     {
         _fwdSignal->setFwdState(state);
         if(!_state)
             emit sendBwdState(state);
     }
 
-    void SwitchConnector::receiveFwdDirState(State state)
+    void SwitchConnector::receiveFwdDirState(signalling::State state)
     {
         _bwdSignal->setFwdState(state);
         if(_state)

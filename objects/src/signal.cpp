@@ -2,7 +2,7 @@
 #include "LambdaVisitor.h"
 #include <QPauseAnimation>
 
-namespace route
+namespace signalling
 {
     Signal::Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box)
         : QObject(nullptr), vsg::Inherit<SceneObject, Signal>(loaded, box) {}
@@ -25,6 +25,21 @@ namespace route
 
         output.write("station", station);
         output.write("intensity", _intensity);
+    }
+
+    void Signal::update()
+    {
+
+    }
+
+    State Signal::processState()
+    {
+
+    }
+
+    bool Signal::applyState(State state)
+    {
+
     }
 
     void Signal::Ref(int c)
@@ -137,51 +152,47 @@ namespace route
         output.write("frontSignal", _front);
     }
 
-    void AutoBlockSignal::update()
+    State AutoBlockSignal::processState() const
     {
-        State state = CLOSED;
+        State state = V0;
         if(_vcount == 0)
         {
             switch(_front)
             {
-            case route::PREPARE_CLOSED:
+            case VyV0:
                 if(_fstate)
-                    state = PREPARE_PREPARE;
+                    state = VyVyV0;
                 else
-                    state = OPENED;
+                    state = VyVy;
                 break;
-            case route::CLOSED:
-                state = PREPARE_CLOSED;
-                break;
-            case route::RESTR:
-                if(_repeater)
-                    state = PREPARE_RESTR;
-                else
-                    state = OPENED;
+            case V0:
+                state = VyV0;
                 break;
             default:
-                state = OPENED;
                 break;
             }
         }
+        return state;
+    }
+
+    void AutoBlockSignal::update()
+    {
         if(_state != state)
         {
             switch (_state) {
-            case route::RESTR:
-                break;
-            case route::OPENED:
+            case VyVy:
             {
                 _ganim->setDirection(QAbstractAnimation::Backward);
                 _ganim->start();
                 break;
             }
-            case route::PREPARE_CLOSED:
+            case VyV0:
             {
                 _yanim->setDirection(QAbstractAnimation::Backward);
                 _yanim->start();
                 break;
             }
-            case route::PREPARE_PREPARE:
+            case VyVyV0:
             {
                 _yanim->setDirection(QAbstractAnimation::Backward);
                 //_yanim->start();
@@ -514,5 +525,35 @@ namespace route
     {
 
     }
+
+}
+
+signalling::StRepSignal::StRepSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
+{
+
+}
+
+signalling::StRepSignal::StRepSignal()
+{
+
+}
+
+signalling::StRepSignal::~StRepSignal()
+{
+
+}
+
+void signalling::StRepSignal::read(vsg::Input &input)
+{
+
+}
+
+void signalling::StRepSignal::write(vsg::Output &output) const
+{
+
+}
+
+void signalling::StRepSignal::update()
+{
 
 }

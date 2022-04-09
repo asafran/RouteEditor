@@ -12,11 +12,39 @@
 class RailsPointEditor;
 class PointsModel;
 
+namespace signalling {
+    enum Code
+    {
+        G,
+        Y,
+        YR,
+        R,
+        W,
+        CodeCount
+    };
+
+    enum State
+    {
+        V0,
+        VyVy,
+        VyVyV0,
+        VyV0,
+        VyV1,
+        VyV2,
+        V1V0,
+        V1V1,
+        V2V0,
+        V2V1,
+        V2V2
+    };
+
+    class Signal;
+}
+
 namespace route
 {
     class Trajectory;
     class SplineTrajectory;
-    class Signal;
 
     class SceneObject : public vsg::Inherit<vsg::Transform, SceneObject>
     {
@@ -179,26 +207,6 @@ namespace route
         friend class ::PointsModel;
     };
 
-    enum Code
-    {
-        W,
-        R,
-        YR,
-        Y,
-        G,
-        CodeCount
-    };
-
-    enum State
-    {
-        OPENED,
-        PREPARE_CLOSED,
-        CLOSED,
-        RESTR,
-        PREPARE_PREPARE,
-        PREPARE_RESTR
-    };
-
     class RailConnector : public QObject, public vsg::Inherit<RailPoint, RailConnector>
     {
         Q_OBJECT
@@ -229,9 +237,9 @@ namespace route
 
         bool isFree() const;
 
-        void setSignal(vsg::ref_ptr<Signal> signal);
+        void setSignal(vsg::ref_ptr<signalling::Signal> signal);
 
-        void setReverseSignal(vsg::ref_ptr<Signal> signal);
+        void setReverseSignal(vsg::ref_ptr<signalling::Signal> signal);
 
         Trajectory *fwdTrajectory = nullptr;
 
@@ -239,13 +247,13 @@ namespace route
         void traverse(vsg::ConstVisitor& visitor) const override;
         void traverse(vsg::RecordTraversal& visitor) const override;
 
-        vsg::ref_ptr<Signal> fwdSignal() const;
+        vsg::ref_ptr<signalling::Signal> fwdSignal() const;
 
-        vsg::ref_ptr<Signal> bwdSignal() const;
+        vsg::ref_ptr<signalling::Signal> bwdSignal() const;
 
     public slots:
-        virtual void receiveBwdDirState(route::State state);
-        virtual void receiveFwdDirState(route::State state);
+        virtual void receiveBwdDirState(signalling::State state);
+        virtual void receiveFwdDirState(signalling::State state);
 
         virtual void receiveFwdDirRef(int c);
         virtual void receiveBwdDirRef(int c);
@@ -253,11 +261,11 @@ namespace route
         //void receiveBwdDirUnref(int c);
 
     signals:
-        void sendFwdCode(route::Code code);
-        void sendBwdCode(route::Code code);
+        void sendFwdCode(signalling::Code code);
+        void sendBwdCode(signalling::Code code);
 
-        void sendFwdState(route::State state);
-        void sendBwdState(route::State state);
+        void sendFwdState(signalling::State state);
+        void sendBwdState(signalling::State state);
 
         void sendFwdRef(int c);
         void sendBwdRef(int c);
@@ -267,8 +275,8 @@ namespace route
     protected:
         bool _reverser = false;
 
-        vsg::ref_ptr<Signal> _fwdSignal;
-        vsg::ref_ptr<Signal> _bwdSignal;
+        vsg::ref_ptr<signalling::Signal> _fwdSignal;
+        vsg::ref_ptr<signalling::Signal> _bwdSignal;
     };
 
     class StaticConnector : public vsg::Inherit<RailConnector, StaticConnector>
@@ -312,25 +320,25 @@ namespace route
 
     public slots:
         void receiveBwdSideDirRef(int c);
-        void receiveBwdSideDirState(route::State state);
+        void receiveBwdSideDirState(signalling::State state);
 
-        void receiveBwdDirState(route::State state) override;
-        void receiveFwdDirState(route::State state) override;
+        void receiveBwdDirState(signalling::State state) override;
+        void receiveFwdDirState(signalling::State state) override;
 
         void receiveFwdDirRef(int c) override;
         void receiveBwdDirRef(int c) override;
 
     signals:
-        void sendFwdSideCode(route::Code code);
+        void sendFwdSideCode(signalling::Code code);
 
-        void sendFwdSideState(route::State state);
+        void sendFwdSideState(signalling::State state);
 
         void sendFwdSideRef(int c);
 
     private:
         bool _state;
 
-        vsg::ref_ptr<route::Signal> _sideCounter;
+        vsg::ref_ptr<signalling::Signal> _sideCounter;
     };
 }
 

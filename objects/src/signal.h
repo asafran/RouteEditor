@@ -11,14 +11,14 @@
 #include <QPropertyAnimation>
 #include <QParallelAnimationGroup>
 
-namespace route
+namespace signalling
 {
     class SigException
     {
     public:
         QString errL;
     };
-    class Signal : public QObject, public vsg::Inherit<SceneObject, Signal>
+    class Signal : public QObject, public vsg::Inherit<route::SceneObject, Signal>
     {
         Q_OBJECT
     public:
@@ -30,20 +30,24 @@ namespace route
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        virtual void update() { }
-        void setFwdState(route::State state) { _front = state; update(); }
+        void update();
+
+        virtual State processState() const;
+        virtual bool applyState(State state);
+
+        void setFwdState(signalling::State state) { _front = state; update(); }
         void Ref(int c);
 
         std::string station;
 
     signals:
-        void sendCode(route::Code code);
-        void sendState(route::State state);
+        void sendCode(signalling::Code code);
+        void sendState(signalling::State state);
 
     protected:
-        State _front = CLOSED;
+        State _front = V0;
 
-        State _state = OPENED;
+        State _state = VyVy;
 
         int _vcount = 0;
 
@@ -64,8 +68,12 @@ namespace route
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        void update() override;
+        State processState() const override;
+        bool applyState(State state) override;
 
+        //void update() override;
+
+        virtual State getState() { return VyVy; }
     protected:
 
         LightAnimation *_ranim;
@@ -75,11 +83,26 @@ namespace route
         QSequentialAnimationGroup *_loop;
 
         bool _fstate = false;
-        bool _repeater = false;
 
     private:
         void initSigs(vsg::ref_ptr<vsg::Light> r, vsg::ref_ptr<vsg::Light> y, vsg::ref_ptr<vsg::Light> g);
     };
+
+    class StRepSignal : public vsg::Inherit<AutoBlockSignal, StRepSignal>
+    {
+        Q_OBJECT
+    public:
+        StRepSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        StRepSignal();
+
+        virtual ~StRepSignal();
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
+        void update() override;
+    };
+
 
     class StSignal : public vsg::Inherit<AutoBlockSignal, StSignal>
     {
