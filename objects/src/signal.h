@@ -30,15 +30,9 @@ namespace signalling
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        void update();
+        void setState(State hint);
 
-        void set(Hint hint);
-
-        virtual State processState() const;
-        virtual QAbstractAnimation* offState();
-        virtual QAbstractAnimation* applyState(State state);
-
-        virtual void setFwdState(signalling::State state) { _front = state; update(); }
+        virtual void setFwdState(signalling::State front);
         virtual void Ref(int c);
 
         std::string station;
@@ -48,11 +42,13 @@ namespace signalling
         void sendState(signalling::State state);
 
     protected:
+        virtual QAbstractAnimation* getAnim(State state, State front);
+
         State _front = V0;
 
-        State _state;
+        State _state = Off;
 
-        Hint _hint;
+        //Hint _hint = OffH;
 
         int _vcount = 0;
 
@@ -73,14 +69,11 @@ namespace signalling
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        State processState() const override;
-        QAbstractAnimation* offState() override;
-        QAbstractAnimation* applyState(State state) override;
-
-        void setFwdState(signalling::State state) override;
+        void setFwdState(signalling::State front) override;
         void Ref(int c) override;
 
     protected:
+        QAbstractAnimation* getAnim(State state, State front) override;
 
         LightAnimation *_sanim;
         LightAnimation *_wanim;
@@ -101,11 +94,8 @@ namespace signalling
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        State processState() const override;
-        QAbstractAnimation* offState() override;
-        QAbstractAnimation* applyState(State state) override;
-
     protected:
+        QAbstractAnimation* getAnim(State state, State front) override;
 
         LightAnimation *_w1anim;
 
@@ -125,11 +115,10 @@ namespace signalling
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
-        State processState() const override;
-        QAbstractAnimation* offState() override;
-        QAbstractAnimation* applyState(State state) override;
+        void Ref(int c) override;
 
     protected:
+        QAbstractAnimation* getAnim(State state, State front) override;
 
         LightAnimation *_ranim;
         LightAnimation *_yanim;
@@ -152,11 +141,9 @@ namespace signalling
 
         void read(vsg::Input& input) override;
 
-        State processState() const override;
-        QAbstractAnimation* offState() override;
-        QAbstractAnimation* applyState(State state) override;
-
     protected:
+        QAbstractAnimation* getAnim(State state, State front) override;
+
         QSequentialAnimationGroup *_gloop;
         QSequentialAnimationGroup *_yloop;
 
@@ -182,28 +169,51 @@ namespace signalling
         QAbstractAnimation* applyState(State state) override;
     };*/
 
-    class EnterSignal : public vsg::Inherit<AutoBlockSignal, EnterSignal>
+    class RouteSignal : public vsg::Inherit<StRepSignal, RouteSignal>
     {
         Q_OBJECT
     public:
-        EnterSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
-        EnterSignal();
+        RouteSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        RouteSignal();
 
-        virtual ~EnterSignal();
+        virtual ~RouteSignal();
 
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
     protected:
-        LightAnimation *_y2anim;
+        QAbstractAnimation* getAnim(State state, State front) override;
+
+        LightAnimation *_y1anim;
         LightAnimation *_wanim;
 
         QSequentialAnimationGroup *_wloop;
 
     private:
-        void initSigs(vsg::ref_ptr<vsg::Light> y2, vsg::ref_ptr<vsg::Light> w);
+        void initSigs(vsg::ref_ptr<vsg::Light> y1, vsg::ref_ptr<vsg::Light> w);
     };
 
+    class RouteV2Signal : public vsg::Inherit<RouteSignal, RouteV2Signal>
+    {
+        Q_OBJECT
+    public:
+        RouteV2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        RouteV2Signal();
+
+        virtual ~RouteV2Signal();
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
+    protected:
+        QAbstractAnimation* getAnim(State state, State front) override;
+
+        LightAnimation *_glineanim;
+
+    private:
+        void initSigs(vsg::ref_ptr<vsg::Light> line);
+    };
+/*
     class ExitSignal : public vsg::Inherit<AutoBlockSignal, ExitSignal>
     {
         Q_OBJECT
@@ -217,8 +227,9 @@ namespace signalling
         void write(vsg::Output& output) const override;
 
     protected:
+        QAbstractAnimation* getAnim(State state, State front) override;
 
     };
-
+*/
 }
 #endif // SIGNAL_H
