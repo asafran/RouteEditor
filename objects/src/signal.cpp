@@ -29,17 +29,30 @@ namespace signalling
 
     void Signal::update()
     {
-
+        auto state = processState();
+        if(_state != state)
+        {
+            auto *group = new QSequentialAnimationGroup;
+            if(auto off = getAnim(_state); off)
+            {
+                off->setDirection(QAbstractAnimation::Backward);
+                group->addAnimation(off);
+            }
+            if(auto on = getAnim(state); on)
+            {
+                on->setDirection(QAbstractAnimation::Forward);
+                group->addAnimation(on);
+            }
+            group->start(QAbstractAnimation::DeleteWhenStopped);
+            _state = state;
+            emit sendState(state);
+        }
     }
 
-    State Signal::processState()
+    void Signal::set(Hint hint)
     {
-
-    }
-
-    bool Signal::applyState(State state)
-    {
-
+        _hint = hint;
+        update();
     }
 
     void Signal::Ref(int c)
@@ -49,11 +62,179 @@ namespace signalling
         update();
     }
 
+    //------------------------------------------------------------------------------
+
+    ShSignal::ShSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box)
+        : vsg::Inherit<Signal, ShSignal>(loaded, box)
+    {
+        vsg::ref_ptr<vsg::Light> s;
+        vsg::ref_ptr<vsg::Light> w;
+        auto findLights = [&s, &w](vsg::Light& l) mutable
+        {
+            l.intensity = 0.0f;
+            if(l.name == "S_0")
+                s = vsg::ref_ptr<vsg::Light>(&l);
+            else if(l.name == "W_0")
+                w = vsg::ref_ptr<vsg::Light>(&l);
+        };
+        LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
+        loaded->accept(lv);
+
+        if(!s)
+            throw SigException{"S_0"};
+        else if(!w)
+            throw SigException{"Y_0"};
+
+        initSigs(s, w);
+    }
+
+    ShSignal::ShSignal() { _state = NoSh; }
+
+    ShSignal::~ShSignal() {}
+
+    void ShSignal::read(vsg::Input &input)
+    {
+        Signal::read(input);
+
+        vsg::ref_ptr<vsg::Light> s;
+        vsg::ref_ptr<vsg::Light> w;
+
+        input.read("S_0", s);
+        input.read("W_0", w);
+
+        initSigs(s, w);
+    }
+
+    void ShSignal::write(vsg::Output &output) const
+    {
+        Signal::write(output);
+
+        output.write("R_0", _sanim->light);
+        output.write("Y_0", _wanim->light);
+    }
+
+    State ShSignal::processState() const
+    {
+        switch (_hint) {
+        case ShH:
+            return Sh;
+        default:
+            return NoSh;
+        }
+    }
+
+    QAbstractAnimation* ShSignal::getAnim(State state)
+    {
+        switch (state) {
+        case Sh:
+            return _wanim;
+        case NoSh:
+            return _sanim;
+        default:
+            return nullptr;
+        }
+    }
+
+    void ShSignal::initSigs(vsg::ref_ptr<vsg::Light> s, vsg::ref_ptr<vsg::Light> w)
+    {
+        _state = NoSh;
+
+        _sanim = new LightAnimation(s, this);
+        _sanim->setDuration(1000);
+        _sanim->setStartValue(0.0f);
+        _sanim->setEndValue(_intensity);
+
+        _wanim = new LightAnimation(w, this);
+        _wanim->setDuration(1000);
+        _wanim->setStartValue(0.0f);
+        _wanim->setEndValue(_intensity);
+
+        _sanim->start();
+    }
+
+    //------------------------------------------------------------------------------
+
+    Sh2Signal::Sh2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box)
+        : vsg::Inherit<ShSignal, Sh2Signal>(loaded, box)
+    {
+        vsg::ref_ptr<vsg::Light> w1;
+        auto findLights = [&w1](vsg::Light& l) mutable
+        {
+            l.intensity = 0.0f;
+            if(l.name == "W_1")
+                w1 = vsg::ref_ptr<vsg::Light>(&l);
+        };
+        LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
+        loaded->accept(lv);
+
+        if(!w1)
+            throw SigException{"W_1"};
+
+        initSigs(w1);
+    }
+
+    Sh2Signal::Sh2Signal() : vsg::Inherit<ShSignal, Sh2Signal>() {}
+
+    Sh2Signal::~Sh2Signal() {}
+
+    void Sh2Signal::read(vsg::Input &input)
+    {
+        ShSignal::read(input);
+
+        vsg::ref_ptr<vsg::Light> w1;
+
+        input.read("W_1", w1);
+
+        initSigs(w1);
+    }
+
+    void Sh2Signal::write(vsg::Output &output) const
+    {
+        ShSignal::write(output);
+
+        output.write("W_1", _w1anim->light);
+    }
+
+    State Sh2Signal::processState() const
+    {
+        switch (_hint) {
+        case ShH:
+            return Sh;
+        case Sh2H:
+            return Sh2;
+        default:
+            return NoSh;
+        }
+    }
+
+    QAbstractAnimation *Sh2Signal::getAnim(State state)
+    {
+        switch (state) {
+        case Sh:
+            return _wanim;
+        case Sh2:
+            return _w1anim;
+        case NoSh:
+            return _sanim;
+        default:
+            return nullptr;
+        }
+    }
+
+    void Sh2Signal::initSigs(vsg::ref_ptr<vsg::Light> w1)
+    {
+        _w1anim = new LightAnimation(w1, this);
+        _w1anim->setDuration(1000);
+        _w1anim->setStartValue(0.0f);
+        _w1anim->setEndValue(_intensity);
+    }
+
+    //------------------------------------------------------------------------------
+
     AutoBlockSignal::AutoBlockSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
         : vsg::Inherit<Signal, AutoBlockSignal>(loaded, box)
         , _fstate(fstate)
     {
-        //_signals.fill(vsg::ref_ptr<vsg::Light>());
         vsg::ref_ptr<vsg::Light> r;
         vsg::ref_ptr<vsg::Light> y;
         vsg::ref_ptr<vsg::Light> g;
@@ -80,10 +261,8 @@ namespace signalling
         initSigs(r, y, g);
     }
 
-    AutoBlockSignal::AutoBlockSignal()
-    {
+    AutoBlockSignal::AutoBlockSignal() : vsg::Inherit<Signal, AutoBlockSignal>() {}
 
-    }
 
     void AutoBlockSignal::initSigs(vsg::ref_ptr<vsg::Light> r, vsg::ref_ptr<vsg::Light> y, vsg::ref_ptr<vsg::Light> g)
     {
@@ -103,22 +282,6 @@ namespace signalling
         _ganim->setEndValue(_intensity);
 
         _ganim->start();
-
-        _loop = new QSequentialAnimationGroup(this);
-
-        auto back = new LightAnimation(y, _loop);
-        back->setDuration(1000);
-        back->setStartValue(_intensity);
-        back->setEndValue(0.0f);
-
-        auto pause = new QPauseAnimation(_loop);
-        pause->setDuration(500);
-
-        _loop->addAnimation(_yanim);
-        _loop->addAnimation(pause);
-        _loop->addAnimation(back);
-
-        _loop->setLoopCount(-1);
     }
 
     AutoBlockSignal::~AutoBlockSignal()
@@ -148,8 +311,6 @@ namespace signalling
         output.write("R_0", _ranim->light);
         output.write("Y_0", _yanim->light);
         output.write("G_0", _ganim->light);
-
-        output.write("frontSignal", _front);
     }
 
     State AutoBlockSignal::processState() const
@@ -168,148 +329,159 @@ namespace signalling
             case V0:
                 state = VyV0;
                 break;
+            case Sh:
+            case Sh2:
+            case NoSh:
+                state = V0;
             default:
+                state = VyVy;
                 break;
             }
         }
         return state;
     }
 
-    void AutoBlockSignal::update()
+    QAbstractAnimation* AutoBlockSignal::getAnim(State state)
     {
-        if(_state != state)
+        switch (_state) {
+        case VyVy:
+            return _ganim;
+        case VyV0:
+            return _yanim;
+        case VyVyV0:
         {
-            switch (_state) {
-            case VyVy:
-            {
-                _ganim->setDirection(QAbstractAnimation::Backward);
-                _ganim->start();
-                break;
-            }
-            case VyV0:
-            {
-                _yanim->setDirection(QAbstractAnimation::Backward);
-                _yanim->start();
-                break;
-            }
-            case VyVyV0:
-            {
-                _yanim->setDirection(QAbstractAnimation::Backward);
-                //_yanim->start();
+            QParallelAnimationGroup *group = new QParallelAnimationGroup;
+            group->addAnimation(_yanim);
+            group->addAnimation(_ganim);
 
-                _ganim->setDirection(QAbstractAnimation::Backward);
-                //_ganim->start();
-
-                QParallelAnimationGroup *group = new QParallelAnimationGroup;
-                group->addAnimation(_yanim);
-                group->addAnimation(_ganim);
-
-                group->start(QAbstractAnimation::DeleteWhenStopped);
-                break;
-            }
-            case route::PREPARE_RESTR:
-            {
-                _loop->stop();
-                break;
-            }
-            case route::CLOSED:
-            {
-                _ranim->setDirection(QAbstractAnimation::Backward);
-                _ranim->start();
-                break;
-            }
-            default:
-                break;
-            }
-
-            switch (state) {
-            case route::OPENED:
-            {
-                _ganim->setDirection(QAbstractAnimation::Forward);
-                _ganim->start();
-                break;
-            }
-            case route::PREPARE_CLOSED:
-            {
-                _yanim->setDirection(QAbstractAnimation::Forward);
-                _yanim->start();
-                break;
-            }
-            case route::PREPARE_PREPARE:
-            {
-                _yanim->setDirection(QAbstractAnimation::Forward);
-
-                _ganim->setDirection(QAbstractAnimation::Forward);
-
-                QParallelAnimationGroup *group = new QParallelAnimationGroup;
-                group->addAnimation(_yanim);
-                group->addAnimation(_ganim);
-
-                group->start(QAbstractAnimation::DeleteWhenStopped);
-                break;
-            }
-            case route::PREPARE_RESTR:
-            {
-                _loop->start();
-                break;
-            }
-            case route::CLOSED:
-            {
-                _ranim->setDirection(QAbstractAnimation::Forward);
-                _ranim->start();
-                break;
-            }
-            default:
-                break;
-            }
-            _state = state;
-            emit sendState(state);
+            return group;
+        }
+        case V0:
+            return _ranim;
+        default:
+            return nullptr;
         }
     }
 
-    StSignal::StSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
-        : vsg::Inherit<AutoBlockSignal, StSignal>(loaded, box, fstate) {}
+    //------------------------------------------------------------------------------
 
-
-    StSignal::StSignal() {}
-
-
-    StSignal::~StSignal() {}
-
-
-    void StSignal::read(vsg::Input &input)
+    StRepSignal::StRepSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
+        : vsg::Inherit<AutoBlockSignal, StRepSignal>(loaded, box, fstate)
     {
-
+        initSigs();
     }
 
+    StRepSignal::StRepSignal()
+        : vsg::Inherit<AutoBlockSignal, StRepSignal>() {}
 
-    void StSignal::write(vsg::Output &output) const
+    StRepSignal::~StRepSignal() {}
+
+    void StRepSignal::read(vsg::Input &input)
     {
-
+        AutoBlockSignal::read(input);
+        initSigs();
     }
 
-
-    void StSignal::update()
+    State StRepSignal::processState() const
     {
-
+        State state = V0;
+        if(_vcount == 0)
+        {
+            switch(_front)
+            {
+            case V1V0:
+            case V1V1:
+                state = VyV1;
+                break;
+            case V2V0:
+            case V2V1:
+            case V2V2:
+                state = VyV2;
+                break;
+            default:
+                return AutoBlockSignal::processState();
+            }
+        }
+        return state;
     }
 
-
-    void StSignal::open(FwdHint hint)
+    QAbstractAnimation* StRepSignal::getAnim(State state)
     {
-        _restrHint = hint;
-        update();
+        if(state == _state)
+            switch (state) {
+            case V1V1:
+            case V2V1:
+            case VyV1:
+            {
+                _yloop->stop();
+                return nullptr;
+            }
+            case V2V2:
+            case VyV2:
+            {
+                _gloop->stop();
+                return nullptr;
+            }
+            default:
+                break;
+            }
+        else
+            switch (state) {
+            case V1V1:
+            case V2V1:
+            case VyV1:
+            {
+                _yloop->start();
+                return nullptr;
+            }
+            case V2V2:
+            case VyV2:
+            {
+                _gloop->start();
+                return nullptr;
+            }
+            default:
+                break;
+            }
+        return AutoBlockSignal::getAnim(state);
     }
 
-
-    void StSignal::close()
+    void StRepSignal::initSigs()
     {
-        _restrHint = CLOSE_SIG;
-        update();
+        _yloop = new QSequentialAnimationGroup(this);
+
+        auto back = new LightAnimation(_yanim->light, _yloop);
+        back->setDuration(1000);
+        back->setStartValue(_intensity);
+        back->setEndValue(0.0f);
+
+        auto pause = new QPauseAnimation(_yloop);
+        pause->setDuration(500);
+
+        _yloop->addAnimation(_yanim);
+        _yloop->addAnimation(pause);
+        _yloop->addAnimation(back);
+
+        _yloop->setLoopCount(-1);
+
+        _gloop = new QSequentialAnimationGroup(this);
+
+        back = new LightAnimation(_ganim->light, _gloop);
+        back->setDuration(1000);
+        back->setStartValue(_intensity);
+        back->setEndValue(0.0f);
+
+        _gloop->addAnimation(_yanim);
+        _gloop->addAnimation(pause);
+        _gloop->addAnimation(back);
+
+        _gloop->setLoopCount(-1);
     }
 
-    EnterSignal::EnterSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
-        : vsg::Inherit<StSignal, EnterSignal>(loaded, box, fstate)
+    //------------------------------------------------------------------------------
+
+    RouteSignal::RouteSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
+        : vsg::Inherit<StRepSignal, RouteSignal>(loaded, box, fstate)
     {
         vsg::ref_ptr<vsg::Light> y1;
         vsg::ref_ptr<vsg::Light> w;
@@ -332,9 +504,9 @@ namespace signalling
         initSigs(y1, w);
     }
 
-    EnterSignal::EnterSignal() {}
+    RouteSignal::RouteSignal() : vsg::Inherit<StRepSignal, RouteSignal>() {}
 
-    void EnterSignal::initSigs(vsg::ref_ptr<vsg::Light> y1, vsg::ref_ptr<vsg::Light> w)
+    void RouteSignal::initSigs(vsg::ref_ptr<vsg::Light> y1, vsg::ref_ptr<vsg::Light> w)
     {
         _wanim = new LightAnimation(w, this);
         _wanim->setDuration(1000);
@@ -348,24 +520,24 @@ namespace signalling
 
         _wloop = new QSequentialAnimationGroup(this);
 
-        auto back = new LightAnimation(w, _loop);
+        auto back = new LightAnimation(w, _wloop);
         back->setDuration(1000);
         back->setStartValue(_intensity);
         back->setEndValue(0.0f);
 
-        auto pause = new QPauseAnimation(_loop);
+        auto pause = new QPauseAnimation(_wloop);
         pause->setDuration(500);
 
-        _loop->addAnimation(_wanim);
-        _loop->addAnimation(pause);
-        _loop->addAnimation(back);
+        _wloop->addAnimation(_wanim);
+        _wloop->addAnimation(pause);
+        _wloop->addAnimation(back);
 
-        _loop->setLoopCount(-1);
+        _wloop->setLoopCount(-1);
     }
 
-    EnterSignal::~EnterSignal() {}
+    RouteSignal::~RouteSignal() {}
 
-    void EnterSignal::read(vsg::Input &input)
+    void RouteSignal::read(vsg::Input &input)
     {
         AutoBlockSignal::read(input);
 
@@ -378,131 +550,110 @@ namespace signalling
         initSigs(y1, w);
     }
 
-    void EnterSignal::write(vsg::Output &output) const
+    void RouteSignal::write(vsg::Output &output) const
     {
 
     }
 
-    void EnterSignal::update()
+    State RouteSignal::processState() const
     {
-        /*
-        State state = CLOSED;
+        State state = V0;
         if(_vcount == 0)
         {
             switch(_front)
             {
-            case route::PREPARE_CLOSED:
-                if(_fstate)
-                    state = PREPARE_PREPARE;
-                else
-                    state = OPENED;
+            case V1V0:
+            case V1V1:
+                state = VyV1;
                 break;
-            case route::CLOSED:
-                state = PREPARE_CLOSED;
-                break;
-            case route::RESTR:
-                //if(_repeater)
-                    state = PREPARE_RESTR;
-                //else
-                    //state = OPENED;
+            case V2V0:
+            case V2V1:
+            case V2V2:
+                state = VyV2;
                 break;
             default:
-                state = OPENED;
+                return AutoBlockSignal::processState();
                 break;
             }
         }
-        if(_state != state)
-        {
-            switch (_state) {
-            case route::RESTR:
-                break;
-            case route::OPENED:
-            {
-                _ganim->setDirection(QAbstractAnimation::Backward);
-                _ganim->start();
-                break;
-            }
-            case route::PREPARE_CLOSED:
-            {
-                _yanim->setDirection(QAbstractAnimation::Backward);
-                _yanim->start();
-                break;
-            }
-            case route::PREPARE_PREPARE:
-            {
-                _yanim->setDirection(QAbstractAnimation::Backward);
-                //_yanim->start();
-
-                _ganim->setDirection(QAbstractAnimation::Backward);
-                //_ganim->start();
-
-                QParallelAnimationGroup *group = new QParallelAnimationGroup;
-                group->addAnimation(_yanim);
-                group->addAnimation(_ganim);
-
-                group->start(QAbstractAnimation::DeleteWhenStopped);
-                break;
-            }
-            case route::PREPARE_RESTR:
-            {
-                _loop->stop();
-                break;
-            }
-            case route::CLOSED:
-            {
-                _ranim->setDirection(QAbstractAnimation::Backward);
-                _ranim->start();
-                break;
-            }
-            default:
-                break;
-            }
-
-            switch (state) {
-            case route::OPENED:
-            {
-                _ganim->setDirection(QAbstractAnimation::Forward);
-                _ganim->start();
-                break;
-            }
-            case route::PREPARE_CLOSED:
-            {
-                _yanim->setDirection(QAbstractAnimation::Forward);
-                _yanim->start();
-                break;
-            }
-            case route::PREPARE_PREPARE:
-            {
-                _yanim->setDirection(QAbstractAnimation::Forward);
-
-                _ganim->setDirection(QAbstractAnimation::Forward);
-
-                QParallelAnimationGroup *group = new QParallelAnimationGroup;
-                group->addAnimation(_yanim);
-                group->addAnimation(_ganim);
-
-                group->start(QAbstractAnimation::DeleteWhenStopped);
-                break;
-            }
-            case route::PREPARE_RESTR:
-            {
-                _loop->start();
-                break;
-            }
-            case route::CLOSED:
-            {
-                _ranim->setDirection(QAbstractAnimation::Forward);
-                _ranim->start();
-                break;
-            }
-            default:
-                break;
-            }
-            _state = state;
-            emit sendState(state);
-        }
-        */
+        return state;
     }
+
+    QAbstractAnimation* RouteSignal::getAnim(State state)
+    {
+        switch (state) {
+        case V1V0:
+        {
+            QParallelAnimationGroup *group = new QParallelAnimationGroup;
+            group->addAnimation(_yanim);
+            group->addAnimation(_ganim);
+
+            return group;
+        }
+        case V2V0:
+        {
+            QParallelAnimationGroup *group = new QParallelAnimationGroup;
+            group->addAnimation(_yanim);
+            group->addAnimation(_ganim);
+
+            return group;
+        }
+        default:
+            return nullptr;
+        }
+    }
+
+    //------------------------------------------------------------------------------
+
+    RouteV2Signal::RouteV2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
+        : vsg::Inherit<RouteSignal, RouteV2Signal>(loaded, box, fstate)
+    {
+        vsg::ref_ptr<vsg::Light> gline;
+        auto findLights = [&gline](vsg::Light& l) mutable
+        {
+            l.intensity = 0.0f;
+            if(l.name == "LINE_0")
+                gline = vsg::ref_ptr<vsg::Light>(&l);
+        };
+        LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
+        loaded->accept(lv);
+
+        if(!gline)
+            throw SigException{"LINE_0"};
+
+        initSigs(gline);
+    }
+
+    RouteV2Signal::RouteV2Signal() : vsg::Inherit<RouteSignal, RouteV2Signal>() {}
+
+    RouteV2Signal::~RouteV2Signal() {}
+
+    void RouteV2Signal::read(vsg::Input &input)
+    {
+
+    }
+
+    void RouteV2Signal::write(vsg::Output &output) const
+    {
+
+    }
+
+    State RouteV2Signal::processState() const
+    {
+
+    }
+
+    QAbstractAnimation *RouteV2Signal::getAnim(State state)
+    {
+
+    }
+
+    void RouteV2Signal::initSigs(vsg::ref_ptr<vsg::Light> line)
+    {
+
+    }
+
+    //------------------------------------------------------------------------------
 
     ExitSignal::ExitSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
         : vsg::Inherit<StSignal, ExitSignal>(loaded, box, fstate) {}
@@ -525,35 +676,5 @@ namespace signalling
     {
 
     }
-
-}
-
-signalling::StRepSignal::StRepSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
-{
-
-}
-
-signalling::StRepSignal::StRepSignal()
-{
-
-}
-
-signalling::StRepSignal::~StRepSignal()
-{
-
-}
-
-void signalling::StRepSignal::read(vsg::Input &input)
-{
-
-}
-
-void signalling::StRepSignal::write(vsg::Output &output) const
-{
-
-}
-
-void signalling::StRepSignal::update()
-{
 
 }

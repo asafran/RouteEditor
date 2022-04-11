@@ -23,8 +23,20 @@ namespace signalling {
         CodeCount
     };
 
+    enum Hint
+    {
+        OffH,
+        V0H,
+        VyAutoH,
+        V1H,
+        V2H,
+        ShH,
+        Sh2H
+    };
+
     enum State
     {
+        Off,
         V0,
         VyVy,
         VyVyV0,
@@ -35,7 +47,11 @@ namespace signalling {
         V1V1,
         V2V0,
         V2V1,
-        V2V2
+        V2V2,
+        Y3,
+        Sh,
+        Sh2,
+        NoSh
     };
 
     class Signal;
