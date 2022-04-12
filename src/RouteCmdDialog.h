@@ -17,11 +17,11 @@ public:
     explicit RouteCmdDialog(DatabaseManager *db, QWidget *parent = nullptr);
     ~RouteCmdDialog();
 
-    vsg::ref_ptr<route::Station> station;
+    vsg::ref_ptr<signalling::Station> station;
 
-    vsg::ref_ptr<route::Routes> begin;
+    vsg::ref_ptr<signalling::Routes> begin;
 
-    vsg::ref_ptr<route::Route> route;
+    vsg::ref_ptr<signalling::Route> route;
 
 private:
     Ui::RouteCmdDialog *ui;

@@ -82,6 +82,11 @@ namespace signalling
         Q_ASSERT(_vcount >= 0);
     }
 
+    QAbstractAnimation *Signal::getAnim(State state, State front)
+    {
+        return nullptr;
+    }
+
     //------------------------------------------------------------------------------
 
     ShSignal::ShSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box)
@@ -624,7 +629,10 @@ namespace signalling
 
     void RouteV2Signal::initSigs(vsg::ref_ptr<vsg::Light> line)
     {
-
+        _glineanim = new LightAnimation(line, this);
+        _glineanim->setDuration(1000);
+        _glineanim->setStartValue(0.0f);
+        _glineanim->setEndValue(_intensity);
     }
 
     //------------------------------------------------------------------------------
@@ -650,6 +658,6 @@ namespace signalling
     {
 
     }
-
-}
 */
+}
+

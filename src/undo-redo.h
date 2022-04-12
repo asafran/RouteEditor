@@ -50,7 +50,7 @@ class AddSignal : public QUndoCommand
 {
 public:
     AddSignal(route::RailConnector *rc,
-              vsg::ref_ptr<route::Signal> sig,
+              vsg::ref_ptr<signalling::Signal> sig,
               vsg::ref_ptr<route::Topology> topo,
               QUndoCommand *parent = nullptr)
         : QUndoCommand(parent)
@@ -59,7 +59,7 @@ public:
 
     void undo() override
     {
-        _rc->setSignal(vsg::ref_ptr<route::Signal>());
+        _rc->setSignal(vsg::ref_ptr<signalling::Signal>());
         if(_sig->station.empty())
             return;
         try {
@@ -76,14 +76,14 @@ public:
         try {
             auto sigs = _topo->stations.at(_sig->station)->rsignals;
             if(!_routes)
-                _routes = route::Routes::create();
+                _routes = signalling::Routes::create();
             sigs.insert({_sig, _routes});
         }  catch (std::out_of_range) {}
     }
 protected:
     vsg::ref_ptr<route::RailConnector> _rc;
-    vsg::ref_ptr<route::Signal> _sig;
-    vsg::ref_ptr<route::Routes> _routes;
+    vsg::ref_ptr<signalling::Signal> _sig;
+    vsg::ref_ptr<signalling::Routes> _routes;
     vsg::ref_ptr<route::Topology> _topo;
 
 };
@@ -92,7 +92,7 @@ class AddFwdSignal : public AddSignal
 {
 public:
     AddFwdSignal(route::RailConnector *rc,
-                 vsg::ref_ptr<route::Signal> sig,
+                 vsg::ref_ptr<signalling::Signal> sig,
                  vsg::ref_ptr<route::Topology> topo,
                  QUndoCommand *parent = nullptr)
         : AddSignal(rc, sig, topo, parent)
@@ -102,7 +102,7 @@ public:
 
     void undo() override
     {
-        _rc->setSignal(vsg::ref_ptr<route::Signal>());
+        _rc->setSignal(vsg::ref_ptr<signalling::Signal>());
         AddSignal::undo();
     }
     void redo() override
@@ -116,7 +116,7 @@ class AddBwdSignal : public AddSignal
 {
 public:
     AddBwdSignal(route::RailConnector *rc,
-                 vsg::ref_ptr<route::Signal> sig,
+                 vsg::ref_ptr<signalling::Signal> sig,
                  vsg::ref_ptr<route::Topology> topo,
                  QUndoCommand *parent = nullptr)
         : AddSignal(rc, sig, topo, parent)
@@ -126,7 +126,7 @@ public:
 
     void undo() override
     {
-        _rc->setReverseSignal(vsg::ref_ptr<route::Signal>());
+        _rc->setReverseSignal(vsg::ref_ptr<signalling::Signal>());
         AddSignal::undo();
     }
     void redo() override

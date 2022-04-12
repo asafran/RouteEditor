@@ -122,7 +122,12 @@ void InterlockDialog::addJcts()
     auto index = selected.front();
     auto node = static_cast<vsg::Node*>(index.internalPointer());
     if(auto j = node->cast<route::Junction>(); j)
-        _route->commands.push_back(route::JunctionCommand::create(j, ui->sideBox->isChecked()));
+    {
+        auto cmd = signalling::JunctionCommand::create();
+        cmd->j = j;
+        cmd->hint = ui->sideBox->isChecked();
+        _route->commands.push_back(cmd);
+    }
 }
 
 void InterlockDialog::addSignal()
@@ -141,12 +146,11 @@ void InterlockDialog::addSignal()
     auto row = selected.front().row();
     auto signal = std::next(_station->rsignals.begin(), row);
 
-    if(auto st = signal->first->cast<route::StSignal>(); st)
-        _route->commands.push_back(route::SignalCommand::create(st, static_cast<route::StSignal::FwdHint>(ui->sigCombo->currentIndex())));
-    else
-    {
-
-    }
+    auto cmd = signalling::SignalCommand::create();
+    cmd->sig = signal->first;
+    cmd->onHint = static_cast<signalling::State>(ui->onHintCombo->currentIndex());
+    cmd->offHint = static_cast<signalling::State>(ui->offHintCombo->currentIndex());
+    _route->commands.push_back(cmd);
 }
 
 void InterlockDialog::addRoute()
@@ -170,7 +174,7 @@ void InterlockDialog::addRoute()
         return;
     }
 
-    _route = route::Route::create();
+    _route = signalling::Route::create();
     _begin->routes.insert({signal->first, _route});
     _endModel->setRoutes(_begin);
     ui->endList->setEnabled(true);
@@ -192,6 +196,8 @@ void InterlockDialog::addRouteCommand()
     if(!dialog.route)
         return;
 
-     _route->commands.push_back(route::RouteCommand::create(_route.get()));
+    auto cmd = signalling::RouteCommand::create();
+    cmd->rt = _route.get();
+     _route->commands.push_back(cmd);
 
 }

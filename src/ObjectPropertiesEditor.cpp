@@ -154,7 +154,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 
     connect(ui->stationBox, &QComboBox::currentIndexChanged, this, [this](int idx)
     {
-        auto sig = _firstObject.cast<route::Signal>();
+        auto sig = _firstObject.cast<signalling::Signal>();
         Q_ASSERT(sig);
         if(_idx != _database->topology->stations.end())
             _idx->second->rsignals.erase(sig);
@@ -164,7 +164,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
             return;
         }
         _idx = std::next(_database->topology->stations.begin(), idx);
-        _idx->second->rsignals.insert({sig, route::Routes::create()});
+        _idx->second->rsignals.insert({sig, signalling::Routes::create()});
         sig->station = _idx->first;
 
     });
@@ -327,10 +327,10 @@ void ObjectPropertiesEditor::updateData()
         ui->rotYspin->setEnabled(false);
         ui->stationBox->setEnabled(false);
     }
-    else if(_firstObject->is_compatible(typeid (route::Signal)))
+    else if(_firstObject->is_compatible(typeid (signalling::Signal)))
     {
         ui->stationBox->setEnabled(true);
-        _idx = _database->topology->stations.find(_firstObject.cast<route::Signal>()->station);
+        _idx = _database->topology->stations.find(_firstObject.cast<signalling::Signal>()->station);
         if(_idx != _database->topology->stations.end())
             ui->stationBox->setCurrentIndex(std::distance(_database->topology->stations.begin(), _idx));
         else

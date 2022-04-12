@@ -1,12 +1,12 @@
 #include "stmodels.h"
 
-RouteBeginModel::RouteBeginModel(QObject *parent, route::Station *st)
+RouteBeginModel::RouteBeginModel(QObject *parent, signalling::Station *st)
     : QAbstractListModel{parent}
     , _st(st) {}
 
 RouteBeginModel::~RouteBeginModel() {}
 
-void RouteBeginModel::setStation(route::Station *st)
+void RouteBeginModel::setStation(signalling::Station *st)
 {
     beginResetModel();
     _st = st;
@@ -31,13 +31,13 @@ QVariant RouteBeginModel::data(const QModelIndex &index, int role) const
     return tr("Без литеры");
 }
 
-RouteEndModel::RouteEndModel(QObject *parent, route::Routes *r)
+RouteEndModel::RouteEndModel(QObject *parent, signalling::Routes *r)
     : QAbstractListModel{parent}
     , _r(r) {}
 
 RouteEndModel::~RouteEndModel() {}
 
-void RouteEndModel::setRoutes(route::Routes *r)
+void RouteEndModel::setRoutes(signalling::Routes *r)
 {
     beginResetModel();
     _r = r;
@@ -82,7 +82,7 @@ QVariant StationsModel::data(const QModelIndex &index, int role) const
     return it->first.c_str();
 }
 
-route::Station *StationsModel::station(const QModelIndex &index) const
+signalling::Station *StationsModel::station(const QModelIndex &index) const
 {
     if (!index.isValid())
         return nullptr;
@@ -130,7 +130,7 @@ bool StationsModel::insertRows(int row, int count, const QModelIndex &parent)
     if(count != 1 || row != rowCount() || found)
         return false;
     beginResetModel();
-    _topology->stations.insert({"НоваяСтанция", route::Station::create()});
+    _topology->stations.insert({"НоваяСтанция", signalling::Station::create()});
     endResetModel();
     return true;
 }
@@ -146,13 +146,13 @@ bool StationsModel::removeRows(int row, int count, const QModelIndex &parent)
     return true;
 }
 
-RouteCmdModel::RouteCmdModel(QObject *parent, route::Route* r)
+RouteCmdModel::RouteCmdModel(QObject *parent, signalling::Route* r)
     : QAbstractListModel{parent}
     , _r(r) {}
 
 RouteCmdModel::~RouteCmdModel() {}
 
-void RouteCmdModel::setRoute(route::Route *r)
+void RouteCmdModel::setRoute(signalling::Route *r)
 {
     beginResetModel();
     _r = r;
@@ -164,7 +164,7 @@ int RouteCmdModel::rowCount(const QModelIndex &parent) const
     return _r->commands.size();
 }
 
-bool RouteCmdModel::insertCmd(vsg::ref_ptr<route::Command> cmd)
+bool RouteCmdModel::insertCmd(vsg::ref_ptr<signalling::Command> cmd)
 {
     if(!cmd)
         return false;
@@ -195,16 +195,16 @@ QVariant RouteCmdModel::data(const QModelIndex &index, int role) const
     if (!index.isValid() || !(role == Qt::DisplayRole && role == Qt::EditRole))
         return QVariant();
     auto cmd = _r->commands.at(index.row());
-    if(auto sig = cmd.cast<route::SignalCommand>(); sig)
+    if(auto sig = cmd.cast<signalling::SignalCommand>(); sig)
     {
         std::string name;
-        if(sig->_sig->getValue(app::NAME, name))
+        if(sig->sig->getValue(app::NAME, name))
             return name.c_str();
         return tr("Без литеры");
-    } else if (auto jct = cmd.cast<route::JunctionCommand>(); jct)
+    } else if (auto jct = cmd.cast<signalling::JunctionCommand>(); jct)
     {
         std::string name;
-        if(jct->_j->getValue(app::NAME, name))
+        if(jct->j->getValue(app::NAME, name))
             return name.c_str();
         return tr("Без имени");
     }

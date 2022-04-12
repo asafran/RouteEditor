@@ -42,7 +42,7 @@ namespace signalling
         void sendState(signalling::State state);
 
     protected:
-        virtual QAbstractAnimation* getAnim(State state, State front);
+        virtual QAbstractAnimation *getAnim(State state, State front);
 
         State _front = V0;
 

@@ -13,32 +13,28 @@ namespace route
     {
         Group::read(input);
 
-        std::vector<std::string> keys;
-        std::vector<vsg::ref_ptr<Station>> stations;
-        input.read("keys", keys);
-        input.read("stations", stations);
-
-        auto key = keys.begin();
-        auto station = stations.begin();
-        for(; key != keys.end(); ++key, ++station)
-            this->stations.insert_or_assign(*key, *station);
+        uint32_t numStations = input.readValue<uint32_t>("NumStations");
+        stations.clear();
+        for (uint32_t i = 0; i < numStations; ++i)
+        {
+            std::string key;
+            vsg::ref_ptr<signalling::Station> station;
+            input.read("Key", key);
+            input.read("Station", station);
+            if (station) stations.insert_or_assign(key, station);
+        }
     }
 
     void Topology::write(vsg::Output& output) const
     {
         Group::write(output);
 
-        std::vector<std::string> keys;
-        std::vector<vsg::ref_ptr<Station>> stations;
-
-        for(const auto& station : this->stations)
+        output.writeValue<uint32_t>("NumStations", stations.size());
+        for (const auto& station : stations)
         {
-            keys.push_back(station.first);
-            stations.push_back(station.second);
+            output.write("Key", station.first);
+            output.write("Station", station.second);
         }
-
-        output.write("keys", keys);
-        output.write("stations", stations);
     }
 /*
     void Topology::assignBuilder(vsg::ref_ptr<vsg::Builder> builder)

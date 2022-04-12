@@ -66,24 +66,20 @@ void SignalManager::intersection(const FindNode &isection)
 
     _database->builder->compileTraversal->compile(node);
 
-    vsg::ref_ptr<route::Signal> sig;
+    vsg::ref_ptr<signalling::Signal> sig;
 
     bool fstate = ui->fstateBox->isChecked();
 
     try {
         switch (ui->typeBox->currentIndex()) {
         case Auto:
-            sig = route::AutoBlockSignal::create(lod, _database->getStdWireBox(), fstate);
+            sig = signalling::AutoBlockSignal::create(lod, _database->getStdWireBox(), fstate);
             break;
-        case Exit:
-            sig = route::ExitSignal::create(lod, _database->getStdWireBox(), fstate);
-            break;
-        case Enter:
-            sig = route::EnterSignal::create(lod, _database->getStdWireBox(), fstate);
         case Routing:
+            sig = signalling::RouteSignal::create(lod, _database->getStdWireBox(), fstate);
             break;
         }
-    }  catch (route::SigException e) {
+    }  catch (signalling::SigException e) {
         emit sendStatusText(tr("Отсутствует сигнал %1").arg(e.errL), 2000);
     }
 

@@ -23,8 +23,6 @@ private:
     enum Types
     {
         Auto,
-        Exit,
-        Enter,
         Routing
     };
 

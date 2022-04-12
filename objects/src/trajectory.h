@@ -156,13 +156,13 @@ namespace route
         void traverse(vsg::RecordTraversal& visitor) const override { Group::traverse(visitor); t_traverse(*this, visitor); }
 
     signals:
-        void sendFwdCode(route::Code code);
-        void sendBwdCode(route::Code code);
+        void sendFwdCode(signalling::Code code);
+        void sendBwdCode(signalling::Code code);
 
         void sendRef(int c = 1);
 
-        void transmitFwdCode(route::Code code);
-        void transmitBwdCode(route::Code code);
+        void transmitFwdCode(signalling::Code code);
+        void transmitBwdCode(signalling::Code code);
 
         void ref();
         void unref();
@@ -176,8 +176,8 @@ namespace route
         vsg::ref_ptr<RailConnector>     _fwdPoint;
         vsg::ref_ptr<RailConnector>     _bwdPoint;
 
-        route::Code _fwdCode;
-        route::Code _bwdCode;
+        signalling::Code _fwdCode;
+        signalling::Code _bwdCode;
     };
 
     class SplineTrajectory : public vsg::Inherit<Trajectory, SplineTrajectory>

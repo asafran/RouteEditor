@@ -25,7 +25,7 @@ namespace route
         { if ((visitor.traversalMask & (visitor.overrideMask | route::Tracks)) != vsg::MASK_OFF) Group::traverse(visitor); }
         void traverse(vsg::RecordTraversal& visitor) const override { Group::traverse(visitor); }
 
-        std::map<std::string, vsg::ref_ptr<Station>> stations;
+        std::map<std::string, vsg::ref_ptr<signalling::Station>> stations;
 
     };
 
@@ -40,6 +40,18 @@ namespace route
                 traj->_builder = builder;
         }
     };
+
+    template<typename T>
+    void write(const char* propertyName, const std::vector<T>& values)
+    {
+        uint32_t numElements = static_cast<uint32_t>(values.size());
+        write(propertyName, numElements);
+
+        for (uint32_t i = 0; i < numElements; ++i)
+        {
+            write("element", values[i]);
+        }
+    }
 }
 
 #endif // TOPOLOGY_H

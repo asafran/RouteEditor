@@ -52,7 +52,7 @@ private:
 
     bool _single = true;
 
-    std::map<std::string, vsg::ref_ptr<route::Station>>::iterator _idx;
+    std::map<std::string, vsg::ref_ptr<signalling::Station>>::iterator _idx;
 };
 
 #endif // OBJECTPROPERTIESEDITOR_H

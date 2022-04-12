@@ -34,9 +34,9 @@ private:
     RouteEndModel *_endModel;
     RouteCmdModel *_cmdModel;
 
-    vsg::ref_ptr<route::Station> _station;
-    vsg::ref_ptr<route::Routes> _begin;
-    vsg::ref_ptr<route::Route> _route;
+    vsg::ref_ptr<signalling::Station> _station;
+    vsg::ref_ptr<signalling::Routes> _begin;
+    vsg::ref_ptr<signalling::Route> _route;
 
     TilesSorter *_sorter;
 };

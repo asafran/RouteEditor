@@ -16,21 +16,15 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QGridLayout" name="gridLayout">
-     <item row="5" column="2">
-      <widget class="QPushButton" name="addJButt">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>1</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
+     <item row="4" column="0" colspan="2">
+      <widget class="QPushButton" name="mapConflicts">
        <property name="text">
-        <string>3. Добавить команду на переключение стрелки</string>
+        <string>Назначить конфликтные маршруты</string>
        </property>
       </widget>
      </item>
      <item row="3" column="3">
-      <widget class="QComboBox" name="sigCombo">
+      <widget class="QComboBox" name="onHintCombo">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -39,29 +33,79 @@
        </property>
        <item>
         <property name="text">
-         <string>Закрыть</string>
+         <string>Выключить</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>Без ограничений (зеленый, автоблокировка, предупредительный сигнал)</string>
+         <string>Закрыть (V0)</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>Ограничение 40 (2 желтых)</string>
+         <string>Автоблокировка, без ограничений (Vy)</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>Ограничение 80 (зеленая полоса)</string>
+         <string>Желтый (служебн.)</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>Следующий светофор на 60 (зеленый миг.)</string>
+         <string>Автоблокировка, ограничение  (V1)</string>
         </property>
        </item>
+       <item>
+        <property name="text">
+         <string>Автоблокировка, ограничение (V2)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>3 желтых</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Разрешить маневры</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Разрешить меневры на св. путь.</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Пригласительный</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Запретить маневры</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="3" column="0" colspan="2">
+      <widget class="QPushButton" name="addRouteButt">
+       <property name="text">
+        <string>1. Добавить маршрут для выбранных сигналов</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLabel" name="label_3">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Конец маршрута</string>
+       </property>
       </widget>
      </item>
      <item row="0" column="2">
@@ -77,6 +121,16 @@
        </property>
       </widget>
      </item>
+     <item row="1" column="2">
+      <widget class="QLineEdit" name="searchLine">
+       <property name="placeholderText">
+        <string>Введите текст для поиска</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="4" rowspan="2">
+      <widget class="QListView" name="cmdList"/>
+     </item>
      <item row="2" column="1">
       <widget class="QListView" name="endList">
        <property name="sizePolicy">
@@ -87,15 +141,8 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="2">
-      <widget class="QLineEdit" name="searchLine">
-       <property name="placeholderText">
-        <string>Введите текст для поиска</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="3">
-      <widget class="QLabel" name="label_5">
+     <item row="0" column="4">
+      <widget class="QLabel" name="label_4">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
          <horstretch>0</horstretch>
@@ -103,7 +150,76 @@
         </sizepolicy>
        </property>
        <property name="text">
-        <string>Сигналы</string>
+        <string>Команды</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0" colspan="2">
+      <widget class="QComboBox" name="stationBox"/>
+     </item>
+     <item row="3" column="2">
+      <widget class="QPushButton" name="addTrajsButt">
+       <property name="text">
+        <string>2. Задать траектории для проверки на занятость</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="2">
+      <widget class="QPushButton" name="addJButt">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>1</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>3. Добавить команду на переключение стрелки</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QListView" name="beginList">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0" colspan="2">
+      <widget class="QPushButton" name="assembleButt">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Собрать маршрут</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="2">
+      <widget class="QCheckBox" name="sideBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Отклонение</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="3" rowspan="2">
+      <widget class="QListView" name="sigView"/>
+     </item>
+     <item row="5" column="4">
+      <widget class="QPushButton" name="removeCmdButt">
+       <property name="text">
+        <string>3. Удалить команду</string>
        </property>
       </widget>
      </item>
@@ -127,11 +243,8 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="4" rowspan="2">
-      <widget class="QListView" name="cmdList"/>
-     </item>
-     <item row="0" column="1">
-      <widget class="QLabel" name="label_3">
+     <item row="0" column="3">
+      <widget class="QLabel" name="label_5">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
          <horstretch>0</horstretch>
@@ -139,14 +252,7 @@
         </sizepolicy>
        </property>
        <property name="text">
-        <string>Конец маршрута</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="0" colspan="2">
-      <widget class="QPushButton" name="mapConflicts">
-       <property name="text">
-        <string>Назначить конфликтные маршруты</string>
+        <string>Сигналы</string>
        </property>
       </widget>
      </item>
@@ -163,83 +269,72 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="0" colspan="2">
-      <widget class="QComboBox" name="stationBox"/>
+     <item row="2" column="2">
+      <widget class="QTreeView" name="trackView"/>
      </item>
-     <item row="5" column="0" colspan="2">
-      <widget class="QPushButton" name="assembleButt">
+     <item row="4" column="3">
+      <widget class="QComboBox" name="offHintCombo">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
-       <property name="text">
-        <string>Собрать маршрут</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="2">
-      <widget class="QTreeView" name="trackView"/>
-     </item>
-     <item row="5" column="4">
-      <widget class="QPushButton" name="removeCmdButt">
-       <property name="text">
-        <string>3. Удалить команду</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="4">
-      <widget class="QLabel" name="label_4">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Команды</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0" colspan="2">
-      <widget class="QPushButton" name="addRouteButt">
-       <property name="text">
-        <string>1. Добавить маршрут для выбранных сигналов</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="0">
-      <widget class="QListView" name="beginList">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="3" rowspan="2">
-      <widget class="QListView" name="sigView"/>
-     </item>
-     <item row="4" column="2">
-      <widget class="QCheckBox" name="sideBox">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Отклонение</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="2">
-      <widget class="QPushButton" name="addTrajsButt">
-       <property name="text">
-        <string>2. Задать траектории для проверки на занятость</string>
-       </property>
+       <item>
+        <property name="text">
+         <string>Выключить</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Закрыть (V0)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Автоблокировка, без ограничений (Vy)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Желтый (служебн.)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Автоблокировка, ограничение  (V1)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Автоблокировка, ограничение (V2)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>3 желтых</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Разрешить маневры</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Разрешить меневры на св. путь.</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Пригласительный</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Запретить маневры</string>
+        </property>
+       </item>
       </widget>
      </item>
     </layout>

@@ -196,10 +196,20 @@ QWindow* MainWindow::initilizeVSGwindow()
     vsg::RegisterWithObjectFactoryProxy<route::StaticConnector>();
     vsg::RegisterWithObjectFactoryProxy<route::SwitchConnector>();
 
-    vsg::RegisterWithObjectFactoryProxy<route::Signal>();
-    vsg::RegisterWithObjectFactoryProxy<route::AutoBlockSignal>();
-    vsg::RegisterWithObjectFactoryProxy<route::ExitSignal>();
-    vsg::RegisterWithObjectFactoryProxy<route::EnterSignal>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::Signal>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::ShSignal>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::Sh2Signal>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::AutoBlockSignal>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::StRepSignal>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::RouteSignal>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::RouteV2Signal>();
+
+    vsg::RegisterWithObjectFactoryProxy<signalling::JunctionCommand>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::SignalCommand>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::RouteCommand>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::Route>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::Routes>();
+    vsg::RegisterWithObjectFactoryProxy<signalling::Station>();
 
     vsg::RegisterWithObjectFactoryProxy<route::SplineTrajectory>();
     vsg::RegisterWithObjectFactoryProxy<route::PointsTrajectory>();
