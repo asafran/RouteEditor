@@ -86,7 +86,7 @@ RailsPointEditor::~RailsPointEditor()
     delete ui;
 }
 
-void RailsPointEditor::intersection(const FindNode& isection)
+void RailsPointEditor::intersection(const FoundNodes& isection)
 {
     if(ui->connectButt->isChecked())
     {

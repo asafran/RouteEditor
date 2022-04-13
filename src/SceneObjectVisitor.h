@@ -113,11 +113,11 @@ namespace route {
         void apply(vsg::Transform &transform) override;
     };
 
-    class FindNode : public vsg::Visitor, public vsg::LineSegmentIntersector::Intersection
+    class FoundNodes : public vsg::LineSegmentIntersector::Intersection
     {
     public:
-        FindNode(const vsg::LineSegmentIntersector::Intersection &lsi);
-        FindNode();
+        FoundNodes(const vsg::LineSegmentIntersector::Intersection &lsi) : vsg::LineSegmentIntersector::Intersection(lsi) {}
+        FoundNodes() {}
 
         std::vector<route::SceneObject*> objects;
         route::Trajectory* trajectory = nullptr;
@@ -127,6 +127,13 @@ namespace route {
         vsg::MatrixTransform* terrain = nullptr;
 
         uint16_t keyModifier = 0;
+    };
+
+    class FindNode : public vsg::Visitor, public FoundNodes
+    {
+    public:
+        FindNode(const vsg::LineSegmentIntersector::Intersection &lsi);
+        FindNode();
 
         void apply(vsg::Node &node) override;
 

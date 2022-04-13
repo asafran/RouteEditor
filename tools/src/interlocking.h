@@ -71,6 +71,10 @@ namespace signalling
         void read(vsg::Input &input) override;
         void write(vsg::Output &output) const override;
 
+        static void* operator new(std::size_t count, void* ptr);
+        static void* operator new(std::size_t count);
+        static void operator delete(void* ptr);
+
         bool disassemble();
         bool assemble();
         bool onlyJcts();

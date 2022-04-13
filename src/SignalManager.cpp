@@ -22,7 +22,7 @@ SignalManager::SignalManager(DatabaseManager *database, QString root, QWidget *p
     ui->fileView->setRootIndex(_fsmodel->index(root));
 }
 
-void SignalManager::intersection(const FindNode &isection)
+void SignalManager::intersection(const FoundNodes &isection)
 {
     if(!isection.connector)
         return;

@@ -16,7 +16,7 @@ public:
     ContentManager(DatabaseManager *database, QString root, QWidget *parent = nullptr);
     virtual ~ContentManager();
 
-    void intersection(const FindNode& isection) override;
+    void intersection(const FoundNodes& isection) override;
 
 public slots:
     void activeGroupChanged(const QModelIndex &index);
@@ -25,7 +25,7 @@ signals:
     void sendObject(route::SceneObject *object);
 
 private:
-    bool addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &isection);
+    bool addToTrack(vsg::ref_ptr<vsg::Node> node, const FoundNodes &isection);
 
     Ui::ContentManager *ui;
 

@@ -17,7 +17,7 @@ public:
     explicit AddRails(DatabaseManager *database, QString root, QWidget *parent = nullptr);
     ~AddRails();
 
-    void intersection(const FindNode& isection) override;
+    void intersection(const FoundNodes& isection) override;
 
 signals:
     void sendMovingPoint(route::SceneObject *object);

@@ -19,7 +19,7 @@ ContentManager::ContentManager(DatabaseManager *database, QString root, QWidget 
     ui->fileView->setRootIndex(_fsmodel->index(root));
 }
 
-void ContentManager::intersection(const FindNode &isection)
+void ContentManager::intersection(const FoundNodes &isection)
 {
     bool loadToSelected = !ui->autoGroup->isChecked();
     auto activeFile = ui->fileView->selectionModel()->selectedIndexes().front();
@@ -69,7 +69,7 @@ void ContentManager::intersection(const FindNode &isection)
     emit sendStatusText(tr("Добавлен объект %1").arg(path.c_str()), 2000);
 }
 
-bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &isection)
+bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FoundNodes &isection)
 {
     if(!isection.trajectory)
         return false;

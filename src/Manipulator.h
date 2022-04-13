@@ -46,7 +46,7 @@ public slots:
 signals:
     void sendPos(const vsg::dvec3 &pos);
     void sendMovingDelta(const vsg::dvec3 &delta);
-    void sendIntersection(const FindNode& isection);
+    void sendIntersection(const FoundNodes& isection);
     //void objectClicked(const QModelIndex &index);
     void sendStatusText(const QString &message, int timeout);
 

@@ -174,7 +174,7 @@ void MainWindow::initializeTools()
     connect(sorter, &TilesSorter::frontSelectionChanged, cm, &ContentManager::activeGroupChanged);
 }
 
-void MainWindow::intersection(const FindNode& isection)
+void MainWindow::intersection(const FoundNodes &isection)
 {
     qobject_cast<Tool*>(toolbox->currentWidget())->intersection(isection);
 }

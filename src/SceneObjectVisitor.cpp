@@ -131,14 +131,14 @@
     //----------------------------------------------------------------------------------------------------
     FindNode::FindNode(const vsg::LineSegmentIntersector::Intersection &lsi)
         : vsg::Visitor()
-        , vsg::LineSegmentIntersector::Intersection(lsi)
+        , FoundNodes(lsi)
     {
         std::for_each(nodePath.begin(), nodePath.end(), [this](const vsg::Node *node) { const_cast<vsg::Node*>(node)->accept(*this); });
     }
 
     FindNode::FindNode()
         : vsg::Visitor()
-        , vsg::LineSegmentIntersector::Intersection() {}
+        , FoundNodes() {}
 
     void FindNode::apply(vsg::Node &node)
     {

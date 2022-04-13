@@ -189,7 +189,7 @@ void DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuff
 
             auto pointsGroup = vsg::Group::create();
 
-            addPoints(tile, sphere, pointsGroup);
+            //addPoints(tile, sphere, pointsGroup);
 
             vsg::LOD::Child hiresp{lodp, pointsGroup};
             vsg::LOD::Child dummyp{0.0, vsg::Node::create()};

@@ -35,6 +35,10 @@ namespace signalling
         virtual void setFwdState(signalling::State front);
         virtual void Ref(int c);
 
+        static void* operator new(std::size_t count, void* ptr);
+        static void* operator new(std::size_t count);
+        static void operator delete(void* ptr);
+
         std::string station;
 
     signals:

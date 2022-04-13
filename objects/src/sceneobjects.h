@@ -223,6 +223,10 @@ namespace route
 
         void recalculate() override;
 
+        static void* operator new(std::size_t count, void* ptr);
+        static void* operator new(std::size_t count);
+        static void operator delete(void* ptr);
+
         std::pair<Trajectory*, bool> getFwd(const Trajectory *caller) const;
 
         std::pair<Trajectory*, bool> getBwd(const Trajectory *caller) const;

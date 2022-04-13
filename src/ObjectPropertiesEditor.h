@@ -19,7 +19,7 @@ public:
 
     //void addWireframe(const QModelIndex &index, const vsg::Node *node, vsg::dmat4 ltw);
 
-    void intersection(const FindNode& isection) override;
+    void intersection(const FoundNodes& isection) override;
 
 public slots:
     void updateData();

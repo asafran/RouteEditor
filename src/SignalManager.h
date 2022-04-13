@@ -16,7 +16,7 @@ public:
     SignalManager(DatabaseManager *database, QString root, QWidget *parent = nullptr);
     virtual ~SignalManager();
 
-    void intersection(const FindNode& isection) override;
+    void intersection(const FoundNodes& isection) override;
 
 private:
     //bool addToTrack(vsg::ref_ptr<vsg::Node> node, const FindNode &isection);

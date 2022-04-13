@@ -101,6 +101,21 @@ namespace route
         Trajectory::accept(ct);
     }
 
+    void* Trajectory::operator new(std::size_t count, void* ptr)
+    {
+        return ::operator new(count, ptr);
+    }
+
+    void* Trajectory::operator new(std::size_t count)
+    {
+        return vsg::allocate(count, vsg::ALLOCATOR_AFFINITY_OBJECTS);
+    }
+
+    void Trajectory::operator delete(void* ptr)
+    {
+        vsg::deallocate(ptr);
+    }
+
     SplineTrajectory::SplineTrajectory(std::string name,
                                        vsg::ref_ptr<RailConnector> bwdPoint,
                                        vsg::ref_ptr<RailConnector> fwdPoint,
@@ -354,7 +369,13 @@ namespace route
 
         auto vid = vsg::VertexIndexDraw::create();
 
-        vid->assignArrays(vsg::DataList{vertArray, normalArray, texArray});
+        vsg::DataList arrays;
+        arrays.push_back(vertArray);
+        //arrays.push_back(normalArray);
+        arrays.push_back(texArray);
+        //if (colors) arrays.push_back(colors);
+        //if (positions) arrays.push_back(positions);
+        vid->assignArrays(arrays);
 
         vid->assignIndices(ind);
         vid->indexCount = static_cast<uint32_t>(ind->size());
@@ -369,12 +390,15 @@ namespace route
         auto right = createGeometry(vsg::vec3(-_gaudge / 2.0, 0.0, 0.0), derivatives, _rail);
         auto fill = createGeometry(vsg::vec3(), derivatives, _fill);
 
+        vsg::StateInfo si;
+        si.image = _fillTexture;
+
 
         auto rstateGroup = createStateGroup(_railTexture);
         rstateGroup->addChild(left);
         rstateGroup->addChild(right);
 
-        auto fstateGroup = createStateGroup(_fillTexture);
+        auto fstateGroup = _builder->createStateGroup(si);
 
         fstateGroup->addChild(fill);
 

@@ -116,6 +116,21 @@ namespace signalling
         return true;
     }
 
+    void* Route::operator new(std::size_t count, void* ptr)
+    {
+        return ::operator new(count, ptr);
+    }
+
+    void* Route::operator new(std::size_t count)
+    {
+        return vsg::allocate(count, vsg::ALLOCATOR_AFFINITY_OBJECTS);
+    }
+
+    void Route::operator delete(void* ptr)
+    {
+        vsg::deallocate(ptr);
+    }
+
     //-----------------------------------------------------
 
     void Routes::read(vsg::Input &input)

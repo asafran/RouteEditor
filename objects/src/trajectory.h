@@ -106,6 +106,10 @@ namespace route
 
         virtual void recalculate() = 0;
 
+        static void* operator new(std::size_t count, void* ptr);
+        static void* operator new(std::size_t count);
+        static void operator delete(void* ptr);
+
         void updateAttached();
 
         void detatch();
@@ -163,11 +167,6 @@ namespace route
 
         void transmitFwdCode(signalling::Code code);
         void transmitBwdCode(signalling::Code code);
-
-        void ref();
-        void unref();
-
-        void update();
 
     protected:
 

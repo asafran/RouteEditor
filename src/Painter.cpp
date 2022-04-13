@@ -20,7 +20,7 @@ Painter::~Painter()
     delete ui;
 }
 
-void Painter::intersection(const FindNode &isection)
+void Painter::intersection(const FoundNodes &isection)
 {
     isection.trajectory->setBusy();
 

@@ -15,7 +15,7 @@ public:
     explicit Painter(DatabaseManager *database, QWidget *parent = nullptr);
     ~Painter();
 
-    void intersection(const FindNode& isection) override;
+    void intersection(const FoundNodes& isection) override;
 
 private:
     Ui::Painter *ui;

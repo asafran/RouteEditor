@@ -454,6 +454,21 @@ namespace route
         return _fwdSignal;
     }
 
+    void* RailConnector::operator new(std::size_t count, void* ptr)
+    {
+        return ::operator new(count, ptr);
+    }
+
+    void* RailConnector::operator new(std::size_t count)
+    {
+        return vsg::allocate(count, vsg::ALLOCATOR_AFFINITY_OBJECTS);
+    }
+
+    void RailConnector::operator delete(void* ptr)
+    {
+        vsg::deallocate(ptr);
+    }
+
     StaticConnector::StaticConnector(vsg::ref_ptr<vsg::Node> loaded,
                                      vsg::ref_ptr<vsg::Node> box,
                                      const vsg::dvec3 &pos)

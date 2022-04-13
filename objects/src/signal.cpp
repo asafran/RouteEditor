@@ -87,6 +87,21 @@ namespace signalling
         return nullptr;
     }
 
+    void* Signal::operator new(std::size_t count, void* ptr)
+    {
+        return ::operator new(count, ptr);
+    }
+
+    void* Signal::operator new(std::size_t count)
+    {
+        return vsg::allocate(count, vsg::ALLOCATOR_AFFINITY_OBJECTS);
+    }
+
+    void Signal::operator delete(void* ptr)
+    {
+        vsg::deallocate(ptr);
+    }
+
     //------------------------------------------------------------------------------
 
     ShSignal::ShSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box)

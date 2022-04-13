@@ -29,7 +29,7 @@ public:
     ~MainWindow();
 
 public slots:
-    void intersection(const FindNode& isection);
+    void intersection(const FoundNodes& isection);
 
 private:
     QWindow* initilizeVSGwindow();

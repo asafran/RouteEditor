@@ -11,7 +11,7 @@ public:
     explicit Tool(DatabaseManager *database, QWidget *parent = nullptr);
     virtual ~Tool();
 
-    virtual void intersection(const FindNode&) = 0;
+    virtual void intersection(const FoundNodes&) = 0;
 
 signals:
     void sendStatusText(const QString &message, int timeout);

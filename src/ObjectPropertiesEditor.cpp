@@ -220,7 +220,7 @@ void ObjectPropertiesEditor::selectIndex(const QItemSelection &selected, const Q
     updateData();
 }
 
-void ObjectPropertiesEditor::intersection(const FindNode& isection)
+void ObjectPropertiesEditor::intersection(const FoundNodes &isection)
 {
     _single = (isection.keyModifier & vsg::MODKEY_Control) == 0;
 

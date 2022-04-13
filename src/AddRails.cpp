@@ -53,7 +53,7 @@ tinyobj::ObjReader AddRails::loadObj(std::string path)
     return reader;
 }*/
 
-void AddRails::intersection(const FindNode &isection)
+void AddRails::intersection(const FoundNodes &isection)
 {
     if(ui->railView->selectionModel()->selection().empty() ||
        ui->sleeperView->selectionModel()->selection().empty() ||
