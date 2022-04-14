@@ -105,7 +105,7 @@ namespace signalling
         void write(vsg::Output &output) const override;
 
         std::map<Signal*, vsg::ref_ptr<Routes>> rsignals;
-        std::vector<Signal*> shunt;
+        std::vector<vsg::ref_ptr<Signal>> shunt;
     };
 }
 

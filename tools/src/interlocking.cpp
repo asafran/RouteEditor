@@ -69,16 +69,16 @@ namespace signalling
     {
         Object::read(input);
 
-        input.read("commands", commands);
-        input.read("trajectories", trajs);
+        input.readObjects("commands", commands);
+        input.readObjects("trajectories", trajs);
     }
 
     void Route::write(vsg::Output &output) const
     {
         Object::write(output);
 
-        output.write("commands", commands);
-        output.write("trajectories", trajs);
+        output.writeObjects("commands", commands);
+        output.writeObjects("trajectories", trajs);
     }
 
     void Route::passed(int ref)
@@ -137,6 +137,8 @@ namespace signalling
     {
         Object::read(input);
 
+        //input.readObjects("routes", routes);
+
         uint32_t numStations = input.readValue<uint32_t>("NumRoutes");
         routes.clear();
         for (uint32_t i = 0; i < numStations; ++i)
@@ -153,6 +155,8 @@ namespace signalling
     {
         Object::write(output);
 
+        //output.writeObjects("routes", routes);
+
         output.writeValue<uint32_t>("NumRoutes", routes.size());
         for (const auto& route : routes)
         {
@@ -167,6 +171,8 @@ namespace signalling
     {
         Object::read(input);
 
+        //input.readObjects("signals", rsignals);
+
         uint32_t numSignals = input.readValue<uint32_t>("NumSignals");
         rsignals.clear();
         for (uint32_t i = 0; i < numSignals; ++i)
@@ -178,12 +184,14 @@ namespace signalling
             if (routes) rsignals.insert_or_assign(signal, routes);
         }
 
-        input.read("shunt", shunt);
+        input.readObjects("shunt", shunt);
     }
 
     void Station::write(vsg::Output &output) const
     {
         Object::write(output);
+
+        //output.writeObjects("signals", rsignals);
 
         output.writeValue<uint32_t>("NumSignals", rsignals.size());
         for (const auto& signal : rsignals)
@@ -192,7 +200,7 @@ namespace signalling
             output.write("Routes", signal.second);
         }
 
-        output.write("shunt", shunt);
+        output.writeObjects("shunt", shunt);
     }
 
     //-----------------------------------------------------

@@ -345,6 +345,7 @@ void ObjectPropertiesEditor::updateData()
         double val = 0.0;
         rmt->getValue(app::PROP, val);
         ui->trjCoordspin->setValue(val);
+        ui->trjCoordspin->setEnabled(true);
     }
     else
         ui->trjCoordspin->setEnabled(false);

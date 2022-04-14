@@ -81,6 +81,8 @@ namespace route
                 _wireframe->accept(visitor);
         }
 
+        //void traverse(vsg::Visitor& visitor) override { Group::traverse(visitor); _wireframe->accept(visitor); }
+
         vsg::dvec3 getPosition() const { return _position; }
         vsg::dvec3 getWorldPosition() const { return localToWorld * _position; }
         vsg::dquat getWorldQuat() const { return _world_quat; }

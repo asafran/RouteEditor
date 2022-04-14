@@ -222,7 +222,10 @@ QWindow* MainWindow::initilizeVSGwindow()
     builder = vsg::Builder::create();
     builder->options = options;
 
-    //compiler = Compiler::create();
+    auto ct = vsg::CompileTraversal::create();
+
+    builder->options->setObject(app::COMPILER, ct);
+
 
     auto windowTraits = vsg::WindowTraits::create();
     windowTraits->windowTitle = APPLICATION_NAME;
@@ -237,7 +240,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     viewerWindow->viewer = vsg::Viewer::create();
 
     // provide the calls to set up the vsg::Viewer that will be used to render to the QWindow subclass vsgQt::ViewerWindow
-    viewerWindow->initializeCallback = [&, this, options](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
+    viewerWindow->initializeCallback = [&, this, options, ct](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
 
         auto& window = vw.windowAdapter;
         if (!window) return false;
@@ -306,8 +309,8 @@ QWindow* MainWindow::initilizeVSGwindow()
         auto manipulator = Manipulator::create(camera, ellipsoidModel, database, this);
 
         // TODO have Viewer provide the required CompileTraversal.
-        auto ct = vsg::CompileTraversal::create();
         ct->add(window, view);
+
         builder->assignCompileTraversal(ct);
 
         auto addBins = [&](vsg::View& view)

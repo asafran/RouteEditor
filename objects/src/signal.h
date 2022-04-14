@@ -46,11 +46,15 @@ namespace signalling
         void sendState(signalling::State state);
 
     protected:
+        void clear();
+
         virtual QAbstractAnimation *getAnim(State state, State front);
 
         State _front = V0;
 
         State _state = Off;
+
+        QSequentialAnimationGroup *_group = new QSequentialAnimationGroup;
 
         //Hint _hint = OffH;
 
@@ -236,4 +240,13 @@ namespace signalling
     };
 */
 }
+
+EVSG_type_name(signalling::AutoBlockSignal);
+EVSG_type_name(signalling::StRepSignal);
+EVSG_type_name(signalling::ShSignal);
+EVSG_type_name(signalling::Sh2Signal);
+EVSG_type_name(signalling::RouteSignal);
+EVSG_type_name(signalling::RouteV2Signal);
+EVSG_type_name(signalling::Signal);
+
 #endif // SIGNAL_H

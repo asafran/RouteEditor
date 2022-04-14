@@ -18,6 +18,14 @@ DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Builder> in_bui
   //, _compiler(compiler)
   //, _undoStack(stack)
 {
+    vsg::StateInfo si;
+    si.lighting = false;
+    si.wireframe = true;
+    vsg::GeometryInfo gi;
+    stdWireBox = builder->createBox(gi, si);
+
+    builder->options->setObject(app::WIREFRAME, stdWireBox.get());
+
     _database = vsg::read_cast<vsg::Group>(_databasePath.toStdString(), builder->options);
     if (!_database)
         throw (DatabaseException(path));
@@ -28,18 +36,11 @@ DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Builder> in_bui
             topology = route::Topology::create();
             _database->setObject(app::TOPOLOGY, topology);
         }
-        route::TopologyVisitor tv;
-        tv.builder = builder;
-        topology->accept(tv);
 
 
     //builder->options->objectCache->add(topology, app::TOPOLOGY);
 
-    vsg::StateInfo si;
-    si.lighting = false;
-    si.wireframe = true;
-    vsg::GeometryInfo gi;
-    stdWireBox = builder->createBox(gi, si);
+
 
     stdAxis = vsg::Group::create();
 

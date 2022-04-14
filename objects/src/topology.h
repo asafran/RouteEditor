@@ -28,7 +28,7 @@ namespace route
         std::map<std::string, vsg::ref_ptr<signalling::Station>> stations;
 
     };
-
+/*
     class TopologyVisitor : public vsg::Visitor
     {
     public:
@@ -37,9 +37,11 @@ namespace route
         void apply(vsg::Group& node) override
         {
             if(auto traj = node.cast<route::SplineTrajectory>(); traj)
-                traj->_builder = builder;
+                traj->_compiler = compile;
         }
-    };
+    };*/
 }
+
+EVSG_type_name(route::Topology);
 
 #endif // TOPOLOGY_H

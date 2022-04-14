@@ -53,7 +53,8 @@ namespace route
 
             auto result = mult(mult(w_quat, rot), tilt);
             auto pos = vsg::translate(pt.position - offset);
-            calculated = pos * vsg::rotate(result);
+            wrotation =  vsg::rotate(result);
+            calculated = pos * wrotation;
         }
 
         InterpolatedPTM(InterpolatedPTM&& ptm) : InterpolatedPT(std::move(ptm)), calculated(std::move(ptm.calculated)) {}
@@ -70,6 +71,10 @@ namespace route
         InterpolatedPTM() :InterpolationSpline::InterpolatedPT() {}
 
         vsg::dmat4 calculated;
+        vsg::dmat4 wrotation;
+
+        std::vector<std::pair<vsg::vec3, vsg::vec3>> vertices;
+
         vsg::dquat rot;
         size_t index;
     };
@@ -237,12 +242,12 @@ namespace route
 
             vsg::vec3 verticle = {};
 
-            float uv = 0.0;
+            vsg::vec2 uv = {};
 
             vsg::vec3 normal = {};
         };
 
-        void reloadData();
+        void reloadData(vsg::ref_ptr<const vsg::Options> options);
 
     private:
 
@@ -250,11 +255,12 @@ namespace route
 
         void assignRails(const std::vector<InterpolatedPTM> &derivatives);
 
-        vsg::ref_ptr<vsg::VertexIndexDraw> createGeometry(const vsg::vec3 &offset,
-                                                          const std::vector<InterpolatedPTM> &derivatives,
-                                                          const std::vector<VertexData> &geometry) const;
+        void assignGeometry(const vsg::vec3 &offset,
+                            const std::vector<InterpolatedPTM> &derivatives,
+                            const std::vector<VertexData> &geometry,
+                            vsg::ref_ptr<vsg::VertexIndexDraw> vid) const;
 
-        std::pair<std::vector<VertexData>, vsg::ref_ptr<vsg::Data>> loadData(std::string path);
+        std::pair<std::vector<VertexData>, vsg::ref_ptr<vsg::StateGroup>> loadData(std::string path, vsg::ref_ptr<const vsg::Options> options);
 
         vsg::ref_ptr<route::RailPoint> findFloorPoint(double t) const;
 
@@ -270,17 +276,18 @@ namespace route
 
         std::vector<vsg::ref_ptr<route::RailPoint>> _points;
 
-        vsg::ref_ptr<vsg::Builder> _builder;
+        vsg::ref_ptr<vsg::CompileTraversal> _compiler;
 
         vsg::ref_ptr<vsg::MatrixTransform> _track;
 
         std::string _railPath;
-        std::vector<VertexData> _rail;
-        vsg::ref_ptr<vsg::Data> _railTexture;
+        std::vector<VertexData> _railGeo;
+        vsg::ref_ptr<vsg::VertexIndexDraw> _railR;
+        vsg::ref_ptr<vsg::VertexIndexDraw> _railL;
 
         std::string _fillPath;
-        std::vector<VertexData> _fill;
-        vsg::ref_ptr<vsg::Data> _fillTexture;
+        std::vector<VertexData> _fillGeo;
+        vsg::ref_ptr<vsg::VertexIndexDraw> _fill;
 
         vsg::ref_ptr<vsg::Node> _sleeper;
 

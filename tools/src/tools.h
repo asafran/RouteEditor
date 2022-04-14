@@ -2,6 +2,8 @@
 #define SCENETOOLS_H
 
 #include <vsg/nodes/StateGroup.h>
+#include <vsg/io/Options.h>
+#include <vsg/utils/SharedObjects.h>
 #include <vsg/state/VertexInputState.h>
 #include <vsg/state/InputAssemblyState.h>
 #include <vsg/state/RasterizationState.h>
@@ -10,6 +12,9 @@
 #include <vsg/state/DepthStencilState.h>
 #include <vsg/state/DescriptorImage.h>
 #include <vsg/state/DescriptorSet.h>
+#include <vsg/utils/GraphicsPipelineConfig.h>
+#include <vsg/state/ViewDependentState.h>
+#include <vsg/state/material.h>
 
 namespace route
 {
@@ -57,8 +62,9 @@ namespace route
         return q;
     }
 
-    static inline vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<vsg::Data> textureData)
+    static inline vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<vsg::Data> textureData, vsg::ref_ptr<const vsg::Options> options)
     {
+        /*
         vsg::Paths searchPaths = vsg::getEnvPaths("RRS2_ROOT");
 
         vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("shaders/vert_PushConstants.spv", searchPaths));
@@ -114,6 +120,86 @@ namespace route
         auto stateGroup = vsg::StateGroup::create();
         stateGroup->add(bindGraphicsPipeline);
         stateGroup->add(bindDescriptorSet);
+
+        return stateGroup;
+        */
+
+        auto sharedObjects = options->sharedObjects;
+
+        auto shaderSet = vsg::createPhongShaderSet(options);
+
+        //shaderSet = createFlatShadedShaderSet(options);
+        //shaderSet = createPhysicsBasedRenderingShaderSet(options);
+        //shaderSet = createPhongShaderSet(options);
+
+        auto graphicsPipelineConfig = vsg::GraphicsPipelineConfig::create(shaderSet);
+
+        auto& defines = graphicsPipelineConfig->shaderHints->defines;
+
+        //if (stateInfo.instance_positions_vec3) defines.push_back("VSG_INSTANCE_POSITIONS");
+
+        // set up graphics pipeline
+        vsg::Descriptors descriptors;
+
+
+        // set up graphics pipeline
+        vsg::DescriptorSetLayoutBindings descriptorBindings;
+
+        auto sampler = vsg::Sampler::create();
+
+        if (sharedObjects) sharedObjects->share(sampler);
+
+        graphicsPipelineConfig->assignTexture(descriptors, "diffuseMap", textureData, sampler);
+
+        // set up pass of material
+        auto mat = vsg::PhongMaterialValue::create();
+        mat->value().specular = vsg::vec4(0.5f, 0.5f, 0.5f, 1.0f);
+
+        graphicsPipelineConfig->assignUniform(descriptors, "material", mat);
+
+        if (sharedObjects) sharedObjects->share(descriptors);
+
+
+        // set up ViewDependentState
+        defines.push_back("VSG_VIEW_LIGHT_DATA");
+        vsg::ref_ptr<vsg::ViewDescriptorSetLayout> vdsl;
+        if (sharedObjects) vdsl = sharedObjects->shared_default<vsg::ViewDescriptorSetLayout>();
+        else vdsl = vsg::ViewDescriptorSetLayout::create();
+        graphicsPipelineConfig->additionalDescrptorSetLayout = vdsl;
+
+
+        graphicsPipelineConfig->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, 12);
+        graphicsPipelineConfig->enableArray("vsg_Normal", VK_VERTEX_INPUT_RATE_VERTEX, 12);
+        graphicsPipelineConfig->enableArray("vsg_TexCoord0", VK_VERTEX_INPUT_RATE_VERTEX, 8);
+
+        graphicsPipelineConfig->enableArray("vsg_Color", VK_VERTEX_INPUT_RATE_INSTANCE, 16);
+
+
+        graphicsPipelineConfig->rasterizationState->cullMode = VK_CULL_MODE_BACK_BIT;
+
+        graphicsPipelineConfig->colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
+            {true, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
+
+        // if required initialize GraphicsPipeline/Layout etc.
+        if (sharedObjects) sharedObjects->share(graphicsPipelineConfig, [](auto gpc) { gpc->init(); });
+        else graphicsPipelineConfig->init();
+
+        auto descriptorSet = vsg::DescriptorSet::create(graphicsPipelineConfig->descriptorSetLayout, descriptors);
+        if (sharedObjects) sharedObjects->share(descriptorSet);
+
+        auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineConfig->layout, 0, descriptorSet);
+        if (sharedObjects) sharedObjects->share(bindDescriptorSet);
+
+        // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
+        auto stateGroup = vsg::StateGroup::create();
+        stateGroup->add(graphicsPipelineConfig->bindGraphicsPipeline);
+        stateGroup->add(bindDescriptorSet);
+
+        auto bindViewDescriptorSets = vsg::BindViewDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineConfig->layout, 1);
+        if (sharedObjects) sharedObjects->share(bindViewDescriptorSets);
+        stateGroup->add(bindViewDescriptorSets);
+
+        //if (sharedObjects) sharedObjects->report(std::cout);
 
         return stateGroup;
     } 

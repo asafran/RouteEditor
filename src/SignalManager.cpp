@@ -83,7 +83,7 @@ void SignalManager::intersection(const FoundNodes &isection)
         emit sendStatusText(tr("Отсутствует сигнал %1").arg(e.errL), 2000);
     }
 
-    sig->recalculateWireframe();
+    //sig->recalculateWireframe();
 
     if(!isection.connector->fwdSignal() && !ui->reverseBox->isChecked())
         _database->undoStack->push(new AddFwdSignal(isection.connector, sig, _database->topology));

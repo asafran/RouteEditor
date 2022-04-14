@@ -7,6 +7,8 @@
 namespace app {
 
 static constexpr const char*const PARENT = "Parent";
+static constexpr const char*const COMPILER = "CompileTraversal";
+static constexpr const char*const WIREFRAME = "stdWireframe";
 static constexpr const char*const PROP = "MetaProp";
 static constexpr const char*const NAME = "Name";
 static constexpr const char*const TOPOLOGY = "Topology";

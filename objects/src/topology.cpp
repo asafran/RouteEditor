@@ -13,6 +13,8 @@ namespace route
     {
         Group::read(input);
 
+        //input.readObjects("stations", stations);
+
         uint32_t numStations = input.readValue<uint32_t>("NumStations");
         stations.clear();
         for (uint32_t i = 0; i < numStations; ++i)
@@ -28,6 +30,8 @@ namespace route
     void Topology::write(vsg::Output& output) const
     {
         Group::write(output);
+
+        //output.writeObjects("stations", stations);
 
         output.writeValue<uint32_t>("NumStations", stations.size());
         for (const auto& station : stations)

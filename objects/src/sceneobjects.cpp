@@ -21,7 +21,6 @@ namespace route
         , _world_quat(w_quat)
         , localToWorld(ltw)
     {
-        _wireframe = vsg::MatrixTransform::create();
         _wireframe->addChild(box);
     }
 
@@ -33,6 +32,7 @@ namespace route
         : SceneObject(box, pos, w_quat, ltw)
     {
         addChild(loaded);
+        recalculateWireframe();
     }
 
     SceneObject::SceneObject() : vsg::Inherit<vsg::Transform, SceneObject>() , _selected(false) {}
@@ -45,10 +45,12 @@ namespace route
 
         input.read("quat", _quat);
         input.read("world_quat", _world_quat);
-        input.read("wireframe", _wireframe);
         input.read("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
         input.read("ltw", localToWorld);
         input.read("coord", _position);
+
+        _wireframe->children.emplace_back(const_cast<vsg::Node*>(input.options->getObject<vsg::Node>(app::WIREFRAME)));
+        recalculateWireframe();
     }
 
     void SceneObject::write(vsg::Output& output) const
@@ -57,10 +59,8 @@ namespace route
 
         output.write("quat", _quat);
         output.write("world_quat", _world_quat);
-        output.write("wireframe", _wireframe);
         output.write("subgraphRequiresLocalFrustum", subgraphRequiresLocalFrustum);
         output.write("ltw", localToWorld);
-
         output.write("coord", _position);
     }
     vsg::dquat SceneObject::getWorldRotation() const
@@ -182,7 +182,9 @@ namespace route
         input.read("tilt", _tilt);
         input.read("catheight", _cheight);
 
-        input.read("fstTraj", trajectory);
+        /*vsg::ref_ptr<Trajectory> trj;
+        input.readObject("fstTraj", trj);
+        trajectory = trj.get();*/
     }
 
     void RailPoint::write(vsg::Output &output) const
@@ -193,7 +195,7 @@ namespace route
         output.write("tilt", _tilt);
         output.write("catheight", _cheight);
 
-        output.write("fstTraj", trajectory);
+        //output.writeObject("fstTraj", trajectory);
     }
 
     void RailPoint::setPosition(const vsg::dvec3& position)
@@ -248,7 +250,11 @@ namespace route
         input.read("_bwdSignal", _bwdSignal);
         input.read("reverser", _reverser);
 
-        input.read("sndTraj", fwdTrajectory);
+        connect(_bwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendFwdState);
+        connect(_fwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendBwdState);
+        //vsg::ref_ptr<Trajectory> trj;
+        //input.readObject("sndTraj", trj);
+        //fwdTrajectory = trj.get();
     }
 
     void RailConnector::write(vsg::Output &output) const
@@ -259,7 +265,7 @@ namespace route
         output.write("_bwdSignal", _bwdSignal);
         output.write("reverser", _reverser);
 
-        output.write("sndTraj", fwdTrajectory);
+        //output.writeObject("sndTraj", fwdTrajectory);
     }
 
     void RailConnector::recalculate()
@@ -510,7 +516,9 @@ namespace route
         input.read("default", _state);
         input.read("counter", _sideCounter);
 
-        input.read("sideTraj", sideTrajectory);
+        /*vsg::ref_ptr<Trajectory> trj;
+        input.readObject("sideTraj", trj);
+        sideTrajectory = trj.get();*/
     }
 
     void SwitchConnector::write(vsg::Output &output) const
@@ -520,7 +528,7 @@ namespace route
         output.write("default", _state);
         output.write("counter", _sideCounter);
 
-        output.write("sideTraj", sideTrajectory);
+        //output.writeObject("sideTraj", sideTrajectory);
     }
 
     void SwitchConnector::setFwd(Trajectory *caller)

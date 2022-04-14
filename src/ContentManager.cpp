@@ -63,7 +63,7 @@ void ContentManager::intersection(const FoundNodes &isection)
         obj = route::SingleLoader::create(node, _database->getStdWireBox(), path, wtl * world, wquat, wtl);
     else
         obj = route::SceneObject::create(node, _database->getStdWireBox(), wtl * world, wquat, wtl);
-    obj->recalculateWireframe();
+    //obj->recalculateWireframe();
     _database->undoStack->push(new AddSceneObject(_database->tilesModel, activeGroup, obj));
     emit sendObject(obj);
     emit sendStatusText(tr("Добавлен объект %1").arg(path.c_str()), 2000);
@@ -78,7 +78,7 @@ bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FoundNodes &
         return false;
     auto coord = traj->invert(isection.worldIntersection);
     auto obj = route::SceneObject::create(node, _database->getStdWireBox());
-    obj->recalculateWireframe();
+    //obj->recalculateWireframe();
     auto transform = vsg::MatrixTransform::create();
     obj->setValue(app::PARENT, transform.get());
     transform->addChild(obj);

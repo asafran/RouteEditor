@@ -32,6 +32,8 @@ namespace signalling
         if(_state == hint)
             return;
 
+        clear();
+
         auto *group = new QSequentialAnimationGroup;
         if(auto off = getAnim(_state, _front); off)
         {
@@ -43,7 +45,7 @@ namespace signalling
             on->setDirection(QAbstractAnimation::Forward);
             group->addAnimation(on);
         }
-        group->start(QAbstractAnimation::DeleteWhenStopped);
+        group->start(QAbstractAnimation::KeepWhenStopped);
         _state = hint;
 
         if(_front == V0 && hint == Vy)
@@ -58,19 +60,21 @@ namespace signalling
         if(_front == front)
             return;
 
-        auto *group = new QSequentialAnimationGroup;
+        clear();
+
         if(auto off = getAnim(_state, _front); off)
         {
             off->setDirection(QAbstractAnimation::Backward);
-            group->addAnimation(off);
+            _group->addAnimation(off);
         }
         if(auto on = getAnim(_state, front); on)
         {
             on->setDirection(QAbstractAnimation::Forward);
-            group->addAnimation(on);
+            _group->addAnimation(on);
         }
-        group->start(QAbstractAnimation::DeleteWhenStopped);
+        _group->start(QAbstractAnimation::KeepWhenStopped);
         _front = front;
+
 
         if(_front == V0 && _state == Vy)
             emit sendState(VyV0);
@@ -100,6 +104,19 @@ namespace signalling
     void Signal::operator delete(void* ptr)
     {
         vsg::deallocate(ptr);
+    }
+
+    void Signal::clear()
+    {
+        while(_group->animationCount() > 0)
+        {
+            if(auto anim = dynamic_cast<QAnimationGroup*>(_group->takeAnimation(0)); anim)
+            {
+                while(anim->animationCount() > 0)
+                    anim->takeAnimation(0);
+                delete anim;
+            }
+        }
     }
 
     //------------------------------------------------------------------------------
@@ -310,8 +327,6 @@ namespace signalling
         _ganim->setDuration(1000);
         _ganim->setStartValue(0.0f);
         _ganim->setEndValue(_intensity);
-
-        _ganim->start();
     }
 
     AutoBlockSignal::~AutoBlockSignal()
@@ -338,9 +353,9 @@ namespace signalling
     {
         Signal::write(output);
 
-        output.write("R_0", _ranim->light);
-        output.write("Y_0", _yanim->light);
-        output.write("G_0", _ganim->light);
+        output.writeObject("R_0", _ranim->light);
+        output.writeObject("Y_0", _yanim->light);
+        output.writeObject("G_0", _ganim->light);
     }
 
     void AutoBlockSignal::Ref(int c)
