@@ -10,20 +10,25 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
     ui->setupUi(this);
 
     _sorter = new TilesSorter(this);
-    //sorter->setSourceModel();
+    _sorter->setSourceModel(db->tilesModel);
     _sorter->setFilterKeyColumn(1);
     _sorter->setFilterWildcard("*");
     ui->trackView->setModel(_sorter);
 
     ui->endList->setEnabled(false);
+    ui->sigList->setEnabled(false);
     ui->cmdList->setEnabled(false);
+    ui->trajsList->setEnabled(false);
 
     _beginModel = new RouteBeginModel(this);
     _endModel = new RouteEndModel(this);
     _cmdModel = new RouteCmdModel(this);
+    _trjModel = new RouteTrjModel(this);
     ui->beginList->setModel(_beginModel);
+    ui->sigList->setModel(_beginModel);
     ui->endList->setModel(_endModel);
     ui->cmdList->setModel(_cmdModel);
+    ui->trajsList->setModel(_trjModel);
 
     connect(ui->searchLine, &QLineEdit::textChanged, _sorter, &TilesSorter::setFilterWildcard);
     /*connect(ui->tilesView->selectionModel(), &QItemSelectionModel::selectionChanged, sorter, &TilesSorter::viewSelectSlot);
@@ -33,7 +38,7 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
     connect(sorter, &TilesSorter::viewExpandSignal, ui->tilesView, &QTreeView::expand);*/
 
     ui->stationBox->setModel(new StationsModel(_database->topology));
-    ui->stationBox->setCurrentIndex(0);
+    ui->stationBox->setCurrentIndex(-1);
 
     connect(ui->stationBox, &QComboBox::currentIndexChanged, this, [this](int idx)
     {
@@ -44,9 +49,12 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
         }
         _station = std::next(_database->topology->stations.begin(), idx)->second;
         ui->beginList->selectionModel()->clear();
-        ui->sigView->selectionModel()->clear();
+        ui->sigList->selectionModel()->clear();
+        ui->trajsList->selectionModel()->clear();
         ui->endList->setEnabled(false);
+        ui->sigList->setEnabled(true);
         ui->cmdList->setEnabled(false);
+        ui->trajsList->setEnabled(false);
         _beginModel->setStation(_station);
     });
 
@@ -60,6 +68,8 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
         _begin = std::next(_station->rsignals.begin(), index.row())->second;
         _endModel->setRoutes(_begin);
         ui->endList->setEnabled(true);
+        ui->cmdList->setEnabled(false);
+        ui->trajsList->setEnabled(false);
     });
 
     connect(ui->endList, &QListView::clicked, this, [this](const QModelIndex &index)
@@ -67,11 +77,17 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
         if(!_begin || !index.isValid())
         {
             _route = nullptr;
+            _cmdModel->setRoute(_route);
+            _trjModel->setRoute(_route);
+            ui->cmdList->setEnabled(false);
+            ui->trajsList->setEnabled(false);
             return;
         }
         _route = std::next(_begin->routes.begin(), index.row())->second;
         _cmdModel->setRoute(_route);
+        _trjModel->setRoute(_route);
         ui->cmdList->setEnabled(true);
+        ui->trajsList->setEnabled(true);
     });
 
     connect(ui->addRouteButt, &QPushButton::pressed, this, &InterlockDialog::addRoute);
@@ -79,6 +95,10 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
     connect(ui->addTrajsButt, &QPushButton::pressed, this, &InterlockDialog::addTrajs);
     connect(ui->addSigButt, &QPushButton::pressed, this, &InterlockDialog::addSignal);
     connect(ui->addRouteCmdButt, &QPushButton::pressed, this, &InterlockDialog::addRouteCommand);
+    connect(ui->removeCmdButt, &QPushButton::pressed, this, &InterlockDialog::removeCmd);
+    connect(ui->assembleButt, &QPushButton::pressed, this, &InterlockDialog::assemble);
+    connect(ui->removeRouteButt, &QPushButton::pressed, this, &InterlockDialog::removeRoute);
+    connect(ui->removeTrajButt, &QPushButton::pressed, this, &InterlockDialog::removeTrajs);
 }
 
 InterlockDialog::~InterlockDialog()
@@ -93,7 +113,7 @@ void InterlockDialog::addTrajs()
         return;
     }
 
-    auto selected = _sorter->mapSelectionToSource(ui->trackView->selectionModel()->selection()).indexes();
+    auto selected = ui->trackView->selectionModel()->selectedRows();
     if(selected.empty())
     {
         return;
@@ -101,9 +121,9 @@ void InterlockDialog::addTrajs()
 
     for (const auto &index : selected)
     {
-        auto node = static_cast<vsg::Node*>(index.internalPointer());
+        auto node = static_cast<vsg::Node*>(_sorter->mapToSource(index).internalPointer());
         if(auto trj = node->cast<route::Trajectory>(); trj)
-            _route->trajs.emplace_back(trj);
+            _trjModel->insertTrj(trj);
     }
 }
 
@@ -137,20 +157,23 @@ void InterlockDialog::addSignal()
         return;
     }
 
-    auto selected = ui->sigView->selectionModel()->selectedIndexes();
+    auto selected = ui->sigList->selectionModel()->selectedIndexes();
     if(selected.empty())
     {
         return;
     }
 
-    auto row = selected.front().row();
-    auto signal = std::next(_station->rsignals.begin(), row);
+    for (const auto& index : selected)
+    {
+        auto row = index.row();
+        auto signal = std::next(_station->rsignals.begin(), row);
 
-    auto cmd = signalling::SignalCommand::create();
-    cmd->sig = signal->first;
-    cmd->onHint = static_cast<signalling::State>(ui->onHintCombo->currentIndex());
-    cmd->offHint = static_cast<signalling::State>(ui->offHintCombo->currentIndex());
-    _route->commands.push_back(cmd);
+        auto cmd = signalling::SignalCommand::create();
+        cmd->sig = signal->first;
+        cmd->onHint = static_cast<signalling::State>(ui->onHintCombo->currentIndex());
+        cmd->offHint = static_cast<signalling::State>(ui->offHintCombo->currentIndex());
+        _cmdModel->insertCmd(cmd);
+    }
 }
 
 void InterlockDialog::addRoute()
@@ -160,7 +183,7 @@ void InterlockDialog::addRoute()
         return;
     }
 
-    auto selected = ui->sigView->selectionModel()->selectedIndexes();
+    auto selected = ui->sigList->selectionModel()->selectedIndexes();
     if(selected.empty())
     {
         return;
@@ -200,4 +223,81 @@ void InterlockDialog::addRouteCommand()
     cmd->rt = _route.get();
      _route->commands.push_back(cmd);
 
+}
+
+void InterlockDialog::removeCmd()
+{
+    if(!_station || !_route)
+    {
+        return;
+    }
+
+    auto selected = ui->cmdList->selectionModel()->selectedIndexes();
+    if(selected.empty())
+    {
+        return;
+    }
+
+    for (const auto& index : selected)
+    {
+        auto row = index.row();
+        _cmdModel->removeRow(row);
+    }
+}
+
+void InterlockDialog::assemble()
+{
+    if(!_route)
+    {
+        return;
+    }
+
+    _route->assemble();
+}
+
+void InterlockDialog::removeTrajs()
+{
+    if(!_route)
+    {
+        return;
+    }
+
+    auto selected = ui->trajsList->selectionModel()->selectedIndexes();
+    if(selected.empty())
+    {
+        return;
+    }
+
+    for (const auto& index : selected)
+    {
+        auto row = index.row();
+        _trjModel->removeRow(row);
+    }
+}
+
+void InterlockDialog::removeRoute()
+{
+    if(!_station || !_begin || !_route)
+    {
+        return;
+    }
+
+    auto selected = ui->endList->selectionModel()->selectedIndexes();
+    if(selected.empty())
+    {
+        return;
+    }
+
+    auto row = selected.front().row();
+    auto route = std::next(_begin->routes.begin(), row);
+
+    _begin->routes.erase(route);
+    _endModel->setRoutes(_begin);
+
+    _route = nullptr;
+
+    _cmdModel->setRoute(_route);
+    _trjModel->setRoute(_route);
+    ui->cmdList->setEnabled(false);
+    ui->trajsList->setEnabled(false);
 }

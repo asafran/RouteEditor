@@ -243,11 +243,13 @@ namespace route
 
         bool isFree() const;
 
-        void setSignal(vsg::ref_ptr<signalling::Signal> signal);
+        void setSignal(vsg::ref_ptr<signalling::Signal> signal, bool connect = true);
 
-        void setReverseSignal(vsg::ref_ptr<signalling::Signal> signal);
+        void setReverseSignal(vsg::ref_ptr<signalling::Signal> signal, bool connect = true);
 
         Trajectory *fwdTrajectory = nullptr;
+        bool fwdConnected = false;
+        bool bwdConnected = false;
 
         void traverse(vsg::Visitor& visitor) override;
         void traverse(vsg::ConstVisitor& visitor) const override;
@@ -283,6 +285,8 @@ namespace route
 
         vsg::ref_ptr<signalling::Signal> _fwdSignal;
         vsg::ref_ptr<signalling::Signal> _bwdSignal;
+
+
     };
 
     class StaticConnector : public vsg::Inherit<RailConnector, StaticConnector>

@@ -59,6 +59,26 @@ private:
     vsg::ref_ptr<signalling::Route> _r;
 };
 
+class RouteTrjModel : public QAbstractListModel
+{
+    Q_OBJECT
+public:
+    explicit RouteTrjModel(QObject *parent = nullptr, signalling::Route* r = nullptr);
+
+    ~RouteTrjModel();
+
+    void setRoute(signalling::Route* r);
+
+    int rowCount(const QModelIndex &parent) const;
+    QVariant data(const QModelIndex &index, int role) const;
+
+    bool insertTrj(route::Trajectory* trj);
+    bool removeRows(int row, int count, const QModelIndex &parent);
+
+private:
+    vsg::ref_ptr<signalling::Route> _r;
+};
+
 class StationsModel : public QAbstractListModel
 {
     Q_OBJECT

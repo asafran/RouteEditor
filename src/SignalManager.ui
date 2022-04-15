@@ -43,17 +43,27 @@
      </item>
      <item>
       <property name="text">
-       <string>Выходной</string>
+       <string>Предвходной</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Входной</string>
+       <string>Входной/Маршрутный/Выходной</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Маршрутный</string>
+       <string>Входной/Маршрутный/Выходной (зел. полоса)</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Маневровый (2 линзы)</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Маневровый (3 линзы)</string>
       </property>
      </item>
     </widget>

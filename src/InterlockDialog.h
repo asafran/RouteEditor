@@ -24,6 +24,10 @@ public slots:
     void addSignal();
     void addRoute();
     void addRouteCommand();
+    void removeCmd();
+    void assemble();
+    void removeTrajs();
+    void removeRoute();
 
 private:
     Ui::InterlockDialog *ui;
@@ -33,6 +37,7 @@ private:
     RouteBeginModel *_beginModel;
     RouteEndModel *_endModel;
     RouteCmdModel *_cmdModel;
+    RouteTrjModel *_trjModel;
 
     vsg::ref_ptr<signalling::Station> _station;
     vsg::ref_ptr<signalling::Routes> _begin;

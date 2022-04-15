@@ -50,7 +50,7 @@ namespace signalling
 
         virtual QAbstractAnimation *getAnim(State state, State front);
 
-        State _front = V0;
+        State _front = Off;
 
         State _state = Off;
 
@@ -60,7 +60,7 @@ namespace signalling
 
         int _vcount = 0;
 
-        float _intensity = 3.0f;
+        float _intensity = 0.0f;
 
         friend class route::SwitchConnector;
     };
@@ -158,8 +158,29 @@ namespace signalling
     private:
         void initSigs();
     };
-
 /*
+    class RouteRepSignal : public vsg::Inherit<Signal, RouteRepSignal>
+    {
+        Q_OBJECT
+    public:
+        RouteRepSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box);
+        RouteRepSignal();
+
+        virtual ~RouteRepSignal();
+
+        void read(vsg::Input& input) override;
+
+    protected:
+        QAbstractAnimation* getAnim(State state, State front) override;
+
+        QSequentialAnimationGroup *_gloop;
+        QSequentialAnimationGroup *_yloop;
+
+    private:
+        void initSigs();
+    };
+
+
     class StSignal : public vsg::Inherit<AutoBlockSignal, StSignal>
     {
         Q_OBJECT

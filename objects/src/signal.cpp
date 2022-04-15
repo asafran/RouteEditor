@@ -34,18 +34,17 @@ namespace signalling
 
         clear();
 
-        auto *group = new QSequentialAnimationGroup;
         if(auto off = getAnim(_state, _front); off)
         {
             off->setDirection(QAbstractAnimation::Backward);
-            group->addAnimation(off);
+            _group->addAnimation(off);
         }
         if(auto on = getAnim(hint, _front); on)
         {
             on->setDirection(QAbstractAnimation::Forward);
-            group->addAnimation(on);
+            _group->addAnimation(on);
         }
-        group->start(QAbstractAnimation::KeepWhenStopped);
+        _group->start(QAbstractAnimation::KeepWhenStopped);
         _state = hint;
 
         if(_front == V0 && hint == Vy)
@@ -172,7 +171,6 @@ namespace signalling
 
     void ShSignal::setFwdState(State front)
     {
-        emit sendState(front);
     }
 
     void ShSignal::Ref(int c)
@@ -286,8 +284,9 @@ namespace signalling
         vsg::ref_ptr<vsg::Light> r;
         vsg::ref_ptr<vsg::Light> y;
         vsg::ref_ptr<vsg::Light> g;
-        auto findLights = [&r, &y, &g](vsg::Light& l) mutable
+        auto findLights = [&r, &y, &g, this](vsg::Light& l) mutable
         {
+            _intensity = std::max(_intensity, l.intensity);
             l.intensity = 0.0f;
             if(l.name == "R_0")
                 r = vsg::ref_ptr<vsg::Light>(&l);
@@ -362,10 +361,13 @@ namespace signalling
     {
         Signal::Ref(c);
 
-        if(_vcount > 0)
-            setState(V0);
-        else
-            setState(Vy);
+        if(_state != Off)
+        {
+            if(_vcount > 0)
+                setState(V0);
+            else
+                setState(Vy);
+        }
     }
 
     QAbstractAnimation* AutoBlockSignal::getAnim(State state, State front)
@@ -496,8 +498,9 @@ namespace signalling
     {
         vsg::ref_ptr<vsg::Light> y1;
         vsg::ref_ptr<vsg::Light> w;
-        auto findLights = [&w, &y1](vsg::Light& l) mutable
+        auto findLights = [&w, &y1, this](vsg::Light& l) mutable
         {
+            _intensity = std::max(_intensity, l.intensity);
             l.intensity = 0.0f;
             if(l.name == "W_0")
                 w = vsg::ref_ptr<vsg::Light>(&l);
@@ -604,7 +607,7 @@ namespace signalling
         : vsg::Inherit<RouteSignal, RouteV2Signal>(loaded, box, fstate)
     {
         vsg::ref_ptr<vsg::Light> gline;
-        auto findLights = [&gline](vsg::Light& l) mutable
+        auto findLights = [&gline, this](vsg::Light& l) mutable
         {
             l.intensity = 0.0f;
             if(l.name == "LINE_0")

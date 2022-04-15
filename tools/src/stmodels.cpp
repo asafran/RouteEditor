@@ -20,7 +20,7 @@ int RouteBeginModel::rowCount(const QModelIndex &parent) const
 
 QVariant RouteBeginModel::data(const QModelIndex &index, int role) const
 {
-    if (!_st || !index.isValid() || !(role == Qt::DisplayRole && role == Qt::EditRole))
+    if (!_st || !index.isValid() || (role != Qt::DisplayRole && role != Qt::EditRole))
         return QVariant();
     Q_ASSERT(index.row() < _st->rsignals.size());
     auto it = std::next(_st->rsignals.cbegin(), index.row());
@@ -51,7 +51,7 @@ int RouteEndModel::rowCount(const QModelIndex &parent) const
 
 QVariant RouteEndModel::data(const QModelIndex &index, int role) const
 {
-    if (!_r || !index.isValid() || !(role == Qt::DisplayRole && role == Qt::EditRole))
+    if (!_r || !index.isValid() || (role != Qt::DisplayRole && role != Qt::EditRole))
         return QVariant();
     Q_ASSERT(index.row() < _r->routes.size());
     auto it = std::next(_r->routes.cbegin(), index.row());
@@ -75,7 +75,7 @@ int StationsModel::rowCount(const QModelIndex &parent) const
 
 QVariant StationsModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || !(role == Qt::DisplayRole || role == Qt::EditRole))
+    if (!index.isValid() || (role != Qt::DisplayRole && role != Qt::EditRole))
         return QVariant();
     Q_ASSERT(index.row() < _topology->stations.size());
     auto it = std::next(_topology->stations.cbegin(), index.row());
@@ -139,7 +139,7 @@ bool StationsModel::removeRows(int row, int count, const QModelIndex &parent)
 {
     if(count != 1)
         return false;
-    beginRemoveRows(QModelIndex(), row, 1);
+    beginRemoveRows(QModelIndex(), row, row);
     _topology->stations.erase(std::next(_topology->stations.begin(), row));
     endRemoveRows();
     emit dataChanged(index(0), index(rowCount()));
@@ -161,7 +161,7 @@ void RouteCmdModel::setRoute(signalling::Route *r)
 
 int RouteCmdModel::rowCount(const QModelIndex &parent) const
 {
-    return _r->commands.size();
+    return _r.valid() ? _r->commands.size() : 0;
 }
 
 bool RouteCmdModel::insertCmd(vsg::ref_ptr<signalling::Command> cmd)
@@ -181,7 +181,7 @@ bool RouteCmdModel::removeRows(int row, int count, const QModelIndex &parent)
     if(count == 0 || row >= _r->commands.size())
         return false;
     auto it = std::next(_r->commands.begin(), row);
-    beginRemoveRows(QModelIndex(), row, 1);
+    beginRemoveRows(QModelIndex(), row, row);
     if(count == 1)
         _r->commands.erase(it);
     else
@@ -192,7 +192,7 @@ bool RouteCmdModel::removeRows(int row, int count, const QModelIndex &parent)
 
 QVariant RouteCmdModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || !(role == Qt::DisplayRole && role == Qt::EditRole))
+    if (!index.isValid() || (role != Qt::DisplayRole && role != Qt::EditRole))
         return QVariant();
     auto cmd = _r->commands.at(index.row());
     if(auto sig = cmd.cast<signalling::SignalCommand>(); sig)
@@ -209,4 +209,60 @@ QVariant RouteCmdModel::data(const QModelIndex &index, int role) const
         return tr("Без имени");
     }
     return QVariant();
+}
+
+RouteTrjModel::RouteTrjModel(QObject *parent, signalling::Route* r)
+    : QAbstractListModel{parent}
+    , _r(r) {}
+
+RouteTrjModel::~RouteTrjModel() {}
+
+void RouteTrjModel::setRoute(signalling::Route *r)
+{
+    beginResetModel();
+    _r = r;
+    endResetModel();
+}
+
+int RouteTrjModel::rowCount(const QModelIndex &parent) const
+{
+    return _r.valid() ? _r->trajs.size() : 0;
+}
+
+bool RouteTrjModel::insertTrj(route::Trajectory* trj)
+{
+    if(!trj)
+        return false;
+    int row = rowCount(QModelIndex());
+
+    beginInsertRows(QModelIndex(), row, row);
+    _r->trajs.emplace_back(trj);
+    endInsertRows();
+    return true;
+}
+
+bool RouteTrjModel::removeRows(int row, int count, const QModelIndex &parent)
+{
+    if(count == 0 || row >= _r->trajs.size())
+        return false;
+    auto it = std::next(_r->trajs.begin(), row);
+    beginRemoveRows(QModelIndex(), row, row);
+    if(count == 1)
+        _r->trajs.erase(it);
+    else
+        _r->trajs.erase(it, it + count - 1);
+    endRemoveRows();
+    return true;
+}
+
+QVariant RouteTrjModel::data(const QModelIndex &index, int role) const
+{
+    if (!index.isValid() || (role != Qt::DisplayRole && role != Qt::EditRole))
+        return QVariant();
+    auto trj = _r->trajs.at(index.row());
+
+    std::string name;
+    if(trj->getValue(app::NAME, name))
+        return name.c_str();
+    return tr("Без названия");
 }

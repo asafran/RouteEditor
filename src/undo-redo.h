@@ -52,14 +52,16 @@ public:
     AddSignal(route::RailConnector *rc,
               vsg::ref_ptr<signalling::Signal> sig,
               vsg::ref_ptr<route::Topology> topo,
+              bool connect,
               QUndoCommand *parent = nullptr)
         : QUndoCommand(parent)
         , _rc(rc)
-        , _sig(sig) {}
+        , _sig(sig)
+        , _topo(topo)
+        , _connect(connect) {}
 
     void undo() override
     {
-        _rc->setSignal(vsg::ref_ptr<signalling::Signal>());
         if(_sig->station.empty())
             return;
         try {
@@ -70,7 +72,6 @@ public:
     }
     void redo() override
     {
-        _rc->setSignal(_sig);
         if(_sig->station.empty())
             return;
         try {
@@ -86,6 +87,7 @@ protected:
     vsg::ref_ptr<signalling::Routes> _routes;
     vsg::ref_ptr<route::Topology> _topo;
 
+    bool _connect;
 };
 
 class AddFwdSignal : public AddSignal
@@ -94,6 +96,7 @@ public:
     AddFwdSignal(route::RailConnector *rc,
                  vsg::ref_ptr<signalling::Signal> sig,
                  vsg::ref_ptr<route::Topology> topo,
+                 bool connect,
                  QUndoCommand *parent = nullptr)
         : AddSignal(rc, sig, topo, parent)
     {
@@ -102,12 +105,12 @@ public:
 
     void undo() override
     {
-        _rc->setSignal(vsg::ref_ptr<signalling::Signal>());
+        _rc->setSignal(vsg::ref_ptr<signalling::Signal>(), _connect);
         AddSignal::undo();
     }
     void redo() override
     {
-        _rc->setSignal(_sig);
+        _rc->setSignal(_sig, _connect);
         AddSignal::redo();
     }
 };
@@ -118,6 +121,7 @@ public:
     AddBwdSignal(route::RailConnector *rc,
                  vsg::ref_ptr<signalling::Signal> sig,
                  vsg::ref_ptr<route::Topology> topo,
+                 bool connect,
                  QUndoCommand *parent = nullptr)
         : AddSignal(rc, sig, topo, parent)
     {
@@ -126,12 +130,12 @@ public:
 
     void undo() override
     {
-        _rc->setReverseSignal(vsg::ref_ptr<signalling::Signal>());
+        _rc->setReverseSignal(vsg::ref_ptr<signalling::Signal>(), _connect);
         AddSignal::undo();
     }
     void redo() override
     {
-        _rc->setReverseSignal(_sig);
+        _rc->setReverseSignal(_sig, _connect);
         AddSignal::redo();
     }
 
@@ -142,7 +146,7 @@ public:
     RemoveBwdSignal(route::RailConnector *rc,
                     vsg::ref_ptr<route::Topology> topo,
                     QUndoCommand *parent = nullptr)
-        : AddBwdSignal(rc, rc->bwdSignal(), topo, parent)
+        : AddBwdSignal(rc, rc->bwdSignal(), topo, rc->bwdConnected, parent)
     {
         setText(QObject::tr("Удален сигнал, направление назад"));
     }
@@ -163,7 +167,7 @@ public:
     RemoveFwdSignal(route::RailConnector *rc,
                     vsg::ref_ptr<route::Topology> topo,
                     QUndoCommand *parent = nullptr)
-        : AddFwdSignal(rc, rc->fwdSignal(), topo, parent)
+        : AddFwdSignal(rc, rc->fwdSignal(), topo, rc->fwdConnected, parent)
     {
         setText(QObject::tr("Удален сигнал, направление вперед"));
     }

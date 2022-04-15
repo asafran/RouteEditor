@@ -23,7 +23,11 @@ private:
     enum Types
     {
         Auto,
-        Routing
+        StRepeater,
+        Routing,
+        RoutingV2,
+        Sh,
+        Sh2
     };
 
     Ui::SignalManager *ui;

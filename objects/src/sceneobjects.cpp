@@ -246,12 +246,17 @@ namespace route
     {
         RailPoint::read(input);
 
-        input.read("_fwdSignal", _fwdSignal);
-        input.read("_bwdSignal", _bwdSignal);
+        input.read("fwdSignal", _fwdSignal);
+        input.read("bwdSignal", _bwdSignal);
+        input.read("fwdConnected", fwdConnected);
+        input.read("bwdConnected", bwdConnected);
+
         input.read("reverser", _reverser);
 
-        connect(_bwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendFwdState);
-        connect(_fwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendBwdState);
+        if(bwdConnected)
+            connect(_bwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendFwdState);
+        if(fwdConnected)
+            connect(_fwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendBwdState);
         //vsg::ref_ptr<Trajectory> trj;
         //input.readObject("sndTraj", trj);
         //fwdTrajectory = trj.get();
@@ -261,8 +266,11 @@ namespace route
     {
         RailPoint::write(output);
 
-        output.write("_fwdSignal", _fwdSignal);
-        output.write("_bwdSignal", _bwdSignal);
+        output.write("fwdSignal", _fwdSignal);
+        output.write("bwdSignal", _bwdSignal);
+        output.write("fwdConnected", fwdConnected);
+        output.write("bwdConnected", bwdConnected);
+
         output.write("reverser", _reverser);
 
         //output.writeObject("sndTraj", fwdTrajectory);
@@ -356,22 +364,24 @@ namespace route
         return trajectory == nullptr || fwdTrajectory == nullptr;
     }
 
-    void RailConnector::setSignal(vsg::ref_ptr<signalling::Signal> signal)
+    void RailConnector::setSignal(vsg::ref_ptr<signalling::Signal> signal, bool connect)
     {
         if(_fwdSignal)
             disconnect(_fwdSignal, nullptr, this, nullptr);
         _fwdSignal = signal;
-        if(_fwdSignal)
-            connect(_fwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendBwdState);
+        fwdConnected = connect;
+        if(_fwdSignal && connect)
+            QObject::connect(_fwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendBwdState);
     }
 
-    void RailConnector::setReverseSignal(vsg::ref_ptr<signalling::Signal> signal)
+    void RailConnector::setReverseSignal(vsg::ref_ptr<signalling::Signal> signal, bool connect)
     {
         if(_bwdSignal)
             disconnect(_bwdSignal, nullptr, this, nullptr);
         _bwdSignal = signal;
-        if(_bwdSignal)
-            connect(_bwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendFwdState);
+        bwdConnected = connect;
+        if(_bwdSignal && connect)
+            QObject::connect(_bwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendFwdState);
     }
 
     void RailConnector::traverse(vsg::Visitor &visitor)
@@ -406,7 +416,11 @@ namespace route
         if(!_fwdSignal)
             emit sendBwdState(state);
         else
+        {
             _fwdSignal->setFwdState(state);
+            if(!fwdConnected)
+                emit sendBwdState(state);
+        }
 
     }
 
@@ -415,7 +429,11 @@ namespace route
         if(!_bwdSignal)
             emit sendFwdState(state);
         else
+        {
             _bwdSignal->setFwdState(state);
+            if(!bwdConnected)
+                emit sendFwdState(state);
+        }
     }
 
     void RailConnector::receiveFwdDirRef(int c)
@@ -423,7 +441,11 @@ namespace route
         if(!_bwdSignal)
             emit sendFwdRef(c);
         else
+        {
             _bwdSignal->Ref(c);
+            if(!bwdConnected)
+                emit sendFwdRef(c);
+        }
     }
 
     void RailConnector::receiveBwdDirRef(int c)
@@ -431,7 +453,11 @@ namespace route
         if(!_fwdSignal)
             emit sendBwdRef(c);
         else
+        {
             _fwdSignal->Ref(c);
+            if(!fwdConnected)
+                emit sendBwdRef(c);
+        }
     }
 /*
     void RailConnector::receiveFwdDirUnref()

@@ -52,7 +52,7 @@ void SignalManager::intersection(const FoundNodes &isection)
         flip->addChild(node);
         node = flip;
     }
-
+/*
     auto lod = vsg::LOD::create();
 
     vsg::LOD::Child hires{0.01, node};
@@ -63,21 +63,40 @@ void SignalManager::intersection(const FoundNodes &isection)
     auto box = vsg::visit<vsg::ComputeBounds>(node).bounds;
     lod->bound.center = (box.min + box.max) * 0.5;
     lod->bound.radius = length(box.max - box.min) * 0.5;
-
+*/
     _database->builder->compileTraversal->compile(node);
 
     vsg::ref_ptr<signalling::Signal> sig;
 
     bool fstate = ui->fstateBox->isChecked();
+    bool connect = true;
 
     try {
         switch (ui->typeBox->currentIndex()) {
         case Auto:
-            sig = signalling::AutoBlockSignal::create(lod, _database->getStdWireBox(), fstate);
+            sig = signalling::AutoBlockSignal::create(node, _database->getStdWireBox(), fstate);
             break;
         case Routing:
-            sig = signalling::RouteSignal::create(lod, _database->getStdWireBox(), fstate);
+            sig = signalling::RouteSignal::create(node, _database->getStdWireBox(), fstate);
             break;
+        case RoutingV2:
+            sig = signalling::RouteV2Signal::create(node, _database->getStdWireBox(), fstate);
+            break;
+        case StRepeater:
+            sig = signalling::StRepSignal::create(node, _database->getStdWireBox(), fstate);
+            break;
+        case Sh:
+        {
+            sig = signalling::ShSignal::create(node, _database->getStdWireBox());
+            connect = false;
+            break;
+        }
+        case Sh2:
+        {
+            sig = signalling::ShSignal::create(node, _database->getStdWireBox());
+            connect = false;
+            break;
+        }
         }
     }  catch (signalling::SigException e) {
         emit sendStatusText(tr("Отсутствует сигнал %1").arg(e.errL), 2000);
@@ -86,9 +105,9 @@ void SignalManager::intersection(const FoundNodes &isection)
     //sig->recalculateWireframe();
 
     if(!isection.connector->fwdSignal() && !ui->reverseBox->isChecked())
-        _database->undoStack->push(new AddFwdSignal(isection.connector, sig, _database->topology));
+        _database->undoStack->push(new AddFwdSignal(isection.connector, sig, _database->topology, connect));
     else if(!isection.connector->bwdSignal() && ui->reverseBox->isChecked())
-        _database->undoStack->push(new AddBwdSignal(isection.connector, sig, _database->topology));
+        _database->undoStack->push(new AddBwdSignal(isection.connector, sig, _database->topology, connect));
 
     emit sendStatusText(tr("Добавлен объект %1").arg(path.c_str()), 2000);
 }
