@@ -276,6 +276,24 @@ namespace route
         //output.writeObject("sndTraj", fwdTrajectory);
     }
 
+    void RailConnector::setPosition(const vsg::dvec3 &position)
+    {
+        RailPoint::setPosition(position);
+        if(_fwdSignal)
+            _fwdSignal->localToWorld = getWorldTransform();
+        if(_bwdSignal)
+            _bwdSignal->localToWorld = getWorldTransform();
+    }
+
+    void RailConnector::setRotation(const vsg::dquat &rotation)
+    {
+        RailPoint::setRotation(rotation);
+        if(_fwdSignal)
+            _fwdSignal->localToWorld = getWorldTransform();
+        if(_bwdSignal)
+            _bwdSignal->localToWorld = getWorldTransform();
+    }
+
     void RailConnector::recalculate()
     {
         RailPoint::recalculate();
@@ -370,6 +388,7 @@ namespace route
             disconnect(_fwdSignal, nullptr, this, nullptr);
         _fwdSignal = signal;
         fwdConnected = connect;
+        signal->localToWorld = getWorldTransform();
         if(_fwdSignal && connect)
             QObject::connect(_fwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendBwdState);
     }
@@ -380,6 +399,7 @@ namespace route
             disconnect(_bwdSignal, nullptr, this, nullptr);
         _bwdSignal = signal;
         bwdConnected = connect;
+        signal->localToWorld = getWorldTransform();
         if(_bwdSignal && connect)
             QObject::connect(_bwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendFwdState);
     }

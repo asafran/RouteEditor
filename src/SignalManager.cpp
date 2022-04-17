@@ -71,29 +71,34 @@ void SignalManager::intersection(const FoundNodes &isection)
     bool fstate = ui->fstateBox->isChecked();
     bool connect = true;
 
+    int anim = ui->animSpin->value();
+    int pause = ui->changeSpin->value();
+    int onDelay = ui->onDelaySpin->value();
+    int offDelay = ui->offDelaySpin->value();
+
     try {
         switch (ui->typeBox->currentIndex()) {
         case Auto:
-            sig = signalling::AutoBlockSignal::create(node, _database->getStdWireBox(), fstate);
+            sig = signalling::AutoBlockSignal::create(node, _database->getStdWireBox(), pause, anim, fstate);
             break;
         case Routing:
-            sig = signalling::RouteSignal::create(node, _database->getStdWireBox(), fstate);
+            sig = signalling::RouteSignal::create(node, _database->getStdWireBox(), pause, anim, onDelay, offDelay, fstate);
             break;
         case RoutingV2:
-            sig = signalling::RouteV2Signal::create(node, _database->getStdWireBox(), fstate);
+            sig = signalling::RouteV2Signal::create(node, _database->getStdWireBox(), pause, anim, onDelay, offDelay, fstate);
             break;
         case StRepeater:
-            sig = signalling::StRepSignal::create(node, _database->getStdWireBox(), fstate);
+            sig = signalling::StRepSignal::create(node, _database->getStdWireBox(), pause, anim, onDelay, offDelay, fstate);
             break;
         case Sh:
         {
-            sig = signalling::ShSignal::create(node, _database->getStdWireBox());
+            sig = signalling::ShSignal::create(node, _database->getStdWireBox(), pause, anim);
             connect = false;
             break;
         }
         case Sh2:
         {
-            sig = signalling::ShSignal::create(node, _database->getStdWireBox());
+            sig = signalling::ShSignal::create(node, _database->getStdWireBox(), pause, anim);
             connect = false;
             break;
         }

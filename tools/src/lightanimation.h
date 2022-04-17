@@ -9,7 +9,7 @@ class LightAnimation : public QVariantAnimation
 {
     Q_OBJECT
 public:
-    explicit LightAnimation(vsg::ref_ptr<vsg::Light> l, QObject *parent = nullptr);
+    explicit LightAnimation(vsg::ref_ptr<vsg::Light> l, float intensity, int duration, QObject *parent = nullptr);
 
     vsg::ref_ptr<vsg::Light> light;
 

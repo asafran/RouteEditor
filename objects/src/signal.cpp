@@ -1,11 +1,12 @@
 #include "signal.h"
 #include "LambdaVisitor.h"
 #include <QPauseAnimation>
+#include "QFuture"
 
 namespace signalling
 {
-    Signal::Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box)
-        : QObject(nullptr), vsg::Inherit<SceneObject, Signal>(loaded, box) {}
+    Signal::Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration)
+        : QObject(nullptr), vsg::Inherit<SceneObject, Signal>(loaded, box), _pause(pause), _duration(duration) {}
 
     Signal::Signal() : QObject(nullptr), vsg::Inherit<SceneObject, Signal>() {}
 
@@ -17,6 +18,8 @@ namespace signalling
 
         input.read("station", station);
         input.read("intensity", _intensity);
+        input.read("pause", _pause);
+        input.read("duration", _duration);
     }
 
     void Signal::write(vsg::Output &output) const
@@ -25,6 +28,8 @@ namespace signalling
 
         output.write("station", station);
         output.write("intensity", _intensity);
+        output.write("pause", _pause);
+        output.write("duration", _duration);
     }
 
     void Signal::setState(State hint)
@@ -32,22 +37,25 @@ namespace signalling
         if(_state == hint)
             return;
 
-        clear();
+        _group.clear();
 
         if(auto off = getAnim(_state, _front); off)
         {
             off->setDirection(QAbstractAnimation::Backward);
-            _group->addAnimation(off);
+            off->start(QAbstractAnimation::DeleteWhenStopped);
+            //_group.addAnimation(off);
+            _group.addPause(_pause);
         }
         if(auto on = getAnim(hint, _front); on)
         {
             on->setDirection(QAbstractAnimation::Forward);
-            _group->addAnimation(on);
+            _group.addAnimation(on);
         }
-        _group->start(QAbstractAnimation::KeepWhenStopped);
+        _group.start();
+
         _state = hint;
 
-        if(_front == V0 && hint == Vy)
+        if((_front == V0 || _front == Off) && hint == Vy)
             emit sendState(VyV0);
         else
             emit sendState(hint);
@@ -59,23 +67,25 @@ namespace signalling
         if(_front == front)
             return;
 
-        clear();
+        _group.clear();
 
         if(auto off = getAnim(_state, _front); off)
         {
             off->setDirection(QAbstractAnimation::Backward);
-            _group->addAnimation(off);
+            off->start(QAbstractAnimation::DeleteWhenStopped);
+            //_group.addAnimation(off);
+            _group.addPause(_pause);
         }
         if(auto on = getAnim(_state, front); on)
         {
             on->setDirection(QAbstractAnimation::Forward);
-            _group->addAnimation(on);
+            _group.addAnimation(on);
         }
-        _group->start(QAbstractAnimation::KeepWhenStopped);
+        _group.start();
+
         _front = front;
 
-
-        if(_front == V0 && _state == Vy)
+        if((_front == V0 || _front == Off) && _state == Vy)
             emit sendState(VyV0);
     }
 
@@ -105,46 +115,32 @@ namespace signalling
         vsg::deallocate(ptr);
     }
 
-    void Signal::clear()
-    {
-        while(_group->animationCount() > 0)
-        {
-            if(auto anim = dynamic_cast<QAnimationGroup*>(_group->takeAnimation(0)); anim)
-            {
-                while(anim->animationCount() > 0)
-                    anim->takeAnimation(0);
-                delete anim;
-            }
-        }
-    }
-
     //------------------------------------------------------------------------------
 
-    ShSignal::ShSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box)
-        : vsg::Inherit<Signal, ShSignal>(loaded, box)
+    ShSignal::ShSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration)
+        : vsg::Inherit<Signal, ShSignal>(loaded, box, pause, duration)
     {
-        vsg::ref_ptr<vsg::Light> s;
-        vsg::ref_ptr<vsg::Light> w;
-        auto findLights = [&s, &w](vsg::Light& l) mutable
+        auto findLights = [this](vsg::Light& l) mutable
         {
+            _intensity = std::max(_intensity, l.intensity);
             l.intensity = 0.0f;
             if(l.name == "S_0")
-                s = vsg::ref_ptr<vsg::Light>(&l);
+                _s = vsg::ref_ptr<vsg::Light>(&l);
             else if(l.name == "W_0")
-                w = vsg::ref_ptr<vsg::Light>(&l);
+                _w = vsg::ref_ptr<vsg::Light>(&l);
         };
         LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
         loaded->accept(lv);
 
-        if(!s)
+        if(!_s)
             throw SigException{"S_0"};
-        else if(!w)
+        else if(!_w)
             throw SigException{"Y_0"};
 
-        initSigs(s, w);
+        setState(NoSh);
     }
 
-    ShSignal::ShSignal() : vsg::Inherit<Signal, ShSignal>() { }
+    ShSignal::ShSignal() : vsg::Inherit<Signal, ShSignal>() {  }
 
     ShSignal::~ShSignal() {}
 
@@ -152,21 +148,22 @@ namespace signalling
     {
         Signal::read(input);
 
-        vsg::ref_ptr<vsg::Light> s;
-        vsg::ref_ptr<vsg::Light> w;
+        input.read("S_0", _s);
+        input.read("W_0", _w);
 
-        input.read("S_0", s);
-        input.read("W_0", w);
+        _s->intensity = 0.0f;
+        _w->intensity = 0.0f;
 
-        initSigs(s, w);
+        setState(NoSh);
+
     }
 
     void ShSignal::write(vsg::Output &output) const
     {
         Signal::write(output);
 
-        output.write("R_0", _sanim->light);
-        output.write("Y_0", _wanim->light);
+        output.write("R_0", _s);
+        output.write("Y_0", _w);
     }
 
     void ShSignal::setFwdState(State front)
@@ -185,35 +182,18 @@ namespace signalling
 
         switch (state) {
         case Sh:
-            return _wanim;
+            return new LightAnimation(_w, _intensity, _duration);
         case NoSh:
-            return _sanim;
+            return new LightAnimation(_s, _intensity, _duration);
         default:
             return nullptr;
         }
     }
 
-    void ShSignal::initSigs(vsg::ref_ptr<vsg::Light> s, vsg::ref_ptr<vsg::Light> w)
-    {
-        _state = NoSh;
-
-        _sanim = new LightAnimation(s, this);
-        _sanim->setDuration(1000);
-        _sanim->setStartValue(0.0f);
-        _sanim->setEndValue(_intensity);
-
-        _wanim = new LightAnimation(w, this);
-        _wanim->setDuration(1000);
-        _wanim->setStartValue(0.0f);
-        _wanim->setEndValue(_intensity);
-
-        _sanim->start();
-    }
-
     //------------------------------------------------------------------------------
 
-    Sh2Signal::Sh2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box)
-        : vsg::Inherit<ShSignal, Sh2Signal>(loaded, box)
+    Sh2Signal::Sh2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration)
+        : vsg::Inherit<ShSignal, Sh2Signal>(loaded, box, pause, duration)
     {
         vsg::ref_ptr<vsg::Light> w1;
         auto findLights = [&w1](vsg::Light& l) mutable
@@ -227,8 +207,6 @@ namespace signalling
 
         if(!w1)
             throw SigException{"W_1"};
-
-        initSigs(w1);
     }
 
     Sh2Signal::Sh2Signal() : vsg::Inherit<ShSignal, Sh2Signal>() {}
@@ -239,94 +217,61 @@ namespace signalling
     {
         ShSignal::read(input);
 
-        vsg::ref_ptr<vsg::Light> w1;
+        input.read("W_1", _w1);
 
-        input.read("W_1", w1);
-
-        initSigs(w1);
+        _w1->intensity = 0.0f;
     }
 
     void Sh2Signal::write(vsg::Output &output) const
     {
         ShSignal::write(output);
 
-        output.write("W_1", _w1anim->light);
+        output.write("W_1", _w1);
     }
 
     QAbstractAnimation *Sh2Signal::getAnim(State state, State front)
     {
         switch (state) {
         case Sh:
-            return _wanim;
+            return new LightAnimation(_w, _intensity, _duration);
         case Sh2:
-            return _w1anim;
+            return new LightAnimation(_w1, _intensity, _duration);
         case NoSh:
-            return _sanim;
+            return new LightAnimation(_s, _intensity, _duration);
         default:
             return nullptr;
         }
     }
 
-    void Sh2Signal::initSigs(vsg::ref_ptr<vsg::Light> w1)
-    {
-        _w1anim = new LightAnimation(w1, this);
-        _w1anim->setDuration(1000);
-        _w1anim->setStartValue(0.0f);
-        _w1anim->setEndValue(_intensity);
-    }
-
     //------------------------------------------------------------------------------
 
-    AutoBlockSignal::AutoBlockSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
-        : vsg::Inherit<Signal, AutoBlockSignal>(loaded, box)
+    AutoBlockSignal::AutoBlockSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration, bool fstate)
+        : vsg::Inherit<Signal, AutoBlockSignal>(loaded, box, pause, duration)
         , _fstate(fstate)
     {
-        vsg::ref_ptr<vsg::Light> r;
-        vsg::ref_ptr<vsg::Light> y;
-        vsg::ref_ptr<vsg::Light> g;
-        auto findLights = [&r, &y, &g, this](vsg::Light& l) mutable
+        auto findLights = [this](vsg::Light& l) mutable
         {
             _intensity = std::max(_intensity, l.intensity);
             l.intensity = 0.0f;
             if(l.name == "R_0")
-                r = vsg::ref_ptr<vsg::Light>(&l);
+                _r = vsg::ref_ptr<vsg::Light>(&l);
             else if(l.name == "Y_0")
-                y = vsg::ref_ptr<vsg::Light>(&l);
+                _y = vsg::ref_ptr<vsg::Light>(&l);
             else if(l.name == "G_0")
-                g = vsg::ref_ptr<vsg::Light>(&l);
+                _g = vsg::ref_ptr<vsg::Light>(&l);
         };
         LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
         loaded->accept(lv);
 
-        if(!r)
+        if(!_r)
             throw SigException{"R_0"};
-        else if(!y)
+        else if(!_y)
             throw SigException{"Y_0"};
-        else if(!g)
+        else if(!_g)
             throw SigException{"G_0"};
-
-        initSigs(r, y, g);
     }
 
     AutoBlockSignal::AutoBlockSignal() : vsg::Inherit<Signal, AutoBlockSignal>() {}
-
-    void AutoBlockSignal::initSigs(vsg::ref_ptr<vsg::Light> r, vsg::ref_ptr<vsg::Light> y, vsg::ref_ptr<vsg::Light> g)
-    {
-        _ranim = new LightAnimation(r, this);
-        _ranim->setDuration(1000);
-        _ranim->setStartValue(0.0f);
-        _ranim->setEndValue(_intensity);
-
-        _yanim = new LightAnimation(y, this);
-        _yanim->setDuration(1000);
-        _yanim->setStartValue(0.0f);
-        _yanim->setEndValue(_intensity);
-
-        _ganim = new LightAnimation(g, this);
-        _ganim->setDuration(1000);
-        _ganim->setStartValue(0.0f);
-        _ganim->setEndValue(_intensity);
-    }
 
     AutoBlockSignal::~AutoBlockSignal()
     {
@@ -337,24 +282,22 @@ namespace signalling
     {
         Signal::read(input);
 
-        vsg::ref_ptr<vsg::Light> r;
-        vsg::ref_ptr<vsg::Light> y;
-        vsg::ref_ptr<vsg::Light> g;
+        input.read("R_0", _r);
+        input.read("Y_0", _y);
+        input.read("G_0", _g);
 
-        input.read("R_0", r);
-        input.read("Y_0", y);
-        input.read("G_0", g);
-
-        initSigs(r, y, g);
+        _r->intensity = 0.0f;
+        _y->intensity = 0.0f;
+        _g->intensity = 0.0f;
     }
 
     void AutoBlockSignal::write(vsg::Output &output) const
     {
         Signal::write(output);
 
-        output.writeObject("R_0", _ranim->light);
-        output.writeObject("Y_0", _yanim->light);
-        output.writeObject("G_0", _ganim->light);
+        output.writeObject("R_0", _r);
+        output.writeObject("Y_0", _y);
+        output.writeObject("G_0", _g);
     }
 
     void AutoBlockSignal::Ref(int c)
@@ -376,27 +319,27 @@ namespace signalling
         case Vy:
             switch (front) {
             case Vy:
-                return _ganim;
+                return new LightAnimation(_g, _intensity, _duration);
             case V0:
-                return _yanim;
+                return new LightAnimation(_y, _intensity, _duration);;
             case VyV0:
             {
                 if(!_fstate)
-                    return _ganim;
+                    return new LightAnimation(_g, _intensity, _duration);
 
                 QParallelAnimationGroup *group = new QParallelAnimationGroup;
-                group->addAnimation(_yanim);
-                group->addAnimation(_ganim);
+                group->addAnimation(new LightAnimation(_y, _intensity, _duration));
+                group->addAnimation(new LightAnimation(_g, _intensity, _duration));
 
                 return group;
             }
             default:
-                return _yanim;
+                return new LightAnimation(_y, _intensity, _duration);
             }
         case VyV0:
-            return _yanim;
+            return new LightAnimation(_y, _intensity, _duration);
         case V0:
-            return _ranim;
+            return new LightAnimation(_r, _intensity, _duration);
         default:
             return nullptr;
         }
@@ -404,10 +347,11 @@ namespace signalling
 
     //------------------------------------------------------------------------------
 
-    StRepSignal::StRepSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
-        : vsg::Inherit<AutoBlockSignal, StRepSignal>(loaded, box, fstate)
+    StRepSignal::StRepSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration, int pauseOn, int pauseOff, bool fstate)
+        : vsg::Inherit<AutoBlockSignal, StRepSignal>(loaded, box, pause, duration, fstate)
+        , _pauseOn(pauseOn)
+        , _pauseOff(pauseOff)
     {
-        initSigs();
     }
 
     StRepSignal::StRepSignal()
@@ -418,7 +362,17 @@ namespace signalling
     void StRepSignal::read(vsg::Input &input)
     {
         AutoBlockSignal::read(input);
-        initSigs();
+
+        input.read("pauseOn", _pauseOn);
+        input.read("pauseOff", _pauseOff);
+    }
+
+    void StRepSignal::write(vsg::Output &output) const
+    {
+        AutoBlockSignal::write(output);
+
+        output.write("pauseOn", _pauseOn);
+        output.write("pauseOff", _pauseOff);
     }
 
     QAbstractAnimation* StRepSignal::getAnim(State state, State front)
@@ -428,15 +382,9 @@ namespace signalling
             if(state == _state && front == _front)
                 switch (front) {
                 case V1:
-                {
-                    _yloop->stop();
                     return nullptr;
-                }
                 case V2:
-                {
-                    _gloop->stop();
                     return nullptr;
-                }
                 default:
                     break;
                 }
@@ -444,12 +392,32 @@ namespace signalling
                 switch (state) {
                 case V1:
                 {
-                    _yloop->start();
+                    auto yloop = new QSequentialAnimationGroup(this);
+
+                    auto back = new LightAnimation(_y, _intensity, _duration);
+                    back->setDirection(QAbstractAnimation::Backward);
+
+                    yloop->addAnimation(new LightAnimation(_y, _intensity, _duration));
+                    yloop->addPause(_pauseOn);
+                    yloop->addAnimation(back);
+                    yloop->addPause(_pauseOff);
+
+                    yloop->setLoopCount(-1);
                     return nullptr;
                 }
                 case V2:
                 {
-                    _gloop->start();
+                    auto gloop = new QSequentialAnimationGroup(this);
+
+                    auto back = new LightAnimation(_g, _intensity, _duration);
+                    back->setDirection(QAbstractAnimation::Backward);
+
+                    gloop->addAnimation(new LightAnimation(_g, _intensity, _duration));
+                    gloop->addPause(_pauseOn);
+                    gloop->addAnimation(back);
+                    gloop->addPause(_pauseOff);
+
+                    gloop->setLoopCount(-1);
                     return nullptr;
                 }
                 default:
@@ -459,95 +427,30 @@ namespace signalling
         return AutoBlockSignal::getAnim(state, front);
     }
 
-    void StRepSignal::initSigs()
-    {
-        _yloop = new QSequentialAnimationGroup(this);
-
-        auto back = new LightAnimation(_yanim->light, _yloop);
-        back->setDuration(1000);
-        back->setStartValue(_intensity);
-        back->setEndValue(0.0f);
-
-        auto pause = new QPauseAnimation(_yloop);
-        pause->setDuration(500);
-
-        _yloop->addAnimation(_yanim);
-        _yloop->addAnimation(pause);
-        _yloop->addAnimation(back);
-
-        _yloop->setLoopCount(-1);
-
-        _gloop = new QSequentialAnimationGroup(this);
-
-        back = new LightAnimation(_ganim->light, _gloop);
-        back->setDuration(1000);
-        back->setStartValue(_intensity);
-        back->setEndValue(0.0f);
-
-        _gloop->addAnimation(_yanim);
-        _gloop->addAnimation(pause);
-        _gloop->addAnimation(back);
-
-        _gloop->setLoopCount(-1);
-    }
-
     //------------------------------------------------------------------------------
 
-    RouteSignal::RouteSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
-        : vsg::Inherit<StRepSignal, RouteSignal>(loaded, box, fstate)
+    RouteSignal::RouteSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration, int pauseOn, int pauseOff, bool fstate)
+        : vsg::Inherit<StRepSignal, RouteSignal>(loaded, box, pause, duration, pauseOn, pauseOff, fstate)
     {
-        vsg::ref_ptr<vsg::Light> y1;
-        vsg::ref_ptr<vsg::Light> w;
-        auto findLights = [&w, &y1, this](vsg::Light& l) mutable
+        auto findLights = [this](vsg::Light& l) mutable
         {
             _intensity = std::max(_intensity, l.intensity);
             l.intensity = 0.0f;
             if(l.name == "W_0")
-                w = vsg::ref_ptr<vsg::Light>(&l);
+                _w = vsg::ref_ptr<vsg::Light>(&l);
             else if(l.name == "Y_1")
-                y1 = vsg::ref_ptr<vsg::Light>(&l);
+                _y1 = vsg::ref_ptr<vsg::Light>(&l);
         };
         LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
         loaded->accept(lv);
 
-        if(!w)
+        if(!_w)
             throw SigException{"W_0"};
-        else if(!y1)
+        else if(!_y1)
             throw SigException{"Y_1"};
-
-        initSigs(y1, w);
     }
 
     RouteSignal::RouteSignal() : vsg::Inherit<StRepSignal, RouteSignal>() {}
-
-    void RouteSignal::initSigs(vsg::ref_ptr<vsg::Light> y1, vsg::ref_ptr<vsg::Light> w)
-    {
-        _wanim = new LightAnimation(w, this);
-        _wanim->setDuration(1000);
-        _wanim->setStartValue(0.0f);
-        _wanim->setEndValue(_intensity);
-
-        _y1anim = new LightAnimation(y1, this);
-        _y1anim->setDuration(1000);
-        _y1anim->setStartValue(0.0f);
-        _y1anim->setEndValue(_intensity);
-
-        _wloop = new QSequentialAnimationGroup(this);
-
-        auto back = new LightAnimation(w, _wloop);
-        back->setDuration(1000);
-        back->setStartValue(_intensity);
-        back->setEndValue(0.0f);
-
-        auto pause = new QPauseAnimation(_wloop);
-        pause->setDuration(500);
-
-        _wloop->addAnimation(_wanim);
-        _wloop->addAnimation(pause);
-        _wloop->addAnimation(back);
-
-        _wloop->setLoopCount(-1);
-    }
 
     RouteSignal::~RouteSignal() {}
 
@@ -555,21 +458,19 @@ namespace signalling
     {
         StRepSignal::read(input);
 
-        vsg::ref_ptr<vsg::Light> y1;
-        vsg::ref_ptr<vsg::Light> w;
+        input.read("Y_1", _y1);
+        input.read("W_0", _w);
 
-        input.read("Y_1", y1);
-        input.read("W_0", w);
-
-        initSigs(y1, w);
+        _y1->intensity = 0.0f;
+        _w->intensity = 0.0f;
     }
 
     void RouteSignal::write(vsg::Output &output) const
     {
         AutoBlockSignal::write(output);
 
-        output.write("Y_1", _y1anim->light);
-        output.write("W_0", _wanim->light);
+        output.write("Y_1", _y1);
+        output.write("W_0", _w);
     }
 
     QAbstractAnimation* RouteSignal::getAnim(State state, State front)
@@ -578,18 +479,30 @@ namespace signalling
 
         switch (state) {
         case Sh:
-            return _wanim;
+            return new LightAnimation(_w, _intensity, _duration);
         case Meet:
         {
             if(state == _state && front == _front)
-                _wloop->stop();
+                return nullptr;
             else
-                _wloop->start();
+            {
+                auto wloop = new QSequentialAnimationGroup(this);
+
+                auto back = new LightAnimation(_w, _intensity, _duration);
+                back->setDirection(QAbstractAnimation::Backward);
+
+                wloop->addAnimation(new LightAnimation(_w, _intensity, _duration));
+                wloop->addPause(_pauseOn);
+                wloop->addAnimation(back);
+                wloop->addPause(_pauseOff);
+
+                wloop->setLoopCount(-1);
+            }
         }
         case V1:
         {
             QParallelAnimationGroup *group = new QParallelAnimationGroup;
-            group->addAnimation(_y1anim);
+            group->addAnimation(new LightAnimation(_y1, _intensity, _duration));
 
             if(msig)
                 group->addAnimation(msig);
@@ -603,23 +516,20 @@ namespace signalling
 
     //------------------------------------------------------------------------------
 
-    RouteV2Signal::RouteV2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate)
-        : vsg::Inherit<RouteSignal, RouteV2Signal>(loaded, box, fstate)
+    RouteV2Signal::RouteV2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration, int pauseOn, int pauseOff, bool fstate)
+        : vsg::Inherit<RouteSignal, RouteV2Signal>(loaded, box, pause, duration, pauseOn, pauseOff, fstate)
     {
-        vsg::ref_ptr<vsg::Light> gline;
-        auto findLights = [&gline, this](vsg::Light& l) mutable
+        auto findLights = [this](vsg::Light& l) mutable
         {
             l.intensity = 0.0f;
             if(l.name == "LINE_0")
-                gline = vsg::ref_ptr<vsg::Light>(&l);
+                _gline = vsg::ref_ptr<vsg::Light>(&l);
         };
         LambdaVisitor<decltype (findLights), vsg::Light> lv(findLights);
         loaded->accept(lv);
 
-        if(!gline)
+        if(!_gline)
             throw SigException{"LINE_0"};
-
-        initSigs(gline);
     }
 
     RouteV2Signal::RouteV2Signal() : vsg::Inherit<RouteSignal, RouteV2Signal>() {}
@@ -630,18 +540,16 @@ namespace signalling
     {
         RouteSignal::read(input);
 
-        vsg::ref_ptr<vsg::Light> gline;
+        input.read("LINE_0", _gline);
 
-        input.read("LINE_0", gline);
-
-        initSigs(gline);
+        _gline->intensity = 0.0f;
     }
 
     void RouteV2Signal::write(vsg::Output &output) const
     {
         RouteSignal::write(output);
 
-        output.write("LINE_0", _glineanim->light);
+        output.write("LINE_0", _gline);
     }
 
     QAbstractAnimation *RouteV2Signal::getAnim(State state, State front)
@@ -652,20 +560,12 @@ namespace signalling
             return msig;
 
         QParallelAnimationGroup *group = new QParallelAnimationGroup;
-        group->addAnimation(_glineanim);
+        group->addAnimation(new LightAnimation(_gline, _intensity, _duration));
 
         if(msig)
             group->addAnimation(msig);
 
         return group;
-    }
-
-    void RouteV2Signal::initSigs(vsg::ref_ptr<vsg::Light> line)
-    {
-        _glineanim = new LightAnimation(line, this);
-        _glineanim->setDuration(1000);
-        _glineanim->setStartValue(0.0f);
-        _glineanim->setEndValue(_intensity);
     }
 
     //------------------------------------------------------------------------------

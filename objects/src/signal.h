@@ -10,6 +10,7 @@
 #include <QSequentialAnimationGroup>
 #include <QPropertyAnimation>
 #include <QParallelAnimationGroup>
+#include <QQueue>
 
 namespace signalling
 {
@@ -22,7 +23,7 @@ namespace signalling
     {
         Q_OBJECT
     public:
-        Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box);
+        Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause = 1000, int duration = 1000);
         Signal();
 
         virtual ~Signal();
@@ -54,13 +55,14 @@ namespace signalling
 
         State _state = Off;
 
-        QSequentialAnimationGroup *_group = new QSequentialAnimationGroup;
-
-        //Hint _hint = OffH;
+        QSequentialAnimationGroup _group = new QSequentialAnimationGroup();
 
         int _vcount = 0;
 
         float _intensity = 0.0f;
+
+        int _pause = 1000;
+        int _duration = 1000;
 
         friend class route::SwitchConnector;
     };
@@ -69,7 +71,7 @@ namespace signalling
     {
         Q_OBJECT
     public:
-        ShSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box);
+        ShSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration);
         ShSignal();
 
         virtual ~ShSignal();
@@ -83,18 +85,15 @@ namespace signalling
     protected:
         QAbstractAnimation* getAnim(State state, State front) override;
 
-        LightAnimation *_sanim;
-        LightAnimation *_wanim;
-
-    private:
-        void initSigs(vsg::ref_ptr<vsg::Light> s, vsg::ref_ptr<vsg::Light> w);
+        vsg::ref_ptr<vsg::Light> _s;
+        vsg::ref_ptr<vsg::Light> _w;
     };
 
     class Sh2Signal : public vsg::Inherit<ShSignal, Sh2Signal>
     {
         Q_OBJECT
     public:
-        Sh2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box);
+        Sh2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration);
         Sh2Signal();
 
         virtual ~Sh2Signal();
@@ -105,17 +104,14 @@ namespace signalling
     protected:
         QAbstractAnimation* getAnim(State state, State front) override;
 
-        LightAnimation *_w1anim;
-
-    private:
-        void initSigs(vsg::ref_ptr<vsg::Light> w1);
+        vsg::ref_ptr<vsg::Light> _w1;
     };
 
     class AutoBlockSignal : public vsg::Inherit<Signal, AutoBlockSignal>
     {
         Q_OBJECT
     public:
-        AutoBlockSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        AutoBlockSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration, bool fstate = false);
         AutoBlockSignal();
 
         virtual ~AutoBlockSignal();
@@ -128,35 +124,36 @@ namespace signalling
     protected:
         QAbstractAnimation* getAnim(State state, State front) override;
 
-        LightAnimation *_ranim;
-        LightAnimation *_yanim;
-        LightAnimation *_ganim;
+        vsg::ref_ptr<vsg::Light> _r;
+        vsg::ref_ptr<vsg::Light> _y;
+        vsg::ref_ptr<vsg::Light> _g;
 
         bool _fstate = false;
-
-    private:
-        void initSigs(vsg::ref_ptr<vsg::Light> r, vsg::ref_ptr<vsg::Light> y, vsg::ref_ptr<vsg::Light> g);
     };
 
     class StRepSignal : public vsg::Inherit<AutoBlockSignal, StRepSignal>
     {
         Q_OBJECT
     public:
-        StRepSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        StRepSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box,
+                    int pause,
+                    int duration,
+                    int pauseOn,
+                    int pauseOff,
+                    bool fstate = false);
         StRepSignal();
 
         virtual ~StRepSignal();
 
         void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
 
     protected:
         QAbstractAnimation* getAnim(State state, State front) override;
 
-        QSequentialAnimationGroup *_gloop;
-        QSequentialAnimationGroup *_yloop;
+        int _pauseOn = 2000;
+        int _pauseOff = 1000;
 
-    private:
-        void initSigs();
     };
 /*
     class RouteRepSignal : public vsg::Inherit<Signal, RouteRepSignal>
@@ -202,7 +199,10 @@ namespace signalling
     {
         Q_OBJECT
     public:
-        RouteSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        RouteSignal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration,
+                    int pauseOn,
+                    int pauseOff,
+                    bool fstate = false);
         RouteSignal();
 
         virtual ~RouteSignal();
@@ -213,20 +213,18 @@ namespace signalling
     protected:
         QAbstractAnimation* getAnim(State state, State front) override;
 
-        LightAnimation *_y1anim;
-        LightAnimation *_wanim;
-
-        QSequentialAnimationGroup *_wloop;
-
-    private:
-        void initSigs(vsg::ref_ptr<vsg::Light> y1, vsg::ref_ptr<vsg::Light> w);
+        vsg::ref_ptr<vsg::Light> _y1;
+        vsg::ref_ptr<vsg::Light> _w;
     };
 
     class RouteV2Signal : public vsg::Inherit<RouteSignal, RouteV2Signal>
     {
         Q_OBJECT
     public:
-        RouteV2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, bool fstate = false);
+        RouteV2Signal(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, int pause, int duration,
+                      int pauseOn,
+                      int pauseOff,
+                      bool fstate = false);
         RouteV2Signal();
 
         virtual ~RouteV2Signal();
@@ -237,10 +235,7 @@ namespace signalling
     protected:
         QAbstractAnimation* getAnim(State state, State front) override;
 
-        LightAnimation *_glineanim;
-
-    private:
-        void initSigs(vsg::ref_ptr<vsg::Light> line);
+        vsg::ref_ptr<vsg::Light> _gline;
     };
 /*
     class ExitSignal : public vsg::Inherit<AutoBlockSignal, ExitSignal>

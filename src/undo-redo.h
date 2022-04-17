@@ -65,7 +65,7 @@ public:
         if(_sig->station.empty())
             return;
         try {
-            auto sigs = _topo->stations.at(_sig->station)->rsignals;
+            auto& sigs = _topo->stations.at(_sig->station)->rsignals;
             _routes = sigs.at(_sig.get());
             sigs.erase(_sig.get());
         }  catch (std::out_of_range) {}
@@ -75,7 +75,7 @@ public:
         if(_sig->station.empty())
             return;
         try {
-            auto sigs = _topo->stations.at(_sig->station)->rsignals;
+            auto& sigs = _topo->stations.at(_sig->station)->rsignals;
             if(!_routes)
                 _routes = signalling::Routes::create();
             sigs.insert({_sig, _routes});
@@ -98,7 +98,7 @@ public:
                  vsg::ref_ptr<route::Topology> topo,
                  bool connect,
                  QUndoCommand *parent = nullptr)
-        : AddSignal(rc, sig, topo, parent)
+        : AddSignal(rc, sig, topo, connect,parent)
     {
         setText(QObject::tr("Добавлен сигнал, направление вперед"));
     }
@@ -123,7 +123,7 @@ public:
                  vsg::ref_ptr<route::Topology> topo,
                  bool connect,
                  QUndoCommand *parent = nullptr)
-        : AddSignal(rc, sig, topo, parent)
+        : AddSignal(rc, sig, topo, connect, parent)
     {
         setText(QObject::tr("Добавлен сигнал, направление назад"));
     }

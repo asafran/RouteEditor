@@ -85,6 +85,7 @@ namespace route
 
         vsg::dvec3 getPosition() const { return _position; }
         vsg::dvec3 getWorldPosition() const { return localToWorld * _position; }
+        vsg::dmat4 getWorldTransform() const { return transform(localToWorld); }
         vsg::dquat getWorldQuat() const { return _world_quat; }
         vsg::dquat getRotation() const { return _quat; }
         vsg::dquat getWorldRotation() const;
@@ -222,6 +223,9 @@ namespace route
 
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
+
+        void setPosition(const vsg::dvec3& position) override;
+        void setRotation(const vsg::dquat& rotation) override;
 
         void recalculate() override;
 

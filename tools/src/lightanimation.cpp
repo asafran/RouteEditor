@@ -1,10 +1,12 @@
 #include "lightanimation.h"
 
-LightAnimation::LightAnimation(vsg::ref_ptr<vsg::Light> l, QObject *parent)
+LightAnimation::LightAnimation(vsg::ref_ptr<vsg::Light> l, float intensity, int duration, QObject *parent)
     : QVariantAnimation{parent}
     , light(l)
 {
-
+    setDuration(duration);
+    setStartValue(0.0f);
+    setEndValue(intensity);
 }
 
 
