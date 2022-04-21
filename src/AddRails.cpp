@@ -73,13 +73,14 @@ void AddRails::intersection(const FoundNodes &isection)
 
     vsg::ref_ptr<route::RailConnector> bwd;
 
-
     if(isection.connector && isection.connector->isFree())
     {
-        if(ui->noNewBox->isChecked())
+        auto trj = isection.connector->trajectory ? isection.connector->trajectory : isection.connector->fwdTrajectory;
+        bwd = isection.connector;
+
+        if(auto strj = trj->cast<route::SplineTrajectory>(); strj)
         {
-            auto trj = isection.connector->trajectory ? isection.connector->trajectory : isection.connector->fwdTrajectory;
-            if(auto strj = trj->cast<route::SplineTrajectory>(); strj)
+            if(ui->noNewBox->isChecked())
             {
                 auto point = route::RailPoint::create(*isection.connector);
                 _database->undoStack->push(new AddRailPoint(strj, point));
@@ -87,8 +88,11 @@ void AddRails::intersection(const FoundNodes &isection)
                 emit startMoving();
                 return;
             }
+        } else
+        {
+            trj->_fwdPoint->staticConnector = true;
+            trj->_bwdPoint->staticConnector = true;
         }
-        bwd = isection.connector;
     }
     else
         bwd = route::RailConnector::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
@@ -102,15 +106,32 @@ void AddRails::intersection(const FoundNodes &isection)
 
     _database->builder->compileTraversal->compile(sleeper);
 
-    auto traj = route::SplineTrajectory::create("trajectory",
-                                                bwd,
-                                                fwd,
-                                                _database->builder,
-                                                railFilepath.toStdString(), fillFilepath.toStdString(),
-                                                sleeper, 2.0, 1.5);
+    vsg::ref_ptr<route::Trajectory> traj;
+
+    if(ui->genBox->isChecked())
+    {
+        auto lenght = ui->lenghtSpin->value();
+        fwd->setPosition((vsg::normalize(bwd->getTangent()) * lenght) + bwd->getPosition());
+        traj = route::StraitTrajectory::create("trajectory",
+                                               bwd,
+                                               fwd,
+                                               _database->builder,
+                                               railFilepath.toStdString(), fillFilepath.toStdString(),
+                                               sleeper, 2.0, 1.5);
+    }
+    else
+    {
+        traj = route::SplineTrajectory::create("trajectory",
+                                               bwd,
+                                               fwd,
+                                               _database->builder,
+                                               railFilepath.toStdString(), fillFilepath.toStdString(),
+                                               sleeper, 2.0, 1.5);
+        emit sendMovingPoint(fwd);
+        emit startMoving();
+    }
+
+    traj->recalculate();
 
     _database->undoStack->push(new AddSceneObject(_database->tilesModel, _database->topology, traj));
-
-    emit sendMovingPoint(fwd);
-    emit startMoving();
 }

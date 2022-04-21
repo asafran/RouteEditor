@@ -76,7 +76,7 @@ namespace route
         std::vector<std::pair<vsg::vec3, vsg::vec3>> vertices;
 
         vsg::dquat rot;
-        size_t index;
+        size_t index = 0;
     };
 
     inline bool operator==(const InterpolatedPTM& left, const InterpolatedPTM& right)
@@ -103,9 +103,9 @@ namespace route
 
         virtual double invert(const vsg::dvec3 vec) const = 0;
 
-        virtual vsg::dmat4 getMatrixAt(double x) const = 0;
+        virtual std::pair<vsg::dmat4, double> getMatrixAt(double x) const = 0;
 
-        virtual vsg::dmat4 getLocalMatrixAt(double x) const = 0;
+        //virtual vsg::dmat4 getLocalMatrixAt(double x) const = 0;
 
         virtual double getLength() const = 0;
 
@@ -182,50 +182,44 @@ namespace route
 
         signalling::Code _fwdCode;
         signalling::Code _bwdCode;
+
+        friend class ::AddRails;
     };
 
-    class SplineTrajectory : public vsg::Inherit<Trajectory, SplineTrajectory>
+    class StraitTrajectory : public vsg::Inherit<Trajectory, StraitTrajectory>
     {
         Q_OBJECT
     public:
 
-        SplineTrajectory(std::string name,
+        StraitTrajectory(std::string name,
                          vsg::ref_ptr<RailConnector> bwdPoint,
                          vsg::ref_ptr<RailConnector> fwdPoint,
                          vsg::ref_ptr<vsg::Builder> builder,
                          std::string railPath, std::string fillPath,
                          vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge);
-        SplineTrajectory();
+        StraitTrajectory();
 
-        virtual ~SplineTrajectory();
+        virtual ~StraitTrajectory();
 
         vsg::dvec3 getCoordinate(double x) const override;
 
         double invert(const vsg::dvec3 vec) const override;
 
-        vsg::dmat4 getMatrixAt(double x) const override;
+        std::pair<vsg::dmat4, double> getMatrixAt(double x) const override;
 
-        vsg::dmat4 getLocalMatrixAt(double x) const override { return getMatrixAt(x); }
+        //vsg::dmat4 getLocalMatrixAt(double x) const override { return getMatrixAt(x); }
 
-        double getLength() const override { return _railSpline->totalLength(); }
+        double getLength() const override { return _lenght; }
 
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
 
         void recalculate() override;
 
-        void setFwdPoint(RailConnector *rc);
-        void setBwdPoint(RailConnector *rc);
-
-        void add(vsg::ref_ptr<RailPoint> rp, bool autoRotate = true);
-        void remove(size_t index);
-        void remove(vsg::ref_ptr<RailPoint> rp);
-
         template<class N, class V>
         static void t_traverse(N& node, V& visitor)
         {
             for (auto& child : node._autoPositioned) child->accept(visitor);
-            for (auto& child : node._points) child->accept(visitor);
             node._track->accept(visitor);
         }
 
@@ -249,9 +243,7 @@ namespace route
 
         void reloadData(vsg::ref_ptr<const vsg::Options> options);
 
-    private:
-
-        void updateSpline();
+   protected:
 
         void assignRails(const std::vector<InterpolatedPTM> &derivatives);
 
@@ -262,19 +254,13 @@ namespace route
 
         std::pair<std::vector<VertexData>, vsg::ref_ptr<vsg::StateGroup>> loadData(std::string path, vsg::ref_ptr<const vsg::Options> options);
 
-        vsg::ref_ptr<route::RailPoint> findFloorPoint(double t) const;
-
-        vsg::dquat mixTilt(double T) const;
-
         double _sleepersDistance;
 
         double _gaudge;
 
-        std::shared_ptr<CubicHermiteSpline<vsg::dvec3, double>> _railSpline;
+        double _lenght = 0.0;
 
         std::vector<vsg::ref_ptr<route::SceneObject>> _autoPositioned;
-
-        std::vector<vsg::ref_ptr<route::RailPoint>> _points;
 
         vsg::ref_ptr<vsg::CompileTraversal> _compiler;
 
@@ -290,6 +276,72 @@ namespace route
         vsg::ref_ptr<vsg::VertexIndexDraw> _fill;
 
         vsg::ref_ptr<vsg::Node> _sleeper;
+
+        friend class TopologyVisitor;
+
+        friend class ::PointsModel;
+
+        friend class ::AddRails;
+    };
+
+    class SplineTrajectory : public vsg::Inherit<StraitTrajectory, SplineTrajectory>
+    {
+        Q_OBJECT
+    public:
+
+        SplineTrajectory(std::string name,
+                         vsg::ref_ptr<RailConnector> bwdPoint,
+                         vsg::ref_ptr<RailConnector> fwdPoint,
+                         vsg::ref_ptr<vsg::Builder> builder,
+                         std::string railPath, std::string fillPath,
+                         vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge);
+        SplineTrajectory();
+
+        virtual ~SplineTrajectory();
+
+        vsg::dvec3 getCoordinate(double x) const override;
+
+        double invert(const vsg::dvec3 vec) const override;
+
+        std::pair<vsg::dmat4, double> getMatrixAt(double x) const override;
+
+        //vsg::dmat4 getLocalMatrixAt(double x) const override { return getMatrixAt(x); }
+
+        //double getLength() const override { return _railSpline->totalLength(); }
+
+        void read(vsg::Input& input) override;
+        void write(vsg::Output& output) const override;
+
+        void recalculate() override;
+
+        void setFwdPoint(RailConnector *rc);
+        void setBwdPoint(RailConnector *rc);
+
+        void add(vsg::ref_ptr<RailPoint> rp, bool autoRotate = true);
+        void remove(size_t index);
+        void remove(vsg::ref_ptr<RailPoint> rp);
+
+        template<class N, class V>
+        static void t_traverse(N& node, V& visitor)
+        {
+            for (auto& child : node._points) child->accept(visitor);
+        }
+
+        void traverse(vsg::Visitor& visitor) override { StraitTrajectory::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::ConstVisitor& visitor) const override { StraitTrajectory::traverse(visitor); t_traverse(*this, visitor); }
+        void traverse(vsg::RecordTraversal& visitor) const override { StraitTrajectory::traverse(visitor); t_traverse(*this, visitor); }
+
+    private:
+
+        void updateSpline();
+
+        vsg::ref_ptr<route::RailPoint> findFloorPoint(double t) const;
+
+        vsg::dquat mixTilt(double T) const;
+
+        std::shared_ptr<CubicHermiteSpline<vsg::dvec3, double>> _railSpline;
+
+        std::vector<vsg::ref_ptr<route::RailPoint>> _points;
 
         friend class TopologyVisitor;
 
@@ -321,15 +373,16 @@ namespace route
 
         double invert(const vsg::dvec3 vec) const override;
 
-        vsg::dmat4 getMatrixAt(double x) const override;
+        std::pair<vsg::dmat4, double> getMatrixAt(double x) const override;
 
-        vsg::dmat4 getLocalMatrixAt(double x) const override;
+        //vsg::dmat4 getLocalMatrixAt(double x) const override;
 
         double getLength() const override { return _path->locations.rbegin()->first; }
 
         void recalculate() override {};
 
         vsg::dmat4 localToWorld = {};
+        double elevation;
 
     protected:
         vsg::ref_ptr<vsg::AnimationPath> _path;

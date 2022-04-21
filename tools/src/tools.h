@@ -62,6 +62,20 @@ namespace route
         return q;
     }
 
+    template<typename T>
+    constexpr double toElevation(vsg::t_quat<T> q) // yaw (Z), pitch (Y), roll (X)
+    {
+        T sinr_cosp = 2 * (q.w * q.x + q.y * q.z);
+        T cosr_cosp = 1 - 2 * (q.x * q.x + q.y * q.y);
+        return sinr_cosp == 0 ? 0 : cosr_cosp / sinr_cosp * 1000;
+    }
+
+    template<typename T>
+    constexpr bool isInEq(const vsg::t_quat<T>& lhs, const vsg::t_quat<T>& rhs)
+    {
+        return lhs[0] != rhs[0] || lhs[1] != rhs[1] || lhs[2] != rhs[2] || lhs[3] != rhs[3];
+    }
+
     static inline vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<vsg::Data> textureData, vsg::ref_ptr<const vsg::Options> options)
     {
         /*

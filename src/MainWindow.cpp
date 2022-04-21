@@ -193,7 +193,6 @@ QWindow* MainWindow::initilizeVSGwindow()
     vsg::RegisterWithObjectFactoryProxy<route::SingleLoader>();
     vsg::RegisterWithObjectFactoryProxy<route::RailPoint>();
     vsg::RegisterWithObjectFactoryProxy<route::RailConnector>();
-    vsg::RegisterWithObjectFactoryProxy<route::StaticConnector>();
     vsg::RegisterWithObjectFactoryProxy<route::SwitchConnector>();
 
     vsg::RegisterWithObjectFactoryProxy<signalling::Signal>();

@@ -71,6 +71,8 @@ namespace route
         virtual void setPosition(const vsg::dvec3& pos) { _position = pos; }
         virtual void setRotation(const vsg::dquat& rot) { _quat = rot; }
 
+        void setWorldPositionNoUpdate(const vsg::dvec3& pos) { SceneObject::setPosition(vsg::inverse(localToWorld) * pos); }
+
         void recalculateWireframe();
         void setSelection(bool selected) { _selected = selected; }
 
@@ -208,6 +210,7 @@ namespace route
 
         friend class ::RailsPointEditor;
         friend class ::PointsModel;
+        friend class StraitTrajectory;
     };
 
     class RailConnector : public QObject, public vsg::Inherit<RailPoint, RailConnector>
@@ -255,6 +258,8 @@ namespace route
         bool fwdConnected = false;
         bool bwdConnected = false;
 
+        bool staticConnector = false;
+
         void traverse(vsg::Visitor& visitor) override;
         void traverse(vsg::ConstVisitor& visitor) const override;
         void traverse(vsg::RecordTraversal& visitor) const override;
@@ -293,22 +298,7 @@ namespace route
 
     };
 
-    class StaticConnector : public vsg::Inherit<RailConnector, StaticConnector>
-    {
-        Q_OBJECT
-    public:
-        StaticConnector(vsg::ref_ptr<vsg::Node> loaded,
-                        vsg::ref_ptr<vsg::Node> box,
-                        const vsg::dvec3 &pos);
-        StaticConnector();
-
-        virtual ~StaticConnector();
-
-        void setPosition(const vsg::dvec3& position) override;
-        void setRotation(const vsg::dquat& rotation) override;
-    };
-
-    class SwitchConnector : public vsg::Inherit<StaticConnector, SwitchConnector>
+    class SwitchConnector : public vsg::Inherit<RailConnector, SwitchConnector>
     {
         Q_OBJECT
     public:
@@ -360,6 +350,5 @@ EVSG_type_name(route::SceneObject);
 EVSG_type_name(route::SingleLoader);
 EVSG_type_name(route::RailPoint);
 EVSG_type_name(route::RailConnector);
-EVSG_type_name(route::StaticConnector);
 
 #endif // SCENEOBJECTS_H

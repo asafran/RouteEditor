@@ -129,6 +129,10 @@ void RailsPointEditor::intersection(const FoundNodes& isection)
     {
         auto point = route::RailPoint::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
         _database->undoStack->push(new AddRailPoint(isection.trajectory->cast<route::SplineTrajectory>(), point));
+    } else if (isection.trajectory)
+    {
+        auto coord = isection.trajectory->invert(isection.worldIntersection);
+        ui->lcdNumber->display(isection.trajectory->getMatrixAt(coord).second);
     }
 
     updateData();
@@ -160,7 +164,6 @@ void RailsPointEditor::clear()
 
 void RailsPointEditor::setSpinEanbled(bool enabled)
 {
-    ui->inclSpin->setEnabled(enabled);
     ui->tangSpin->setEnabled(enabled);
     ui->tiltSpin->setEnabled(enabled);
     ui->cheightSpin->setEnabled(enabled);
@@ -168,7 +171,6 @@ void RailsPointEditor::setSpinEanbled(bool enabled)
 
 void RailsPointEditor::updateData()
 {
-    QSignalBlocker l1(ui->inclSpin);
     QSignalBlocker l2(ui->tangSpin);
     QSignalBlocker l3(ui->tiltSpin);
     QSignalBlocker l4(ui->cheightSpin);
@@ -185,7 +187,6 @@ void RailsPointEditor::updateData()
     double cosr_cosp = 1 - 2 * (quat.x * quat.x + quat.y * quat.y);
     auto rot = std::atan2(sinr_cosp, cosr_cosp) * 1000.0;
 
-    ui->inclSpin->setValue(rot);
     ui->tangSpin->setValue(point->_tangent);
     ui->tiltSpin->setValue(point->_tilt);
     ui->cheightSpin->setValue(point->_cheight);

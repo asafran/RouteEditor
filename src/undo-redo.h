@@ -33,10 +33,14 @@ public:
     void undo() override
     {
         _model->removeNode(_model->index(_row, 0, _group));
+        if(auto trj = _node.cast<route::Trajectory>(); trj)
+            trj->detatch();
     }
     void redo() override
     {
         _row = _model->addNode(_group, _node);
+        if(auto trj = _node.cast<route::Trajectory>(); trj)
+            trj->attach();
     }
 private:
     SceneModel *_model;
@@ -389,7 +393,7 @@ public:
     }
     void undo() override
     {
-        _object->matrix = _parent->getMatrixAt(_oldPos);
+        _object->matrix = _parent->getMatrixAt(_oldPos).first;
         _object->setValue(app::PROP, _oldPos);
 
         ApplyTransform ct;
@@ -398,7 +402,7 @@ public:
     }
     void redo() override
     {
-        _object->matrix = _parent->getMatrixAt(_newPos);
+        _object->matrix = _parent->getMatrixAt(_newPos).first;
         _object->setValue(app::PROP, _newPos);
 
         ApplyTransform ct;

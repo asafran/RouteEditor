@@ -253,6 +253,8 @@ namespace route
 
         input.read("reverser", _reverser);
 
+        input.read("staticConnector", staticConnector);
+
         if(bwdConnected)
             connect(_bwdSignal, &signalling::Signal::sendState, this, &RailConnector::sendFwdState);
         if(fwdConnected)
@@ -273,11 +275,16 @@ namespace route
 
         output.write("reverser", _reverser);
 
+        output.write("staticConnector", staticConnector);
+
         //output.writeObject("sndTraj", fwdTrajectory);
     }
 
     void RailConnector::setPosition(const vsg::dvec3 &position)
     {
+        if(staticConnector)
+            return;
+
         RailPoint::setPosition(position);
         if(_fwdSignal)
             _fwdSignal->localToWorld = getWorldTransform();
@@ -287,6 +294,9 @@ namespace route
 
     void RailConnector::setRotation(const vsg::dquat &rotation)
     {
+        if(staticConnector)
+            return;
+
         RailPoint::setRotation(rotation);
         if(_fwdSignal)
             _fwdSignal->localToWorld = getWorldTransform();
@@ -521,28 +531,16 @@ namespace route
         vsg::deallocate(ptr);
     }
 
-    StaticConnector::StaticConnector(vsg::ref_ptr<vsg::Node> loaded,
-                                     vsg::ref_ptr<vsg::Node> box,
-                                     const vsg::dvec3 &pos)
-        : vsg::Inherit<RailConnector, StaticConnector>(loaded, box, pos)
+    SwitchConnector::SwitchConnector(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, const vsg::dvec3 &pos)
+        : vsg::Inherit<RailConnector, SwitchConnector>(loaded, box, pos)
     {
         _world_quat = {0.0, 0.0, 0.0, 1.0};
-    }
 
-    StaticConnector::StaticConnector() : vsg::Inherit<RailConnector, StaticConnector>() {}
-
-    StaticConnector::~StaticConnector() {}
-
-    void StaticConnector::setPosition(const vsg::dvec3 &position) {}
-
-    void StaticConnector::setRotation(const vsg::dquat &rotation) {}
-
-    SwitchConnector::SwitchConnector(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, const vsg::dvec3 &pos)
-        : vsg::Inherit<StaticConnector, SwitchConnector>(loaded, box, pos)
-    {
         _fwdSignal = signalling::Signal::create(vsg::Node::create(), vsg::Node::create());
         _bwdSignal = signalling::Signal::create(vsg::Node::create(), vsg::Node::create());
         _sideCounter = signalling::Signal::create(vsg::Node::create(), vsg::Node::create());
+
+        staticConnector = true;
 
         _state = false;
     }

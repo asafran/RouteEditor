@@ -27,8 +27,6 @@ namespace route
         , _bwdPoint(bwdPoint)
     {
         setValue(app::NAME, name);
-
-        attach();
     }
 
     Trajectory::Trajectory() : QObject(nullptr) {}
@@ -95,7 +93,7 @@ namespace route
         {
             double coord = 0.0;
             if(transform.getValue(app::PROP, coord))
-                transform.matrix = getMatrixAt(coord);
+                transform.matrix = getMatrixAt(coord).first;
         };
         LambdaVisitor<decltype (computeTransform), vsg::MatrixTransform> ct(computeTransform);
         Trajectory::accept(ct);
@@ -116,48 +114,62 @@ namespace route
         vsg::deallocate(ptr);
     }
 
-    SplineTrajectory::SplineTrajectory(std::string name,
+    StraitTrajectory::StraitTrajectory(std::string name,
                                        vsg::ref_ptr<RailConnector> bwdPoint,
                                        vsg::ref_ptr<RailConnector> fwdPoint,
                                        vsg::ref_ptr<vsg::Builder> builder,
                                        std::string railPath,
                                        std::string fillPath,
                                        vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge)
-      : vsg::Inherit<Trajectory, SplineTrajectory>(name, bwdPoint, fwdPoint)
-      , _compiler(builder->compileTraversal)
-      , _track(vsg::MatrixTransform::create())
-      , _railL(vsg::VertexIndexDraw::create())
-      , _railR(vsg::VertexIndexDraw::create())
-      , _fill(vsg::VertexIndexDraw::create())
-      , _railPath(railPath)
-      , _fillPath(fillPath)
-      , _sleeper(sleeper)
-      , _sleepersDistance(distance)
-      , _gaudge(gaudge)
+        : vsg::Inherit<Trajectory, StraitTrajectory>(name, bwdPoint, fwdPoint)
+        , _compiler(builder->compileTraversal)
+        , _track(vsg::MatrixTransform::create())
+        , _railL(vsg::VertexIndexDraw::create())
+        , _railR(vsg::VertexIndexDraw::create())
+        , _fill(vsg::VertexIndexDraw::create())
+        , _railPath(railPath)
+        , _fillPath(fillPath)
+        , _sleeper(sleeper)
+        , _sleepersDistance(distance)
+        , _gaudge(gaudge)
     {
-
         reloadData(builder->options);
-        //subgraphRequiresLocalFrustum = false;
-
-        SplineTrajectory::recalculate();
     }
 
-    SplineTrajectory::SplineTrajectory()
-      : vsg::Inherit<Trajectory, SplineTrajectory>()
+    StraitTrajectory::StraitTrajectory()
+      : vsg::Inherit<Trajectory, StraitTrajectory>()
       , _track(vsg::MatrixTransform::create())
       , _railL(vsg::VertexIndexDraw::create())
       , _railR(vsg::VertexIndexDraw::create())
       , _fill(vsg::VertexIndexDraw::create())
     {
     }
-    SplineTrajectory::~SplineTrajectory()
-    {
-    }
-    //------------------------------------------------------------------------------
-    //
-    //------------------------------------------------------------------------------
 
-    void SplineTrajectory::read(vsg::Input& input)
+    StraitTrajectory::~StraitTrajectory()
+    {
+
+    }
+
+    vsg::dvec3 StraitTrajectory::getCoordinate(double x) const
+    {
+        auto T = x / _lenght;
+        return vsg::mix(_fwdPoint->getWorldPosition(), _bwdPoint->getWorldPosition(), T);
+    }
+
+    double StraitTrajectory::invert(const vsg::dvec3 vec) const
+    {
+        return vsg::length(_fwdPoint->getWorldPosition() - vec);
+    }
+
+    std::pair<vsg::dmat4, double> StraitTrajectory::getMatrixAt(double x) const
+    {
+        auto T = x / _lenght;
+        auto pos = vsg::mix(_fwdPoint->getWorldPosition(), _bwdPoint->getWorldPosition(), T);
+        auto quat = _fwdPoint->getWorldRotation();
+        return std::pair(vsg::translate(pos) * vsg::rotate(_fwdPoint->getWorldRotation()), toElevation(quat));
+    }
+
+    void StraitTrajectory::read(vsg::Input &input)
     {
         Group::read(input);
 
@@ -165,11 +177,15 @@ namespace route
         input.read("gaudge", _gaudge);
 
         input.readObjects("autoPositioned", _autoPositioned);
-        input.readObjects("points", _points);
 
         input.read("railPath", _railPath);
         input.read("fillPath", _fillPath);
         input.read("sleeper", _sleeper);
+
+        input.read("track", _track);
+        input.read("railL", _railL);
+        input.read("railR", _railR);
+        input.read("fill", _fill);
 
         input.read("fwdPoint", _fwdPoint);
         input.read("bwdPoint", _bwdPoint);
@@ -190,24 +206,16 @@ namespace route
         else
             _bwdPoint->fwdTrajectory = this;
 
-        for(auto& point : _points)
-            point->trajectory = this;
-
-        input.read("track", _track);
-        input.read("railL", _railL);
-        input.read("railR", _railR);
-        input.read("fill", _fill);
-
         _compiler = const_cast<vsg::CompileTraversal*>(input.options->getObject<vsg::CompileTraversal>(app::COMPILER));
 
         reloadData(input.options);
 
-        updateSpline();
+        recalculate();
 
         connectSignalling();
     }
 
-    void SplineTrajectory::write(vsg::Output& output) const
+    void StraitTrajectory::write(vsg::Output &output) const
     {
         Group::write(output);
 
@@ -215,11 +223,15 @@ namespace route
         output.write("gaudge", _gaudge);
 
         output.writeObjects("autoPositioned", _autoPositioned);
-        output.writeObjects("points", _points);
 
         output.write("railPath", _railPath);
         output.write("fillPath", _fillPath);
         output.write("sleeper", _sleeper);
+
+        output.write("track", _track);
+        output.write("railL", _railL);
+        output.write("railR", _railR);
+        output.write("fill", _fill);
 
         output.write("fwdPoint", _fwdPoint);
         output.write("bwdPoint", _bwdPoint);
@@ -229,133 +241,125 @@ namespace route
 
         output.write("fwdPointRev", frontRev);
         output.write("bwdPointRev", bwdRev);
-
-        output.write("track", _track);
-        output.write("railL", _railL);
-        output.write("railR", _railR);
-        output.write("fill", _fill);
     }
 
-    vsg::dvec3 SplineTrajectory::getCoordinate(double x) const
+    void StraitTrajectory::recalculate()
     {
-        double T = ArcLength::solveLength(*_railSpline, 0.0, x);
-        return _railSpline->getPosition(T);
-    }
+        auto delta = _bwdPoint->getWorldPosition() - _fwdPoint->getWorldPosition();
 
-    double SplineTrajectory::invert(const vsg::dvec3 vec) const
-    {
-        SplineInverter<vsg::dvec3, double> inverter(*_railSpline);
-        auto T = inverter.findClosestT(vec);
-        return _railSpline->arcLength(0, T);
-    }
+        bool frontRev = _fwdPoint->getFwd(this).second;
+        bool bwdRev = _bwdPoint->getBwd(this).second;
 
-    vsg::dmat4 SplineTrajectory::getMatrixAt(double x) const
-    {
-        double T = ArcLength::solveLength(*_railSpline, 0.0, x);
-        auto pt = _railSpline->getTangent(T);
-        return InterpolatedPTM(std::move(pt), mixTilt(T)).calculated;
-    }
+        _lenght = vsg::length(delta);
 
-    void SplineTrajectory::updateSpline()
-    {
-        std::vector<vsg::dvec3> points;
-        std::vector<vsg::dvec3> tangents;
+        auto w_quat = _fwdPoint->getWorldQuat();
 
-        points.push_back(_fwdPoint->getPosition());
-        if(_fwdPoint->getFwd(this).second)
-            tangents.push_back(-_fwdPoint->getTangent());
+        auto t = vsg::inverse(vsg::rotate(w_quat)) * delta;
+        auto cos = vsg::dot(vsg::normalize(vsg::dvec2(t.x, t.y)), vsg::dvec2(0.0, 1.0));
+
+        double angle = t.x < 0 ? std::acos(cos) : -std::acos(cos);
+
+        vsg::dquat rot(angle, vsg::dvec3(0.0, 0.0, 1.0));
+
+        if(_fwdPoint->staticConnector)
+        {
+            _bwdPoint->_quat = (frontRev || bwdRev) ? -_fwdPoint->getRotation() : _fwdPoint->getRotation();
+            _bwdPoint->setWorldPositionNoUpdate((vsg::normalize(_fwdPoint->getTangent()) * (frontRev ? -_lenght : _lenght)) + _fwdPoint->getPosition());
+            if(!bwdRev &&_bwdPoint->trajectory) _bwdPoint->trajectory->recalculate();
+            else if(bwdRev && _bwdPoint->fwdTrajectory) _bwdPoint->fwdTrajectory->recalculate();
+        }
+        else if(_bwdPoint->staticConnector)
+        {
+            _fwdPoint->_quat = (frontRev || bwdRev) ? -_bwdPoint->getRotation() : _bwdPoint->getRotation();
+            _fwdPoint->setWorldPositionNoUpdate((vsg::normalize(_bwdPoint->getTangent()) * (bwdRev ? _lenght : -_lenght)) + _bwdPoint->getPosition());
+            if(!frontRev && _fwdPoint->fwdTrajectory) _fwdPoint->fwdTrajectory->recalculate();
+            else if(frontRev && _fwdPoint->trajectory) _fwdPoint->trajectory->recalculate();
+        }
         else
-            tangents.push_back(_fwdPoint->getTangent());
-
-        std::transform(_points.begin(), _points.end(), std::back_insert_iterator(points),
-                       [](const vsg::ref_ptr<RailPoint> sp)
         {
-            return sp->getPosition();
-        });
-        std::transform(_points.begin(), _points.end(), std::back_insert_iterator(tangents),
-                       [](const vsg::ref_ptr<RailPoint> sp)
-        {
-            return sp->getTangent();
-        });
+            _fwdPoint->_quat = frontRev ? mult(rot, vsg::dquat(vsg::PI, {0.0, 0.0, 1.0})) : rot;
+            _bwdPoint->_quat = bwdRev ? mult(rot, vsg::dquat(vsg::PI, {0.0, 0.0, 1.0})) : rot;
 
-        points.push_back(_bwdPoint->getPosition());
-        if(_bwdPoint->getBwd(this).second)
-            tangents.push_back(-_bwdPoint->getTangent());
-        else
-            tangents.push_back(_bwdPoint->getTangent());
+            if(!frontRev && _fwdPoint->fwdTrajectory) _fwdPoint->fwdTrajectory->recalculate();
+            else if(frontRev && _fwdPoint->trajectory) _fwdPoint->trajectory->recalculate();
 
-        _railSpline.reset(new InterpolationSpline(points, tangents));
-    }
+            if(!bwdRev &&_bwdPoint->trajectory) _bwdPoint->trajectory->recalculate();
+            else if(bwdRev && _bwdPoint->fwdTrajectory) _bwdPoint->fwdTrajectory->recalculate();
+        }
 
-    void SplineTrajectory::recalculate()
-    {
-        updateSpline();
+        auto fwdPos = _fwdPoint->getWorldPosition();
+        auto bwdPos = _bwdPoint->getWorldPosition();
 
-        auto n = std::ceil(_railSpline->totalLength() / _sleepersDistance);
-
-        auto partitionBoundaries = ArcLength::partitionN(*_railSpline, static_cast<size_t>(n));
-
-        auto front = _fwdPoint->getPosition();
-        _track->matrix = vsg::translate(front);
-
-        std::vector<InterpolatedPTM> derivatives(partitionBoundaries.size());
-        std::transform(std::execution::par_unseq, partitionBoundaries.begin(), partitionBoundaries.end(), derivatives.begin(),
-                       [this, front](double T)
-        {
-            return std::move(InterpolatedPTM(_railSpline->getTangent(T), mixTilt(T), front));
-        });
+        _track->matrix = vsg::translate(fwdPos);
 
         auto group = vsg::Group::create();
 
         _track->children.pop_back();
         _track->addChild(group);
 
-        size_t index = 0;
-        for (auto &ptcm : derivatives)
-        {
-            auto transform = vsg::MatrixTransform::create(ptcm.calculated);
-            transform->addChild(_sleeper);
-            group->addChild(transform);
-            ptcm.index = index;
-            index++;
-        }
+        std::vector<InterpolatedPTM> derivatives;
 
-        //auto last = std::unique(std::execution::par, derivatives.begin(), derivatives.end()); //vectorization is not supported
-        //derivatives.erase(last, derivatives.end());
+        auto fwdTan = frontRev ? -_fwdPoint->getTangent() : _fwdPoint->getTangent();
+        auto bwdTan = bwdRev ? -_bwdPoint->getTangent() : _bwdPoint->getTangent();
+
+        derivatives.emplace_back(InterpolatedPTM(std::move(InterpolationSpline::InterpolatedPT{fwdPos, fwdTan}), vsg::dquat(0.0, 0.0, 0.0, 1.0), fwdPos));
+
+        derivatives.emplace_back(InterpolatedPTM(std::move(InterpolationSpline::InterpolatedPT{bwdPos, bwdTan}), vsg::dquat(0.0, 0.0, 0.0, 1.0), fwdPos));
+
+        derivatives[1].index = 1;
+
+        auto n = std::ceil(_lenght / _sleepersDistance);
+
+        if(n > 0.1)
+        {
+            auto deltaT = 1 / n;
+            for (double T = 0.0; T <= 1.0; T += deltaT)
+            {
+                auto transform = vsg::MatrixTransform::create(vsg::translate(vsg::mix(fwdPos, bwdPos, T) - fwdPos) * derivatives.front().calculated);
+                transform->addChild(_sleeper);
+                group->addChild(transform);
+                derivatives[1].index++;
+            }
+        }
 
         assignRails(derivatives);
 
         updateAttached();
     }
 
-    void SplineTrajectory::setFwdPoint(RailConnector *rc)
+    void StraitTrajectory::reloadData(vsg::ref_ptr<const vsg::Options> options)
     {
-        disconnect(_fwdPoint, nullptr, _bwdPoint, nullptr);
-        disconnect(_bwdPoint, nullptr, _fwdPoint, nullptr);
+        _track->children.clear();
 
-        _fwdPoint->setBwdNull(this);
-        _fwdPoint = rc;
-        _fwdPoint->setBwd(this);
+        auto rail = loadData(_railPath, options);
+        auto fill = loadData(_fillPath, options);
 
-        connectSignalling();
+        _railGeo = rail.first;
+        rail.second->addChild(_railL);
+        rail.second->addChild(_railR);
+
+        _track->addChild(rail.second);
+
+        _fillGeo = fill.first;
+        fill.second->addChild(_fill);
+
+        _track->addChild(fill.second);
+
+        auto group = vsg::Group::create();
+        _track->addChild(group);
     }
 
-    void SplineTrajectory::setBwdPoint(RailConnector *rc)
+    void StraitTrajectory::assignRails(const std::vector<InterpolatedPTM> &derivatives)
     {
-        disconnect(_fwdPoint, nullptr, _bwdPoint, nullptr);
-        disconnect(_bwdPoint, nullptr, _fwdPoint, nullptr);
+        assignGeometry(vsg::vec3(_gaudge / 2.0, 0.0, 0.0), derivatives, _railGeo, _railL);
+        assignGeometry(vsg::vec3(-_gaudge / 2.0, 0.0, 0.0), derivatives, _railGeo, _railR);
+        assignGeometry(vsg::vec3(), derivatives, _fillGeo, _fill);
 
-        _bwdPoint->setFwdNull(this);
-        _bwdPoint = rc;
-        _bwdPoint->setFwd(this);
-
-        connectSignalling();
+        if(_compiler)
+            _compiler->compile(_track);
     }
 
-    void SplineTrajectory::assignGeometry(const vsg::vec3 &offset,
-                                          const std::vector<InterpolatedPTM> &derivatives,
-                                          const std::vector<VertexData> &geometry,
-                                          vsg::ref_ptr<vsg::VertexIndexDraw> vid) const
+    void StraitTrajectory::assignGeometry(const vsg::vec3 &offset, const std::vector<InterpolatedPTM> &derivatives, const std::vector<VertexData> &geometry, vsg::ref_ptr<vsg::VertexIndexDraw> vid) const
     {
         std::vector<std::vector<VertexData>> vertexGroups(derivatives.size());
 
@@ -439,17 +443,7 @@ namespace route
         vid->instanceCount = 1;
     }
 
-    void SplineTrajectory::assignRails(const std::vector<InterpolatedPTM> &derivatives)
-    {
-        assignGeometry(vsg::vec3(_gaudge / 2.0, 0.0, 0.0), derivatives, _railGeo, _railL);
-        assignGeometry(vsg::vec3(-_gaudge / 2.0, 0.0, 0.0), derivatives, _railGeo, _railR);
-        assignGeometry(vsg::vec3(), derivatives, _fillGeo, _fill);
-
-        if(_compiler)
-            _compiler->compile(_track);
-    }
-
-    std::pair<std::vector<SplineTrajectory::VertexData>, vsg::ref_ptr<vsg::StateGroup>> SplineTrajectory::loadData(std::string path, vsg::ref_ptr<const vsg::Options> options)
+    std::pair<std::vector<StraitTrajectory::VertexData>, vsg::ref_ptr<vsg::StateGroup> > StraitTrajectory::loadData(std::string path, vsg::ref_ptr<const vsg::Options> options)
     {
         QFileInfo fi(path.c_str());
 
@@ -494,6 +488,172 @@ namespace route
             }
         }
         return std::make_pair(vd, state);
+    }
+
+    SplineTrajectory::SplineTrajectory(std::string name,
+                                       vsg::ref_ptr<RailConnector> bwdPoint,
+                                       vsg::ref_ptr<RailConnector> fwdPoint,
+                                       vsg::ref_ptr<vsg::Builder> builder,
+                                       std::string railPath,
+                                       std::string fillPath,
+                                       vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge)
+      : vsg::Inherit<StraitTrajectory, SplineTrajectory>(name, bwdPoint, fwdPoint, builder, railPath, fillPath, sleeper, distance, gaudge)
+
+    {
+
+        //reloadData(builder->options);
+        //subgraphRequiresLocalFrustum = false;
+
+        //SplineTrajectory::recalculate();
+    }
+
+    SplineTrajectory::SplineTrajectory()
+      : vsg::Inherit<StraitTrajectory, SplineTrajectory>()
+    {
+    }
+    SplineTrajectory::~SplineTrajectory()
+    {
+    }
+    //------------------------------------------------------------------------------
+    //
+    //------------------------------------------------------------------------------
+
+    void SplineTrajectory::read(vsg::Input& input)
+    {
+        StraitTrajectory::read(input);
+
+        input.readObjects("points", _points);
+
+        for(auto& point : _points)
+            point->trajectory = this;
+
+        recalculate();
+    }
+
+    void SplineTrajectory::write(vsg::Output& output) const
+    {
+        StraitTrajectory::write(output);
+
+        output.writeObjects("points", _points);
+    }
+
+    vsg::dvec3 SplineTrajectory::getCoordinate(double x) const
+    {
+        double T = ArcLength::solveLength(*_railSpline, 0.0, x);
+        return _railSpline->getPosition(T);
+    }
+
+    double SplineTrajectory::invert(const vsg::dvec3 vec) const
+    {
+        SplineInverter<vsg::dvec3, double> inverter(*_railSpline);
+        auto T = inverter.findClosestT(vec);
+        return _railSpline->arcLength(0, T);
+    }
+
+    std::pair<vsg::dmat4, double> SplineTrajectory::getMatrixAt(double x) const
+    {
+        double T = ArcLength::solveLength(*_railSpline, 0.0, x);
+        auto pt = _railSpline->getTangent(T);
+        InterpolatedPTM ptm(std::move(pt), mixTilt(T));
+        return std::make_pair(ptm.calculated, toElevation(ptm.rot));
+    }
+
+    void SplineTrajectory::updateSpline()
+    {
+        std::vector<vsg::dvec3> points;
+        std::vector<vsg::dvec3> tangents;
+
+        points.push_back(_fwdPoint->getWorldPosition());
+        if(_fwdPoint->getFwd(this).second)
+            tangents.push_back(-_fwdPoint->getTangent());
+        else
+            tangents.push_back(_fwdPoint->getTangent());
+
+        std::transform(_points.begin(), _points.end(), std::back_insert_iterator(points),
+                       [](const vsg::ref_ptr<RailPoint> sp)
+        {
+            return sp->getPosition();
+        });
+        std::transform(_points.begin(), _points.end(), std::back_insert_iterator(tangents),
+                       [](const vsg::ref_ptr<RailPoint> sp)
+        {
+            return sp->getTangent();
+        });
+
+        points.push_back(_bwdPoint->getWorldPosition());
+        if(_bwdPoint->getBwd(this).second)
+            tangents.push_back(-_bwdPoint->getTangent());
+        else
+            tangents.push_back(_bwdPoint->getTangent());
+
+        _railSpline.reset(new InterpolationSpline(points, tangents));
+    }
+
+    void SplineTrajectory::recalculate()
+    {
+        updateSpline();
+
+        _lenght = _railSpline->totalLength();
+
+        auto n = std::ceil(_lenght / _sleepersDistance);
+
+        auto partitionBoundaries = ArcLength::partitionN(*_railSpline, static_cast<size_t>(n));
+
+        auto front = _fwdPoint->getPosition();
+        _track->matrix = vsg::translate(front);
+
+        std::vector<InterpolatedPTM> derivatives(partitionBoundaries.size());
+        std::transform(std::execution::par_unseq, partitionBoundaries.begin(), partitionBoundaries.end(), derivatives.begin(),
+                       [this, front](double T)
+        {
+            return std::move(InterpolatedPTM(_railSpline->getTangent(T), mixTilt(T), front));
+        });
+
+        auto group = vsg::Group::create();
+
+        _track->children.pop_back();
+        _track->addChild(group);
+
+        size_t index = 0;
+        for (auto &ptcm : derivatives)
+        {
+            auto transform = vsg::MatrixTransform::create(ptcm.calculated);
+            transform->addChild(_sleeper);
+            group->addChild(transform);
+            ptcm.index = index;
+            index++;
+        }
+
+        //auto last = std::unique(std::execution::par, derivatives.begin(), derivatives.end()); //vectorization is not supported
+        //derivatives.erase(last, derivatives.end());
+
+        assignRails(derivatives);
+
+        updateAttached();
+    }
+
+    void SplineTrajectory::setFwdPoint(RailConnector *rc)
+    {
+        disconnect(_fwdPoint, nullptr, _bwdPoint, nullptr);
+        disconnect(_bwdPoint, nullptr, _fwdPoint, nullptr);
+
+        _fwdPoint->setBwdNull(this);
+        _fwdPoint = rc;
+        _fwdPoint->setBwd(this);
+
+        connectSignalling();
+    }
+
+    void SplineTrajectory::setBwdPoint(RailConnector *rc)
+    {
+        disconnect(_fwdPoint, nullptr, _bwdPoint, nullptr);
+        disconnect(_bwdPoint, nullptr, _fwdPoint, nullptr);
+
+        _bwdPoint->setFwdNull(this);
+        _bwdPoint = rc;
+        _bwdPoint->setFwd(this);
+
+        connectSignalling();
     }
 
     vsg::ref_ptr<RailPoint> SplineTrajectory::findFloorPoint(double t) const
@@ -554,28 +714,6 @@ namespace route
         recalculate();
     }
 
-    void SplineTrajectory::reloadData(vsg::ref_ptr<const vsg::Options> options)
-    {
-        _track->children.clear();
-
-        auto rail = loadData(_railPath, options);
-        auto fill = loadData(_fillPath, options);
-
-        _railGeo = rail.first;
-        rail.second->addChild(_railL);
-        rail.second->addChild(_railR);
-
-        _track->addChild(rail.second);
-
-        _fillGeo = fill.first;
-        fill.second->addChild(_fill);
-
-        _track->addChild(fill.second);
-
-        auto group = vsg::Group::create();
-        _track->addChild(group);
-    }
-
     PointsTrajectory::PointsTrajectory(std::string name,
                                        vsg::ref_ptr<RailConnector> bwdPoint,
                                        vsg::ref_ptr<RailConnector> fwdPoint,
@@ -624,7 +762,6 @@ namespace route
     {
         Group::read(input);
 
-        input.read("ltw", localToWorld);
         input.read("path", _path);
 
         input.read("fwdPoint", _fwdPoint);
@@ -638,7 +775,6 @@ namespace route
     {
         Group::write(output);
 
-        output.write("ltw", localToWorld);
         output.write("path", _path);
 
         output.write("fwdPoint", _fwdPoint);
@@ -655,16 +791,16 @@ namespace route
         return 0.0;
     }
 
-    vsg::dmat4 PointsTrajectory::getMatrixAt(double x) const
+    std::pair<vsg::dmat4, double> PointsTrajectory::getMatrixAt(double x) const
     {
-        return localToWorld * _path->computeMatrix(x);
+        return std::make_pair(localToWorld * _path->computeMatrix(x), elevation);
     }
-
+/*
     vsg::dmat4 PointsTrajectory::getLocalMatrixAt(double x) const
     {
         return _path->computeMatrix(x);
     }
-
+*/
     Junction::Junction(std::string name,
                        vsg::ref_ptr<vsg::AnimationPath> strait,
                        vsg::ref_ptr<vsg::AnimationPath> side,
@@ -680,8 +816,11 @@ namespace route
 
         _switcherPoint = SwitchConnector::create(mrk, box, strait->locations.cbegin()->second.position);
 
-        auto fwdStrPoint = StaticConnector::create(mrk, box, strait->locations.crbegin()->second.position);
-        auto fwdSiPoint = StaticConnector::create(mrk, box, side->locations.crbegin()->second.position);
+        auto fwdStrPoint = RailConnector::create(mrk, box, strait->locations.crbegin()->second.position);
+        auto fwdSiPoint = RailConnector::create(mrk, box, side->locations.crbegin()->second.position);
+
+        fwdSiPoint->staticConnector = true;
+        fwdStrPoint->staticConnector = true;
 
         _strait = PointsTrajectory::create(name + "_str", _switcherPoint.cast<RailConnector>(), fwdStrPoint, strait); //as traj
         _side = PointsTrajectory::create(name + "_side", _switcherPoint, fwdSiPoint, side); //as side
@@ -705,6 +844,8 @@ namespace route
         input.read("straitTrajecory", _strait);
         input.read("sideTrajecory", _side);
         input.read("switcher", _switcher);
+
+        setRotation(_quat);
 
     }
 
@@ -732,6 +873,9 @@ namespace route
         auto mat = transform(vsg::dmat4());
         _strait->localToWorld = mat;
         _side->localToWorld = mat;
+        auto elevation = toElevation(rot);
+        _strait->elevation = elevation;
+        _side->elevation = elevation;
     }
 
     void Junction::setState(bool state)
