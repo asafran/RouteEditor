@@ -165,7 +165,7 @@ namespace route
     {
         auto T = x / _lenght;
         auto pos = vsg::mix(_fwdPoint->getWorldPosition(), _bwdPoint->getWorldPosition(), T);
-        auto quat = _fwdPoint->getWorldRotation();
+        auto quat = _fwdPoint->getRotation();
         return std::pair(vsg::translate(pos) * vsg::rotate(_fwdPoint->getWorldRotation()), toElevation(quat));
     }
 
@@ -254,12 +254,12 @@ namespace route
 
         auto w_quat = _fwdPoint->getWorldQuat();
 
-        auto t = vsg::inverse(vsg::rotate(w_quat)) * delta;
-        auto cos = vsg::dot(vsg::normalize(vsg::dvec2(t.x, t.y)), vsg::dvec2(0.0, 1.0));
+        auto tangent = vsg::normalize(vsg::inverse(vsg::rotate(w_quat)) * delta);
 
-        double angle = t.x < 0 ? std::acos(cos) : -std::acos(cos);
+        double zangle = -std::atan2(tangent.x, tangent.y);
+        double xangle = std::atan2(tangent.z, vsg::length(vsg::dvec2(tangent.x, tangent.y)));
 
-        vsg::dquat rot(angle, vsg::dvec3(0.0, 0.0, 1.0));
+        auto rot = mult(vsg::dquat(zangle, vsg::dvec3(0.0, 0.0, 1.0)), vsg::dquat(xangle, vsg::dvec3(1.0, 0.0, 0.0)));
 
         if(_fwdPoint->staticConnector)
         {
@@ -555,7 +555,7 @@ namespace route
         double T = ArcLength::solveLength(*_railSpline, 0.0, x);
         auto pt = _railSpline->getTangent(T);
         InterpolatedPTM ptm(std::move(pt), mixTilt(T));
-        return std::make_pair(ptm.calculated, toElevation(ptm.rot));
+        return std::make_pair(ptm.calculated, ptm.tangent.z / vsg::length(vsg::dvec2(ptm.tangent.x, ptm.tangent.y)) * 1000);
     }
 
     void SplineTrajectory::updateSpline()
@@ -691,7 +691,7 @@ namespace route
         rp->trajectory = this;
 
         if(autoRotate)
-            rp->setRotation(InterpolatedPTM(_railSpline->getTangent(T)).rot);
+            rp->setRotation(InterpolatedPTM(_railSpline->getTangent(T)).rotation);
         else
             recalculate(); //called on setRotation
     }

@@ -38,7 +38,7 @@ void ParentIndexer::apply(vsg::Node& node)
 void ParentTracer::apply(vsg::Object &object)
 {
     vsg::Node *parent = nullptr;
-    if(object.getValue(app::PARENT, parent))
+    if(object.getValue(app::PARENT, parent) && parent)
     {
         nodePath.push_front(parent);
         parent->accept(*this);

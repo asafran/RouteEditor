@@ -23,6 +23,7 @@ public:
 public slots:
     void updateData();
     void clearSelection();
+    void setActive();
 
 private:
     void clear();

@@ -63,11 +63,11 @@ namespace route
     }
 
     template<typename T>
-    constexpr double toElevation(vsg::t_quat<T> q) // yaw (Z), pitch (Y), roll (X)
+    constexpr double toElevation(vsg::t_quat<T> q)
     {
         T sinr_cosp = 2 * (q.w * q.x + q.y * q.z);
         T cosr_cosp = 1 - 2 * (q.x * q.x + q.y * q.y);
-        return sinr_cosp == 0 ? 0 : cosr_cosp / sinr_cosp * 1000;
+        return sinr_cosp == 0 ? 0 : sinr_cosp / cosr_cosp * 1000;
     }
 
     template<typename T>

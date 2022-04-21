@@ -78,7 +78,30 @@ RailsPointEditor::RailsPointEditor(DatabaseManager *database, QWidget *parent) :
         stack->push(parent);
     });
 
+    connect(ui->connectButt, &QPushButton::toggled, this, [this](bool state)
+    {
+        if(!state)
+            return;
+        ui->trajAddPButt->setChecked(false);
+        ui->trajRemPButt->setChecked(false);
+    });
+    connect(ui->trajAddPButt, &QPushButton::toggled, this, [this](bool state)
+    {
+        if(!state)
+            return;
+        ui->connectButt->setChecked(false);
+        ui->trajRemPButt->setChecked(false);
+    });
+    connect(ui->trajRemPButt, &QPushButton::toggled, this, [this](bool state)
+    {
+        if(!state)
+            return;
+        ui->trajAddPButt->setChecked(false);
+        ui->connectButt->setChecked(false);
+    });
+
     connect(ui->connectButt, &QPushButton::clicked, this, &RailsPointEditor::clear);
+    connect(ui->connectButt, &QPushButton::clicked, this, &RailsPointEditor::setActive);
 }
 
 RailsPointEditor::~RailsPointEditor()
@@ -196,4 +219,13 @@ void RailsPointEditor::clearSelection()
 {
     clear();
     updateData();
+}
+
+void RailsPointEditor::setActive()
+{
+    for (auto &point : qAsConst(_selectedObjects))
+    {
+        if(auto connector = point->cast<route::RailConnector>(); connector)
+            connector->staticConnector = false;
+    }
 }

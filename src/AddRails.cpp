@@ -108,16 +108,19 @@ void AddRails::intersection(const FoundNodes &isection)
 
     vsg::ref_ptr<route::Trajectory> traj;
 
+    double gaudge = static_cast<double>(ui->gaudgeSpin->value()) / 1000.0;
+    double slpr = ui->slpSpin->value();
+
     if(ui->genBox->isChecked())
     {
         auto lenght = ui->lenghtSpin->value();
-        fwd->setPosition((vsg::normalize(bwd->getTangent()) * lenght) + bwd->getPosition());
+        fwd->setPosition((vsg::normalize(bwd->getTangent()) * lenght) + bwd->getPosition() + (vsg::normalize(bwd->getPosition()) * ui->altBox->value()));
         traj = route::StraitTrajectory::create("trajectory",
                                                bwd,
                                                fwd,
                                                _database->builder,
                                                railFilepath.toStdString(), fillFilepath.toStdString(),
-                                               sleeper, 2.0, 1.5);
+                                               sleeper, slpr, gaudge);
     }
     else
     {
@@ -126,7 +129,7 @@ void AddRails::intersection(const FoundNodes &isection)
                                                fwd,
                                                _database->builder,
                                                railFilepath.toStdString(), fillFilepath.toStdString(),
-                                               sleeper, 2.0, 1.5);
+                                               sleeper, slpr, gaudge);
         emit sendMovingPoint(fwd);
         emit startMoving();
     }

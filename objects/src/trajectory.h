@@ -44,14 +44,17 @@ namespace route
             auto norm = vsg::normalize(pt.position);
             vsg::dquat w_quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
 
-            auto t = vsg::inverse(vsg::rotate(w_quat)) * pt.tangent;
+            tangent = vsg::normalize(vsg::inverse(vsg::rotate(w_quat)) * pt.tangent);
+            /*
             auto cos = vsg::dot(vsg::normalize(vsg::dvec2(t.x, t.y)), vsg::dvec2(0.0, 1.0));
 
-            double angle = t.x < 0 ? std::acos(cos) : -std::acos(cos);
+            double angle = t.x < 0 ? std::acos(cos) : -std::acos(cos);*/
 
-            rot = vsg::dquat(angle, vsg::dvec3(0.0, 0.0, 1.0));
+            double angle = -std::atan2(tangent.x, tangent.y);
 
-            auto result = mult(mult(w_quat, rot), tilt);
+            rotation = vsg::dquat(angle, vsg::dvec3(0.0, 0.0, 1.0));
+
+            auto result = mult(mult(w_quat, rotation), tilt);
             auto pos = vsg::translate(pt.position - offset);
             wrotation =  vsg::rotate(result);
             calculated = pos * wrotation;
@@ -72,10 +75,11 @@ namespace route
 
         vsg::dmat4 calculated;
         vsg::dmat4 wrotation;
+        vsg::dvec3 tangent;
 
         std::vector<std::pair<vsg::vec3, vsg::vec3>> vertices;
 
-        vsg::dquat rot;
+        vsg::dquat rotation;
         size_t index = 0;
     };
 

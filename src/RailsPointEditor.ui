@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>750</width>
-    <height>305</height>
+    <height>350</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -38,7 +38,7 @@
    <item row="5" column="0" colspan="2">
     <widget class="QPushButton" name="connectButt">
      <property name="text">
-      <string>Соеденить траектории</string>
+      <string>Режим соеденинения траекторий</string>
      </property>
      <property name="checkable">
       <bool>true</bool>
@@ -84,6 +84,18 @@
    </item>
    <item row="0" column="1">
     <widget class="QLCDNumber" name="lcdNumber">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>120</height>
+      </size>
+     </property>
      <property name="smallDecimalPoint">
       <bool>false</bool>
      </property>

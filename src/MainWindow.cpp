@@ -210,6 +210,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     vsg::RegisterWithObjectFactoryProxy<signalling::Routes>();
     vsg::RegisterWithObjectFactoryProxy<signalling::Station>();
 
+    vsg::RegisterWithObjectFactoryProxy<route::StraitTrajectory>();
     vsg::RegisterWithObjectFactoryProxy<route::SplineTrajectory>();
     vsg::RegisterWithObjectFactoryProxy<route::PointsTrajectory>();
     vsg::RegisterWithObjectFactoryProxy<route::Junction>();
