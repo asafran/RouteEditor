@@ -73,7 +73,7 @@ bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FoundNodes &
 {
     if(!isection.trajectory)
         return false;
-    auto traj = isection.trajectory->cast<route::SplineTrajectory>();
+    auto traj = isection.trajectory->cast<route::StraitTrajectory>();
     if(!traj)
         return false;
     auto coord = traj->invert(isection.worldIntersection);
