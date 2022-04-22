@@ -95,9 +95,9 @@ void AddRails::intersection(const FoundNodes &isection)
         }
     }
     else
-        bwd = route::RailConnector::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
+        bwd = route::RailConnector::create(_database->getStdAxis(), _database->getStdWireBox(), isection.intersection->worldIntersection);
 
-    auto fwd = route::RailConnector::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
+    auto fwd = route::RailConnector::create(_database->getStdAxis(), _database->getStdWireBox(), isection.intersection->worldIntersection);
 
     auto sleeper = vsg::read_cast<vsg::Node>(sleeperFilepath, _database->builder->options);
 

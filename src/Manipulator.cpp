@@ -93,7 +93,7 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         auto isection = intersectedObjects(route::Tiles, buttonPress);
         if(isection.tile == nullptr)
             return;
-        setViewpoint(isection.worldIntersection);
+        setViewpoint(isection.intersection->worldIntersection);
         //FindPositionVisitor fpv(isection.tile.first);
         //auto model = _database->getTilesModel();
         //emit objectClicked(model->index(fpv(model->getRoot()), 0, QModelIndex()));
@@ -267,7 +267,7 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
 
         vsg::dvec3 delta;
 
-        delta = isection.worldIntersection - _movingObject->getWorldPosition();
+        delta = isection->worldIntersection - _movingObject->getWorldPosition();
 
         emit sendMovingDelta(delta);
         /*
@@ -327,7 +327,7 @@ vsg::LineSegmentIntersector::Intersections Manipulator::intersections(uint32_t m
     if (intersector->intersections.empty()) return vsg::LineSegmentIntersector::Intersections();
 
     // sort the intersectors front to back
-    std::sort(intersector->intersections.begin(), intersector->intersections.end(), [](auto lhs, auto rhs) { return lhs.ratio < rhs.ratio; });
+    std::sort(intersector->intersections.begin(), intersector->intersections.end(), [](auto lhs, auto rhs) { return lhs->ratio < rhs->ratio; });
 
     //_lastIntersection = fn;
 

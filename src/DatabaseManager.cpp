@@ -30,12 +30,12 @@ DatabaseManager::DatabaseManager(QString path, vsg::ref_ptr<vsg::Builder> in_bui
     if (!_database)
         throw (DatabaseException(path));
 
-        topology = _database->getObject<route::Topology>(app::TOPOLOGY);
-        if(!topology)
-        {
-            topology = route::Topology::create();
-            _database->setObject(app::TOPOLOGY, topology);
-        }
+    topology = _database->getObject<route::Topology>(app::TOPOLOGY);
+    if(!topology)
+    {
+        topology = route::Topology::create();
+        _database->setObject(app::TOPOLOGY, topology);
+    }
 
 
     //builder->options->objectCache->add(topology, app::TOPOLOGY);
@@ -81,6 +81,8 @@ void DatabaseManager::addPoints(const vsg::Node *tile, vsg::ref_ptr<vsg::Node> s
             for (auto it = vertarray->begin(); it != vertarray->end(); ++it)
             {
                 auto point = route::TerrainPoint::create(copyBuffer, bufferInfo, transform.matrix, sphere, box, it);
+                std::string idx = std::to_string(std::distance(vertarray->begin(), it));
+                point->setValue(app::NAME, idx);
                 point->recalculateWireframe();
                 points->addChild(point);
             }
@@ -190,7 +192,7 @@ void DatabaseManager::loadTiles(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copyBuff
 
             auto pointsGroup = vsg::Group::create();
 
-            //addPoints(tile, sphere, pointsGroup);
+            addPoints(tile, sphere, pointsGroup);
 
             vsg::LOD::Child hiresp{lodp, pointsGroup};
             vsg::LOD::Child dummyp{0.0, vsg::Node::create()};

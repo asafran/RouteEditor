@@ -150,11 +150,11 @@ void RailsPointEditor::intersection(const FoundNodes& isection)
     }
     else if (ui->trajAddPButt->isChecked() && isSplineTraj)
     {
-        auto point = route::RailPoint::create(_database->getStdAxis(), _database->getStdWireBox(), isection.worldIntersection);
+        auto point = route::RailPoint::create(_database->getStdAxis(), _database->getStdWireBox(), isection.intersection->worldIntersection);
         _database->undoStack->push(new AddRailPoint(isection.trajectory->cast<route::SplineTrajectory>(), point));
     } else if (isection.trajectory)
     {
-        auto coord = isection.trajectory->invert(isection.worldIntersection);
+        auto coord = isection.trajectory->invert(isection.intersection->worldIntersection);
         ui->lcdNumber->display(isection.trajectory->getMatrixAt(coord).second);
     }
 

@@ -187,7 +187,6 @@ QWindow* MainWindow::initilizeVSGwindow()
 
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());
-    options->objectCache = vsg::ObjectCache::create();
 
     vsg::RegisterWithObjectFactoryProxy<route::SceneObject>();
     vsg::RegisterWithObjectFactoryProxy<route::SingleLoader>();

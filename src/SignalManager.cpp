@@ -41,8 +41,11 @@ void SignalManager::intersection(const FoundNodes &isection)
         return;
 
     auto path = _fsmodel->filePath(activeFile).toStdString();
-    _database->builder->options->objectCache->remove(path);
-    auto node = vsg::read_cast<vsg::Node>(path, _database->builder->options);
+
+    auto options = vsg::Options::create();
+    options->add(vsgXchange::all::create());
+
+    auto node = vsg::read_cast<vsg::Node>(path, options);
     if(!node)
         return;
 

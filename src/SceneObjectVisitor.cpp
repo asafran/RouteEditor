@@ -129,11 +129,11 @@
 
 
     //----------------------------------------------------------------------------------------------------
-    FindNode::FindNode(const vsg::LineSegmentIntersector::Intersection &lsi)
+    FindNode::FindNode(vsg::ref_ptr<vsg::LineSegmentIntersector::Intersection> lsi)
         : vsg::Visitor()
         , FoundNodes(lsi)
     {
-        std::for_each(nodePath.begin(), nodePath.end(), [this](const vsg::Node *node) { const_cast<vsg::Node*>(node)->accept(*this); });
+        std::for_each(lsi->nodePath.begin(), lsi->nodePath.end(), [this](const vsg::Node *node) { const_cast<vsg::Node*>(node)->accept(*this); });
     }
 
     FindNode::FindNode()

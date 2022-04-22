@@ -39,7 +39,7 @@ void ContentManager::intersection(const FoundNodes &isection)
     QModelIndex activeGroup;
 
     vsg::dmat4 wtl;
-    auto world = isection.worldIntersection;
+    auto world = isection.intersection->worldIntersection;
 
     if(loadToSelected)
     {
@@ -76,7 +76,7 @@ bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FoundNodes &
     auto traj = isection.trajectory->cast<route::StraitTrajectory>();
     if(!traj)
         return false;
-    auto coord = traj->invert(isection.worldIntersection);
+    auto coord = traj->invert(isection.intersection->worldIntersection);
     auto obj = route::SceneObject::create(node, _database->getStdWireBox());
     //obj->recalculateWireframe();
     auto transform = vsg::MatrixTransform::create();
