@@ -1,5 +1,4 @@
 find_package(Boost REQUIRED)
-find_package(TBB REQUIRED)
 
 set(SOURCES
     src/sceneobjects.h
@@ -17,4 +16,4 @@ add_library(objects ${SOURCES})
 
 target_include_directories(objects PUBLIC src)
 
-target_link_libraries(objects spline tools vsg::vsg vsgXchange::vsgXchange Qt6::Core TBB::tbb) 
+target_link_libraries(objects spline tools vsg::vsg vsgXchange::vsgXchange Qt6::Core Qt6::Concurrent)

@@ -4,9 +4,6 @@
 #include <vsg/io/read.h>
 #include "ParentVisitor.h"
 
-#define TINYOBJLOADER_IMPLEMENTATION
-#include "../tiny_obj_loader.h"
-
 
 AddRails::AddRails(DatabaseManager *database, QString root, QWidget *parent) : Tool(database, parent)
     , ui(new Ui::AddRails)

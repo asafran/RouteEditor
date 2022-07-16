@@ -3,7 +3,7 @@
 #include    <QFile>
 #include    <QDir>
 #include    <QTextStream>
-#include    <execution>
+//#include    <execution>
 #include    <vsg/io/read.h>
 #include    "topology.h"
 #include    "sceneobjects.h"
@@ -11,7 +11,8 @@
 #include    <vsg/nodes/VertexIndexDraw.h>
 #include    <vsg/io/ObjectCache.h>
 
-
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "../tiny_obj_loader.h"
 
 //------------------------------------------------------------------------------
 //

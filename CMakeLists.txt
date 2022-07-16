@@ -75,7 +75,7 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(Qt6 COMPONENTS Xml REQUIRED)
-#find_package(Qt6 COMPONENTS Concurrent REQUIRED)
+find_package(Qt6 COMPONENTS Concurrent REQUIRED)
 
 find_package(vsg 0.2.9 REQUIRED)
 find_package(vsgXchange REQUIRED)
@@ -100,7 +100,7 @@ else()
     add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
 endif()
 
-#add_subdirectory(RRSConv)
+add_subdirectory(RRSConv)
 
 add_executable(editor ${SOURCES})
 
