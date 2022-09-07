@@ -78,6 +78,7 @@ find_package(Qt6 COMPONENTS Xml REQUIRED)
 find_package(Qt6 COMPONENTS Concurrent REQUIRED)
 
 find_package(vsg 0.2.9 REQUIRED)
+find_package(osg2vsg REQUIRED)
 find_package(vsgXchange REQUIRED)
 find_package(vsgQt REQUIRED)
 

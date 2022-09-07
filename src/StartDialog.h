@@ -3,6 +3,10 @@
 
 #include <QDialog>
 #include <QItemSelectionModel>
+#include <QFileSystemModel>
+#include <QtConcurrent>
+#include <vsg/nodes/Node.h>
+#include "DatabaseManager.h"
 
 namespace Ui {
 class StartDialog;
@@ -18,8 +22,11 @@ public:
 
     void updateSettings();
 
-    QString routePath;
+    QFileSystemModel *routeModel;
     QString skyboxPath;
+
+    QFuture<vsg::ref_ptr<DatabaseManager>> database;
+    vsg::ref_ptr<vsg::Options> options;
 
     enum Colors
     {
@@ -30,6 +37,9 @@ public:
     Colors color;
 
     double cursorSize;
+
+public slots:
+    void load();
 
 private:
     Ui::StartDialog *ui;

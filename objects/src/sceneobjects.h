@@ -114,7 +114,7 @@ namespace route
                      const std::string &in_file,
                      const vsg::dvec3 &pos = {},
                      const vsg::dquat &in_quat = {0.0, 0.0, 0.0, 1.0},
-                     const vsg::dmat4 &wtl = {});
+                     const vsg::dmat4 &ltw = {});
         SingleLoader();
 
         virtual ~SingleLoader();

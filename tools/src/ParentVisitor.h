@@ -2,10 +2,6 @@
 #define PARENTVISITOR_H
 
 #include <vsg/nodes/Node.h>
-#include <vsg/traversals/ArrayState.h>
-#include <vsg/threading/ActivityStatus.h>
-#include <vsg/threading/OperationThreads.h>
-#include <vsg/threading/OperationQueue.h>
 #include "LambdaVisitor.h"
 
 class ParentIndexer : public vsg::Visitor

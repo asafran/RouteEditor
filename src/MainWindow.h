@@ -25,7 +25,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QString routePath, QString skybox, QWidget *parent = nullptr);
+    MainWindow(vsg::ref_ptr<DatabaseManager> dbm, QWidget *parent = nullptr);
     ~MainWindow();
 
 public slots:
@@ -40,7 +40,6 @@ private:
     void initializeTools();
 
     Ui::MainWindow *ui;
-    vsg::ref_ptr<vsg::Builder> builder;
 
     ObjectPropertiesEditor *ope;
 

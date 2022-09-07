@@ -19,7 +19,7 @@
      <item>
       <widget class="QLabel" name="label_6">
        <property name="text">
-        <string>Выберите маршрут:</string>
+        <string>Выберите тайлы:</string>
        </property>
       </widget>
      </item>
@@ -196,26 +196,17 @@
      </property>
     </widget>
    </item>
+   <item row="1" column="0">
+    <widget class="QProgressBar" name="progressBar">
+     <property name="value">
+      <number>0</number>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <resources/>
  <connections>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>accepted()</signal>
-   <receiver>StartDialog</receiver>
-   <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
-    </hint>
-   </hints>
-  </connection>
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
@@ -229,6 +220,22 @@
     <hint type="destinationlabel">
      <x>286</x>
      <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>StartDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>548</x>
+     <y>697</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>367</x>
+     <y>359</y>
     </hint>
    </hints>
   </connection>

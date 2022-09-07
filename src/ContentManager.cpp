@@ -5,6 +5,7 @@
 #include <vsg/io/read.h>
 #include "ParentVisitor.h"
 #include "DatabaseManager.h"
+#include <vsg/viewer/Viewer.h>
 
 ContentManager::ContentManager(DatabaseManager *database, QString root, QWidget *parent) : Tool(database, parent)
     , ui(new Ui::ContentManager)
@@ -23,53 +24,100 @@ void ContentManager::intersection(const FoundNodes &isection)
 {
     bool loadToSelected = !ui->autoGroup->isChecked();
     auto activeFile = ui->fileView->selectionModel()->selectedIndexes().front();
-    if(!activeFile.isValid() || (!_activeGroup.isValid() && loadToSelected))
-        return;
-
-    auto path = _fsmodel->filePath(activeFile).toStdString();
-    auto node = vsg::read_cast<vsg::Node>(path, _database->builder->options);
-    if(!node)
-        return;
-
-    _database->builder->compileTraversal->compile(node);
-
-    if(addToTrack(node, isection))
-        return;
-
-    QModelIndex activeGroup;
-
-    vsg::dmat4 wtl;
-    auto world = isection.intersection->worldIntersection;
-
-    if(loadToSelected)
+    if(!activeFile.isValid())
     {
-        activeGroup = _activeGroup;
-        auto group = static_cast<vsg::Node*>(_activeGroup.internalPointer());
-
-        ParentTracer pt;
-        group->accept(pt);
-        wtl = vsg::inverse(vsg::computeTransform(pt.nodePath));
-    }
-    else if(isection.tile)
-        activeGroup = _database->tilesModel->index(isection.tile);
-    else
+        emit sendStatusText(tr("Выберите файл"), 2000);
         return;
+    }
+    else if(!_activeGroup.isValid() && loadToSelected)
+    {
+        emit sendStatusText(tr("Выберите группу для объекта"), 2000);
+        return;
+    }
+    auto path = _fsmodel->filePath(activeFile).toStdString();
 
-    vsg::ref_ptr<route::SceneObject> obj;
-    auto norm = vsg::normalize(world);
-    vsg::dquat wquat(vsg::dvec3(0.0, 0.0, 1.0), norm);
+    auto load = [database=_database, activeGroup=_activeGroup, loadToSelected=!ui->autoGroup->isChecked(), useLinks=ui->useLinks->isChecked(), path, isection]()
+    {
+        std::pair<vsg::ref_ptr<route::SceneObject>, vsg::CompileResult> loaded;
+        auto node = vsg::read_cast<vsg::Node>(path, database->builder->options);
+        if(!node)
+            return loaded;
 
-    if(ui->useLinks->isChecked())
-        obj = route::SingleLoader::create(node, _database->getStdWireBox(), path, wtl * world, wquat, wtl);
-    else
-        obj = route::SceneObject::create(node, _database->getStdWireBox(), wtl * world, wquat, wtl);
-    //obj->recalculateWireframe();
-    _database->undoStack->push(new AddSceneObject(_database->tilesModel, activeGroup, obj));
-    emit sendObject(obj);
-    emit sendStatusText(tr("Добавлен объект %1").arg(path.c_str()), 2000);
+        loaded.second = database->viewer->compileManager->compile(node);
+
+        vsg::dmat4 ltw;
+        vsg::dquat wquat;
+        auto world = isection.intersection->worldIntersection;
+        auto norm = vsg::normalize(world);
+
+        if(loadToSelected)
+        {
+            auto group = static_cast<vsg::Node*>(activeGroup.internalPointer());
+
+            ParentTracer pt;
+            group->accept(pt);
+            pt.nodePath.push_back(group);
+            ltw = vsg::computeTransform(pt.nodePath);
+        }
+        else
+            wquat = vsg::dquat(vsg::dvec3(0.0, 0.0, 1.0), norm);
+
+        auto wtl = vsg::inverse(ltw);
+
+        if(useLinks)
+            loaded.first = route::SingleLoader::create(node, database->getStdWireBox(), path, wtl * world, wquat, ltw);
+        else
+            loaded.first = route::SceneObject::create(node, database->getStdWireBox(), wtl * world, wquat, ltw);
+
+        return loaded;
+    };
+
+    auto add = [this, isection, loadToSelected=!ui->autoGroup->isChecked(), path](std::pair<vsg::ref_ptr<route::SceneObject>, vsg::CompileResult> obj)
+    {
+        if(!obj.first)
+        {
+            emit sendStatusText(tr("Ошибка чтения файла %1").arg(path.c_str()), 2000);
+            return;
+        }
+
+        if(addToTrack(obj.first, isection))
+        {
+            emit sendStatusText(tr("Объект привязян к траектории"), 2000);
+            return;
+        }
+
+        QModelIndex activeGroup;
+
+        if(loadToSelected)
+        {
+            activeGroup = _activeGroup;
+            auto group = static_cast<vsg::Node*>(_activeGroup.internalPointer());
+
+            ParentTracer pt;
+            group->accept(pt);
+            pt.nodePath.push_back(group);
+            obj.first->localToWorld = vsg::inverse(vsg::computeTransform(pt.nodePath));
+            obj.first->recalculateWireframe();
+        }
+        else if(isection.tile)
+            activeGroup = _database->tilesModel->index(isection.tile);
+        else
+        {
+            emit sendStatusText(tr("Кликните по тайлу"), 2000);
+            return;
+        }
+
+        updateViewer(*_database->viewer, obj.second);
+
+        _database->undoStack->push(new AddSceneObject(_database->tilesModel, activeGroup, obj.first));
+        emit sendObject(obj.first);
+        emit sendStatusText(tr("Добавлен объект"), 2000);
+    };
+
+    auto future = QtConcurrent::run(load).then(this, add);
 }
 
-bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FoundNodes &isection)
+bool ContentManager::addToTrack(vsg::ref_ptr<route::SceneObject> obj, const FoundNodes &isection)
 {
     if(!isection.trajectory)
         return false;
@@ -77,7 +125,6 @@ bool ContentManager::addToTrack(vsg::ref_ptr<vsg::Node> node, const FoundNodes &
     if(!traj)
         return false;
     auto coord = traj->invert(isection.intersection->worldIntersection);
-    auto obj = route::SceneObject::create(node, _database->getStdWireBox());
     //obj->recalculateWireframe();
     auto transform = vsg::MatrixTransform::create();
     obj->setValue(app::PARENT, transform.get());

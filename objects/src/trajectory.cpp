@@ -364,7 +364,7 @@ namespace route
     {
         std::vector<std::vector<VertexData>> vertexGroups(derivatives.size());
 
-        std::transform(std::execution::par_unseq, derivatives.begin(), derivatives.end(), vertexGroups.begin(),
+        std::transform(derivatives.begin(), derivatives.end(), vertexGroups.begin(),
         [geometry, offset](const InterpolatedPTM &ptcm)
         {
             auto fmat = static_cast<vsg::mat4>(ptcm.calculated);
@@ -604,7 +604,7 @@ namespace route
         _track->matrix = vsg::translate(front);
 
         std::vector<InterpolatedPTM> derivatives(partitionBoundaries.size());
-        std::transform(std::execution::par_unseq, partitionBoundaries.begin(), partitionBoundaries.end(), derivatives.begin(),
+        std::transform(partitionBoundaries.begin(), partitionBoundaries.end(), derivatives.begin(),
                        [this, front](double T)
         {
             return std::move(InterpolatedPTM(_railSpline->getTangent(T), mixTilt(T), front));

@@ -10,18 +10,18 @@
 #include <vsg/traversals/CompileTraversal.h>
 #include <vsg/io/VSG.h>
 
-SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QUndoStack *stack, QObject *parent) :
+SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QObject *parent) :
     QAbstractItemModel(parent)
   , _root(group)
   , _compile(builder->compileTraversal)
   , _options(builder->options)
-  , _undoStack(stack)
+  , _undoStack(nullptr)
 {
 }
 SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, QObject *parent) :
     QAbstractItemModel(parent)
   , _root(group)
-  , _undoStack(Q_NULLPTR)
+  , _undoStack(nullptr)
 {
 }
 
@@ -249,6 +249,8 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
     CalculateTransform ct;
     node->accept(ct);
 
+    Q_ASSERT(_undoStack != nullptr);
+
     _undoStack->push(new AddSceneObject(this, parent, node));
 
     return true;
@@ -339,10 +341,10 @@ bool SceneModel::hasChildren(const QModelIndex &parent) const
 
         bool has = false;
         auto autoF = [&has](const auto &node) { has = !node.children.empty(); };
-        //auto trajF = [&has](const SceneTrajectory& node) { has = node.traj->size() != 0; };
-
+        auto plodF = [&has](const vsg::PagedLOD& node) { has = false; };
         CFunctionVisitor<decltype (autoF)> fv(autoF);
         fv.groupFunction = autoF;
+        fv.plodFunction = plodF;
         parentNode->accept(fv);
         return has;
     }
@@ -375,7 +377,7 @@ bool SceneModel::setData(const QModelIndex &index, const QVariant &value, int ro
         QString newName = value.toString();
         QUndoCommand *command = new RenameObject(nodeInfo, newName);
 
-        Q_ASSERT(_undoStack != Q_NULLPTR);
+        Q_ASSERT(_undoStack != nullptr);
         _undoStack->push(command);
 
         emit dataChanged(index, index.sibling(index.row(), ColumnCount));

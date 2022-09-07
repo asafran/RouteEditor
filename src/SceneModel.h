@@ -12,7 +12,7 @@ class SceneModel : public QAbstractItemModel
 public:
 
     explicit SceneModel(vsg::ref_ptr<vsg::Group> group, QObject* parent = 0);
-    SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QUndoStack *stack, QObject* parent = 0);
+    SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QObject* parent = 0);
 
     ~SceneModel();
 
@@ -74,6 +74,8 @@ public:
     bool hasChildren(const QModelIndex &parent) const;
 
     vsg::ref_ptr<vsg::Group> getRoot() { return _root; }
+
+    void setUndoStack(QUndoStack *stack) { _undoStack = stack; }
 
 /*
 signals:

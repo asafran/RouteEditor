@@ -2,7 +2,7 @@
 
 namespace route
 {
-    Topology::Topology() : vsg::Inherit<vsg::Group, Topology>()
+    Topology::Topology() : vsg::Inherit<vsg::Object, Topology>()
     {
     }
     Topology::~Topology()
@@ -11,7 +11,7 @@ namespace route
 
     void Topology::read(vsg::Input& input)
     {
-        Group::read(input);
+        Object::read(input);
 
         //input.readObjects("stations", stations);
 
@@ -29,7 +29,7 @@ namespace route
 
     void Topology::write(vsg::Output& output) const
     {
-        Group::write(output);
+        Object::write(output);
 
         //output.writeObjects("stations", stations);
 

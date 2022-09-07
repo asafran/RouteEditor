@@ -9,7 +9,7 @@
 
 namespace route
 {
-    class Topology : public vsg::Inherit<vsg::Group, Topology>
+    class Topology : public vsg::Inherit<vsg::Object, Topology>
     {
     public:
         Topology();
@@ -18,13 +18,13 @@ namespace route
 
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
-
+/*
         void traverse(vsg::Visitor& visitor) override
         { if ((visitor.traversalMask & (visitor.overrideMask | route::Tracks)) != vsg::MASK_OFF) Group::traverse(visitor); }
         void traverse(vsg::ConstVisitor& visitor) const override
         { if ((visitor.traversalMask & (visitor.overrideMask | route::Tracks)) != vsg::MASK_OFF) Group::traverse(visitor); }
         void traverse(vsg::RecordTraversal& visitor) const override { Group::traverse(visitor); }
-
+*/
         std::map<std::string, vsg::ref_ptr<signalling::Station>> stations;
 
     };

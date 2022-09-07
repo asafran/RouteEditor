@@ -95,8 +95,8 @@ namespace route
                                const std::string &in_file,
                                const vsg::dvec3 &pos,
                                const vsg::dquat &in_quat,
-                               const vsg::dmat4 &wtl)
-        : vsg::Inherit<SceneObject, SingleLoader>(loaded, box, pos, in_quat, wtl)
+                               const vsg::dmat4 &ltw)
+        : vsg::Inherit<SceneObject, SingleLoader>(loaded, box, pos, in_quat, ltw)
         , file(in_file)
     {
     }

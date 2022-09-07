@@ -1,22 +1,9 @@
 #include "ParentVisitor.h"
 
-#include <vsg/commands/BindIndexBuffer.h>
-#include <vsg/commands/BindVertexBuffers.h>
-#include <vsg/commands/Draw.h>
-#include <vsg/commands/DrawIndexed.h>
-#include <vsg/maths/transform.h>
-#include <vsg/nodes/CullNode.h>
-#include <vsg/nodes/Geometry.h>
 #include <vsg/nodes/LOD.h>
 #include <vsg/nodes/MatrixTransform.h>
 #include <vsg/nodes/PagedLOD.h>
-#include <vsg/nodes/StateGroup.h>
-#include <vsg/nodes/VertexIndexDraw.h>
-#include <vsg/state/GraphicsPipeline.h>
-#include "sceneobjects.h"
 #include "Constants.h"
-
-#include <execution>
 
 
 struct PushPopNode

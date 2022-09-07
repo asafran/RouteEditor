@@ -17,19 +17,17 @@
 
 
 
-MainWindow::MainWindow(QString routePath, QString skybox, QWidget *parent)
+MainWindow::MainWindow(vsg::ref_ptr<DatabaseManager> dbm, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , pathDB(routePath)
+    , database(dbm)
 {
 
     ui->setupUi(this);
 
     constructWidgets();
 
-
-    database = new DatabaseManager(pathDB, builder, this);
-    database->undoStack = new QUndoStack(this);
+    database->setUndoStack(new QUndoStack(this));
 
     initializeTools();
 
@@ -181,13 +179,6 @@ void MainWindow::intersection(const FoundNodes &isection)
 
 QWindow* MainWindow::initilizeVSGwindow()
 {
-    auto options = vsg::Options::create();
-    options->fileCache = vsg::getEnv("RRS2_CACHE");
-    options->paths = vsg::getEnvPaths("RRS2_ROOT");
-
-    // add vsgXchange's support for reading and writing 3rd party file formats
-    options->add(vsgXchange::all::create());
-
     vsg::RegisterWithObjectFactoryProxy<route::SceneObject>();
     vsg::RegisterWithObjectFactoryProxy<route::SingleLoader>();
     vsg::RegisterWithObjectFactoryProxy<route::RailPoint>();
@@ -218,14 +209,6 @@ QWindow* MainWindow::initilizeVSGwindow()
     vsg::RegisterWithObjectFactoryProxy<route::Topology>();
 
 
-    builder = vsg::Builder::create();
-    builder->options = options;
-
-    auto ct = vsg::CompileTraversal::create();
-
-    builder->options->setObject(app::COMPILER, ct);
-
-
     auto windowTraits = vsg::WindowTraits::create();
     windowTraits->windowTitle = APPLICATION_NAME;
 
@@ -235,11 +218,12 @@ QWindow* MainWindow::initilizeVSGwindow()
     ui->sceneTreeView->expandAll();
 */
     viewerWindow = new vsgQt::ViewerWindow();
+    viewerWindow->setSurfaceType(QSurface::VulkanSurface);
     viewerWindow->traits = windowTraits;
     viewerWindow->viewer = vsg::Viewer::create();
 
     // provide the calls to set up the vsg::Viewer that will be used to render to the QWindow subclass vsgQt::ViewerWindow
-    viewerWindow->initializeCallback = [&, this, options, ct](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
+    viewerWindow->initializeCallback = [&, this](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
 
         auto& window = vw.windowAdapter;
         if (!window) return false;
@@ -255,14 +239,12 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
-        database->loadTiles(copyBufferCmd, copyImageCmd);
-
         sorter->setSourceModel(database->tilesModel);
 
         // compute the bounds of the scene graph to help position camera
         vsg::ComputeBounds computeBounds;
         computeBounds.traversalMask = route::SceneObjects | route::Tiles;
-        database->tilesModel->getRoot()->accept(computeBounds);
+        database->root->accept(computeBounds);
         vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
         //double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
 
@@ -307,11 +289,6 @@ QWindow* MainWindow::initilizeVSGwindow()
         // add trackball to enable mouse driven camera view control.
         auto manipulator = Manipulator::create(camera, ellipsoidModel, database, this);
 
-        // TODO have Viewer provide the required CompileTraversal.
-        ct->add(window, view);
-
-        builder->assignCompileTraversal(ct);
-
         auto addBins = [&](vsg::View& view)
         {
             for (int bin = 0; bin < 11; ++bin)
@@ -325,9 +302,21 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         viewer->assignRecordAndSubmitTaskAndPresentation({grahics_commandGraph});
 
-        viewer->compile();
+        vsg::Path resource = std::string(qgetenv("RRS2_ROOT")) + QDir::separator().toLatin1() + "resource.vsgt";
+        auto resourceHints = vsg::read_cast<vsg::ResourceHints>(resource);
 
-        connect(ui->actionSave, &QAction::triggered, database, &DatabaseManager::writeTiles);
+        if (!resourceHints)
+        {
+            // To help reduce the number of vsg::DescriptorPool that need to be allocated we'll provide a minimum requirement via ResourceHints.
+            resourceHints = vsg::ResourceHints::create();
+            resourceHints->numDescriptorSets = 256;
+            resourceHints->descriptorPoolSizes.push_back(VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256});
+        }
+
+        // configure the viewers rendering backend, initialize and compile Vulkan objects, passing in ResourceHints to guide the resources allocated.
+        viewer->compile(resourceHints);
+
+        connect(ui->actionSave, &QAction::triggered, this, [this](){ database->writeTiles(); });
 
         connect(sorter, &TilesSorter::doubleClicked, manipulator.get(), &Manipulator::moveToObject);
 
@@ -359,6 +348,8 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         connect(ope, &ObjectPropertiesEditor::sendFirst, manipulator, &Manipulator::setFirst);
         connect(manipulator, &Manipulator::sendMovingDelta, ope, &ObjectPropertiesEditor::move);
+
+        database->setViewer(viewer);
 
         return true;
     };
@@ -414,8 +405,6 @@ void MainWindow::addObject()
 void MainWindow::constructWidgets()
 {
     embedded = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
-
-
 
     sorter = new TilesSorter(this);
     //sorter->setSourceModel();

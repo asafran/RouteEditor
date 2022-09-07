@@ -16,13 +16,12 @@ int main(int argc, char *argv[])
     {
         dialog.updateSettings();
         try {
-            MainWindow w(dialog.routePath, dialog.skyboxPath);
-            w.show();
+            MainWindow w(dialog.database.result());
             w.showMaximized();
             return a.exec();
         }  catch (DatabaseException &ex) {
             QErrorMessage errorMessageDialog;
-            errorMessageDialog.showMessage(QObject::tr("Ошибка при загрузке маршрута"));
+            errorMessageDialog.showMessage(ex.getErrPath());
             errorMessageDialog.exec();
         }
     }

@@ -23,7 +23,6 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    void generateTrackFile(vsg::ref_ptr<Track> track);
 /*
 public slots:
     void openModel();
