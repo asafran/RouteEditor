@@ -59,14 +59,13 @@ public:
     vsg::ref_ptr<vsg::Node> getStdWireBox();
     vsg::ref_ptr<vsg::Node> getStdAxis();
 
-    vsg::ref_ptr<vsg::CopyAndReleaseImage> getImageCmd() noexcept { return _copyImageCmd; }
-
     QUndoStack *undoStack;
 
     vsg::ref_ptr<vsg::Builder> builder;
     vsg::ref_ptr<vsg::Viewer> viewer;
 
     vsg::ref_ptr<route::Topology> topology;
+    vsg::ref_ptr<vsg::CopyAndReleaseImage> copyImageCmd;
 
     vsg::ref_ptr<vsg::Group> root;
 
@@ -79,7 +78,6 @@ private:
     bool _compiled = false;
 
     vsg::ref_ptr<vsg::Group> _database;
-    vsg::ref_ptr<vsg::CopyAndReleaseImage> _copyImageCmd;
     vsg::ref_ptr<vsg::Node> _stdWireBox;
     vsg::ref_ptr<vsg::Group> _stdAxis;
 };

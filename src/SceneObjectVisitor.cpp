@@ -152,11 +152,11 @@
             trackpoint = point;
     }
 
-    void FindNode::apply(vsg::MatrixTransform &transform)
+    void FindNode::apply(vsg::StateGroup &group)
     {
         vsg::Node *parent = nullptr;
-        if(transform.getValue(app::PARENT, parent) && parent == tile)
-            terrain = &transform;
+        if(group.getValue(app::PARENT, parent) && parent == tile)
+            terrain = &group;
     }
 
     void FindNode::apply(vsg::Switch &sw)

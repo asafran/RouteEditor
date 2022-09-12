@@ -124,7 +124,7 @@ namespace route {
         route::RailPoint* trackpoint = nullptr;
         route::RailConnector* connector = nullptr;
         vsg::Switch* tile = nullptr;
-        vsg::MatrixTransform* terrain = nullptr;
+        vsg::StateGroup* terrain = nullptr;
 
         vsg::ref_ptr<vsg::LineSegmentIntersector::Intersection> intersection;
 
@@ -139,7 +139,7 @@ namespace route {
 
         void apply(vsg::Node &node) override;
 
-        void apply(vsg::MatrixTransform &transform) override;
+        void apply(vsg::StateGroup &group) override;
 
         void apply(vsg::Switch &sw) override;
     };

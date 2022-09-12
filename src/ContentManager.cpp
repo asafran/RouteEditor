@@ -9,7 +9,6 @@
 
 ContentManager::ContentManager(DatabaseManager *database, QString root, QWidget *parent) : Tool(database, parent)
     , ui(new Ui::ContentManager)
-  , modelsDir(root)
 {
     ui->setupUi(this);
     _fsmodel = new QFileSystemModel(this);

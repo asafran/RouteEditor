@@ -158,7 +158,7 @@ void MainWindow::initializeTools()
     toolbox->addItem(sm, tr("Добавить сигнал"));
     rm = new AddRails(database, contentRoot + "/objects/rails", toolbox);
     toolbox->addItem(rm, tr("Добавить рельсы"));
-    auto pt = new Painter(database, toolbox);
+    auto pt = new Painter(database, contentRoot + "/textures", toolbox);
     toolbox->addItem(pt, tr("Текстурирование"));
 
     connect(sorter, &TilesSorter::selectionChanged, ope, &ObjectPropertiesEditor::selectIndex);
@@ -234,8 +234,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         viewer->addWindow(window);
 
         auto memoryBufferPools = vsg::MemoryBufferPools::create("Staging_MemoryBufferPool", vsg::ref_ptr<vsg::Device>(window->getOrCreateDevice()));
-        auto copyBufferCmd = vsg::CopyAndReleaseBuffer::create(memoryBufferPools);
-        auto copyImageCmd = vsg::CopyAndReleaseImage::create(memoryBufferPools);
+        database->copyImageCmd = vsg::CopyAndReleaseImage::create(memoryBufferPools);
 
         QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
 
@@ -283,7 +282,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         // setup command graph to copy the image data each frame then rendering the scene graph
         auto grahics_commandGraph = vsg::CommandGraph::create(window);
-        grahics_commandGraph->addChild(copyBufferCmd);
+        grahics_commandGraph->addChild(database->copyImageCmd);
         grahics_commandGraph->addChild(vsg::RenderGraph::create(window, view));
 
         // add trackball to enable mouse driven camera view control.
