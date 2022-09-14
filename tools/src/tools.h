@@ -15,6 +15,12 @@
 #include <vsg/utils/GraphicsPipelineConfig.h>
 #include <vsg/state/ViewDependentState.h>
 #include <vsg/state/material.h>
+#include <vsg/io/read.h>
+
+#include <QDir>
+#include <QFileInfo>
+
+#include "../tiny_obj_loader.h"
 
 namespace route
 {
@@ -78,66 +84,6 @@ namespace route
 
     static inline vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<vsg::Data> textureData, vsg::ref_ptr<const vsg::Options> options)
     {
-        /*
-        vsg::Paths searchPaths = vsg::getEnvPaths("RRS2_ROOT");
-
-        vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("shaders/vert_PushConstants.spv", searchPaths));
-        vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("shaders/frag_PushConstants.spv", searchPaths));
-        if (!vertexShader || !fragmentShader)
-        {
-            //std::cout << "Could not create shaders." << std::endl;
-            return vsg::ref_ptr<vsg::StateGroup>();
-        }
-
-        // set up graphics pipeline
-        vsg::DescriptorSetLayoutBindings descriptorBindings{
-            {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
-        };
-
-        auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
-
-        vsg::PushConstantRanges pushConstantRanges{
-            {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls automatically provided by the VSG's DispatchTraversal
-        };
-
-        vsg::VertexInputState::Bindings vertexBindingsDescriptions{
-            VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // vertex data
-            VkVertexInputBindingDescription{1, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // colour data
-            VkVertexInputBindingDescription{2, sizeof(vsg::vec2), VK_VERTEX_INPUT_RATE_VERTEX}  // tex coord data
-        };
-
-        vsg::VertexInputState::Attributes vertexAttributeDescriptions{
-            VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0}, // vertex data
-            VkVertexInputAttributeDescription{1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0}, // colour data
-            VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R32G32_SFLOAT, 0}     // tex coord data
-        };
-
-        vsg::GraphicsPipelineStates pipelineStates{
-            vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
-            vsg::InputAssemblyState::create(),
-            vsg::RasterizationState::create(),
-            vsg::MultisampleState::create(),
-            vsg::ColorBlendState::create(),
-            vsg::DepthStencilState::create()};
-
-        auto pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout}, pushConstantRanges);
-        auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, vsg::ShaderStages{vertexShader, fragmentShader}, pipelineStates);
-        auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
-
-        // create texture image and associated DescriptorSets and binding
-        auto descriptorTexture = vsg::DescriptorImage::create(vsg::Sampler::create(), textureData, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-        auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{descriptorTexture});
-        auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
-
-        // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
-        auto stateGroup = vsg::StateGroup::create();
-        stateGroup->add(bindGraphicsPipeline);
-        stateGroup->add(bindDescriptorSet);
-
-        return stateGroup;
-        */
-
         auto sharedObjects = options->sharedObjects;
 
         auto shaderSet = vsg::createPhongShaderSet(options);
@@ -216,7 +162,68 @@ namespace route
         //if (sharedObjects) sharedObjects->report(std::cout);
 
         return stateGroup;
-    } 
+    }
+
+    struct VertexData
+    {
+        VertexData(const vsg::vec3 &vert)
+        {
+            verticle = vert;
+        }
+
+        vsg::vec3 verticle = {};
+
+        vsg::vec2 uv = {};
+
+        vsg::vec3 normal = {};
+    };
+
+    static inline std::pair<std::vector<VertexData>, vsg::ref_ptr<vsg::StateGroup> > loadData(std::string path, vsg::ref_ptr<const vsg::Options> options)
+    {
+        QFileInfo fi(path.c_str());
+
+        tinyobj::ObjReaderConfig reader_config;
+        reader_config.mtl_search_path = fi.absolutePath().toStdString(); // Path to material files
+
+        tinyobj::ObjReader reader;
+        std::vector<VertexData> vd;
+
+        if (!reader.ParseFromFile(path, reader_config))
+        {
+            std::make_pair(vd, nullptr);
+        }
+
+        auto& materials = reader.GetMaterials();
+
+        auto texture = vsg::read_cast<vsg::Data>(fi.absolutePath().toStdString() + QDir::separator().toLatin1() + materials.front().diffuse_texname, options);
+
+        auto state = createStateGroup(texture, options);
+
+        auto& attrib = reader.GetAttrib();
+        auto& shapes = reader.GetShapes();
+
+        auto it = attrib.vertices.begin();
+        auto end = attrib.vertices.end() - (attrib.vertices.size()/2);
+        while (it < end)
+        {
+            vd.push_back(VertexData(vsg::vec3(*it, *(it + 2), *(it + 1))));
+            it += 3;
+        }
+
+        for(const auto &index : shapes.front().mesh.indices)
+        {
+            if(index.vertex_index < vd.size())
+            {
+                auto& v = vd[index.vertex_index];
+                v.uv = {0.0, attrib.texcoords.at((index.texcoord_index * 2) + 1)};
+                auto idx = index.normal_index * 3;
+                v.normal.x = attrib.normals.at(idx);
+                v.normal.y = attrib.normals.at(idx + 2);
+                v.normal.z = attrib.normals.at(idx + 1);
+            }
+        }
+        return std::make_pair(vd, state);
+    }
 }
 
 #endif

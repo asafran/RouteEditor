@@ -136,30 +136,6 @@ namespace route
         output.write("coord", _position);
     }
 
-    TerrainPoint::TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,
-                               vsg::ref_ptr<vsg::BufferInfo> buffer,
-                               const vsg::dmat4 &ltw,
-                               vsg::ref_ptr<vsg::Node> compiled,
-                               vsg::ref_ptr<vsg::Node> box,
-                               vsg::stride_iterator<vsg::vec3> point)
-        : vsg::Inherit<SceneObject, TerrainPoint>(compiled, box, ltw * vsg::dvec3(*point))
-        , _worldToLocal(vsg::inverse(ltw))
-        , _info(buffer)
-        , _copyBufferCmd(copy)
-        , _vertex(point)
-    {
-        auto norm = vsg::normalize(ltw * vsg::dvec3(*point));
-        _world_quat = vsg::dquat(vsg::dvec3(0.0, 0.0, 1.0), norm);
-    }
-    TerrainPoint::~TerrainPoint() {}
-
-    void TerrainPoint::setPosition(const vsg::dvec3& position)
-    {
-        _position = position;
-        *_vertex = _worldToLocal * position;
-        _copyBufferCmd->copy(_info->data, _info);
-    }
-
     RailPoint::RailPoint(vsg::ref_ptr<vsg::Node> loaded, vsg::ref_ptr<vsg::Node> box, const vsg::dvec3 &pos)
         : vsg::Inherit<SceneObject, RailPoint>(loaded, box, pos)
     {

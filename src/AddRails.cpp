@@ -3,6 +3,7 @@
 #include <vsg/nodes/Switch.h>
 #include <vsg/io/read.h>
 #include "ParentVisitor.h"
+#include <vsg/viewer/Viewer.h>
 
 
 AddRails::AddRails(DatabaseManager *database, QString root, QWidget *parent) : Tool(database, parent)
@@ -101,7 +102,8 @@ void AddRails::intersection(const FoundNodes &isection)
     if(!sleeper)
         return;
 
-    _database->builder->compileTraversal->compile(sleeper);
+    auto result = _database->viewer->compileManager->compile(sleeper);
+    vsg::updateViewer(*_database->viewer, result);
 
     vsg::ref_ptr<route::Trajectory> traj;
 
@@ -115,7 +117,7 @@ void AddRails::intersection(const FoundNodes &isection)
         traj = route::StraitTrajectory::create("trajectory",
                                                bwd,
                                                fwd,
-                                               _database->builder,
+                                               _database->builder->options,
                                                railFilepath.toStdString(), fillFilepath.toStdString(),
                                                sleeper, slpr, gaudge);
     }
@@ -124,7 +126,7 @@ void AddRails::intersection(const FoundNodes &isection)
         traj = route::SplineTrajectory::create("trajectory",
                                                bwd,
                                                fwd,
-                                               _database->builder,
+                                               _database->builder->options,
                                                railFilepath.toStdString(), fillFilepath.toStdString(),
                                                sleeper, slpr, gaudge);
         emit sendMovingPoint(fwd);
@@ -133,5 +135,5 @@ void AddRails::intersection(const FoundNodes &isection)
 
     traj->recalculate();
 
-    _database->undoStack->push(new AddSceneObject(_database->tilesModel, _database->getDatabase(), traj));
+    _database->undoStack->push(new AddSceneObject(_database->tilesModel, _database->root, traj));
 }

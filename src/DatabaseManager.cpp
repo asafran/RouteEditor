@@ -44,7 +44,7 @@ void DatabaseManager::setViewer(vsg::ref_ptr<vsg::Viewer> viewer)
 {
     this->viewer = viewer;
 
-    builder->options->setObject(app::COMPILER, viewer->compileManager);
+    builder->options->setObject(app::VIEWER, viewer);
 
     vsg::StateInfo si;
     si.lighting = false;

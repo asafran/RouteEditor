@@ -17,8 +17,6 @@
 #include "Constants.h"
 #include "tools.h"
 
-#include "../tiny_obj_loader.h"
-
 namespace simulator {
     class Bogie;
     class Vehicle;
@@ -197,8 +195,7 @@ namespace route
 
         StraitTrajectory(std::string name,
                          vsg::ref_ptr<RailConnector> bwdPoint,
-                         vsg::ref_ptr<RailConnector> fwdPoint,
-                         vsg::ref_ptr<vsg::Builder> builder,
+                         vsg::ref_ptr<RailConnector> fwdPoint, vsg::ref_ptr<vsg::Options> options,
                          std::string railPath, std::string fillPath,
                          vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge);
         StraitTrajectory();
@@ -231,20 +228,6 @@ namespace route
         void traverse(vsg::ConstVisitor& visitor) const override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
         void traverse(vsg::RecordTraversal& visitor) const override { Trajectory::traverse(visitor); t_traverse(*this, visitor); }
 
-        struct VertexData
-        {
-            VertexData(const vsg::vec3 &vert)
-            {
-                verticle = vert;
-            }
-
-            vsg::vec3 verticle = {};
-
-            vsg::vec2 uv = {};
-
-            vsg::vec3 normal = {};
-        };
-
         void reloadData(vsg::ref_ptr<const vsg::Options> options);
 
    protected:
@@ -256,8 +239,6 @@ namespace route
                             const std::vector<VertexData> &geometry,
                             vsg::ref_ptr<vsg::VertexIndexDraw> vid) const;
 
-        std::pair<std::vector<VertexData>, vsg::ref_ptr<vsg::StateGroup>> loadData(std::string path, vsg::ref_ptr<const vsg::Options> options);
-
         double _sleepersDistance;
 
         double _gaudge;
@@ -265,8 +246,6 @@ namespace route
         double _lenght = 0.0;
 
         std::vector<vsg::ref_ptr<route::SceneObject>> _autoPositioned;
-
-        vsg::ref_ptr<vsg::CompileTraversal> _compiler;
 
         vsg::ref_ptr<vsg::MatrixTransform> _track;
 
@@ -280,6 +259,7 @@ namespace route
         vsg::ref_ptr<vsg::VertexIndexDraw> _fill;
 
         vsg::ref_ptr<vsg::Node> _sleeper;
+        vsg::ref_ptr<vsg::Viewer> _viewer;
 
         friend class TopologyVisitor;
 
@@ -296,7 +276,7 @@ namespace route
         SplineTrajectory(std::string name,
                          vsg::ref_ptr<RailConnector> bwdPoint,
                          vsg::ref_ptr<RailConnector> fwdPoint,
-                         vsg::ref_ptr<vsg::Builder> builder,
+                         vsg::ref_ptr<vsg::Options> options,
                          std::string railPath, std::string fillPath,
                          vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge);
         SplineTrajectory();

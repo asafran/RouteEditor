@@ -151,27 +151,6 @@ namespace route
         }
     }*/
 
-    class TerrainPoint : public vsg::Inherit<SceneObject, TerrainPoint>
-    {
-    public:
-        explicit TerrainPoint(vsg::ref_ptr<vsg::CopyAndReleaseBuffer> copy,
-                              vsg::ref_ptr<vsg::BufferInfo> buffer,
-                              const vsg::dmat4 &wtl,
-                              vsg::ref_ptr<vsg::Node> compiled,
-                              vsg::ref_ptr<vsg::Node> box,
-                              vsg::stride_iterator<vsg::vec3> point);
-
-        virtual ~TerrainPoint();
-
-        void setPosition(const vsg::dvec3& position) override;
-
-    private:
-        vsg::dmat4 _worldToLocal;
-
-        vsg::ref_ptr<vsg::BufferInfo> _info;
-        vsg::ref_ptr<vsg::CopyAndReleaseBuffer> _copyBufferCmd;
-        vsg::stride_iterator<vsg::vec3> _vertex;
-    };
 
     class RailPoint : public vsg::Inherit<SceneObject, RailPoint>
     {

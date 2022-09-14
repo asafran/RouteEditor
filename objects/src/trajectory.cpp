@@ -10,6 +10,7 @@
 #include    "LambdaVisitor.h"
 #include    <vsg/nodes/VertexIndexDraw.h>
 #include    <vsg/io/ObjectCache.h>
+#include    <vsg/viewer/Viewer.h>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "../tiny_obj_loader.h"
@@ -118,12 +119,11 @@ namespace route
     StraitTrajectory::StraitTrajectory(std::string name,
                                        vsg::ref_ptr<RailConnector> bwdPoint,
                                        vsg::ref_ptr<RailConnector> fwdPoint,
-                                       vsg::ref_ptr<vsg::Builder> builder,
+                                       vsg::ref_ptr<vsg::Options> options,
                                        std::string railPath,
                                        std::string fillPath,
                                        vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge)
         : vsg::Inherit<Trajectory, StraitTrajectory>(name, bwdPoint, fwdPoint)
-        , _compiler(builder->compileTraversal)
         , _track(vsg::MatrixTransform::create())
         , _railL(vsg::VertexIndexDraw::create())
         , _railR(vsg::VertexIndexDraw::create())
@@ -134,7 +134,8 @@ namespace route
         , _sleepersDistance(distance)
         , _gaudge(gaudge)
     {
-        reloadData(builder->options);
+        reloadData(options);
+        _viewer = const_cast<vsg::Viewer*>(options->getObject<vsg::Viewer>(app::VIEWER));
     }
 
     StraitTrajectory::StraitTrajectory()
@@ -183,11 +184,6 @@ namespace route
         input.read("fillPath", _fillPath);
         input.read("sleeper", _sleeper);
 
-        input.read("track", _track);
-        input.read("railL", _railL);
-        input.read("railR", _railR);
-        input.read("fill", _fill);
-
         input.read("fwdPoint", _fwdPoint);
         input.read("bwdPoint", _bwdPoint);
 
@@ -196,6 +192,8 @@ namespace route
 
         input.read("fwdPointRev", frontRev);
         input.read("bwdPointRev", bwdRev);
+
+        _viewer = const_cast<vsg::Viewer*>(input.options->getObject<vsg::Viewer>(app::VIEWER));
 
         if(frontRev)
             _fwdPoint->fwdTrajectory = this;
@@ -206,8 +204,6 @@ namespace route
             _bwdPoint->trajectory = this;
         else
             _bwdPoint->fwdTrajectory = this;
-
-        _compiler = const_cast<vsg::CompileTraversal*>(input.options->getObject<vsg::CompileTraversal>(app::COMPILER));
 
         reloadData(input.options);
 
@@ -228,11 +224,6 @@ namespace route
         output.write("railPath", _railPath);
         output.write("fillPath", _fillPath);
         output.write("sleeper", _sleeper);
-
-        output.write("track", _track);
-        output.write("railL", _railL);
-        output.write("railR", _railR);
-        output.write("fill", _fill);
 
         output.write("fwdPoint", _fwdPoint);
         output.write("bwdPoint", _bwdPoint);
@@ -356,8 +347,11 @@ namespace route
         assignGeometry(vsg::vec3(-_gaudge / 2.0, 0.0, 0.0), derivatives, _railGeo, _railR);
         assignGeometry(vsg::vec3(), derivatives, _fillGeo, _fill);
 
-        if(_compiler)
-            _compiler->compile(_track);
+        if(_viewer)
+        {
+            auto result = _viewer->compileManager->compile(_track);
+            vsg::updateViewer(*_viewer, result);
+        }
     }
 
     void StraitTrajectory::assignGeometry(const vsg::vec3 &offset, const std::vector<InterpolatedPTM> &derivatives, const std::vector<VertexData> &geometry, vsg::ref_ptr<vsg::VertexIndexDraw> vid) const
@@ -444,61 +438,16 @@ namespace route
         vid->instanceCount = 1;
     }
 
-    std::pair<std::vector<StraitTrajectory::VertexData>, vsg::ref_ptr<vsg::StateGroup> > StraitTrajectory::loadData(std::string path, vsg::ref_ptr<const vsg::Options> options)
-    {
-        QFileInfo fi(path.c_str());
 
-        tinyobj::ObjReaderConfig reader_config;
-        reader_config.mtl_search_path = fi.absolutePath().toStdString(); // Path to material files
-
-        tinyobj::ObjReader reader;
-        std::vector<VertexData> vd;
-
-        if (!reader.ParseFromFile(path, reader_config))
-        {
-            std::make_pair(vd, nullptr);
-        }
-
-        auto& materials = reader.GetMaterials();
-
-        auto texture = vsg::read_cast<vsg::Data>(fi.absolutePath().toStdString() + "/" + materials.front().diffuse_texname, options);
-
-        auto state = createStateGroup(texture, options);
-
-        auto& attrib = reader.GetAttrib();
-        auto& shapes = reader.GetShapes();
-
-        auto it = attrib.vertices.begin();
-        auto end = attrib.vertices.end() - (attrib.vertices.size()/2);
-        while (it < end)
-        {
-            vd.push_back(VertexData(vsg::vec3(*it, *(it + 2), *(it + 1))));
-            it += 3;
-        }
-
-        for(const auto &index : shapes.front().mesh.indices)
-        {
-            if(index.vertex_index < vd.size())
-            {
-                auto& v = vd[index.vertex_index];
-                v.uv = {0.0, attrib.texcoords.at((index.texcoord_index * 2) + 1)};
-                auto idx = index.normal_index * 3;
-                v.normal.x = attrib.normals.at(idx);
-                v.normal.y = attrib.normals.at(idx + 2);
-                v.normal.z = attrib.normals.at(idx + 1);
-            }
-        }
-        return std::make_pair(vd, state);
-    }
 
     SplineTrajectory::SplineTrajectory(std::string name,
                                        vsg::ref_ptr<RailConnector> bwdPoint,
                                        vsg::ref_ptr<RailConnector> fwdPoint,
-                                       vsg::ref_ptr<vsg::Builder> builder,
+                                       vsg::ref_ptr<vsg::Options> options,
                                        std::string railPath,
                                        std::string fillPath,
                                        vsg::ref_ptr<vsg::Node> sleeper, double distance, double gaudge)
-      : vsg::Inherit<StraitTrajectory, SplineTrajectory>(name, bwdPoint, fwdPoint, builder, railPath, fillPath, sleeper, distance, gaudge)
+      : vsg::Inherit<StraitTrajectory, SplineTrajectory>(name, bwdPoint, fwdPoint, options, railPath, fillPath, sleeper, distance, gaudge)
 
     {
 
