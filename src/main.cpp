@@ -6,9 +6,9 @@
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication::setOrganizationName(ORGANIZATION_NAME);
-    QCoreApplication::setOrganizationDomain(ORGANIZATION_DOMAIN);
-    QCoreApplication::setApplicationName(APPLICATION_NAME);
+    QCoreApplication::setOrganizationName(app::ORGANIZATION_NAME);
+    QCoreApplication::setOrganizationDomain(app::ORGANIZATION_DOMAIN);
+    QCoreApplication::setApplicationName(app::APPLICATION_NAME);
 
     QApplication a(argc, argv);
     StartDialog dialog;

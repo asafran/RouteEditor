@@ -6,6 +6,7 @@
 #include "ParentVisitor.h"
 #include "DatabaseManager.h"
 #include <vsg/viewer/Viewer.h>
+#include "signals.h"
 
 ContentManager::ContentManager(DatabaseManager *database, QString root, QWidget *parent) : Tool(database, parent)
     , ui(new Ui::ContentManager)
@@ -43,6 +44,12 @@ void ContentManager::intersection(const FoundNodes &isection)
             return loaded;
 
         loaded.second = database->viewer->compileManager->compile(node);
+
+        if(auto object = node->cast<route::SceneObject>(); object)
+        {
+            loaded.first = object;
+            return loaded;
+        }
 
         vsg::dmat4 ltw;
         vsg::dquat wquat;
@@ -85,6 +92,12 @@ void ContentManager::intersection(const FoundNodes &isection)
             return;
         }
 
+        if(addSignal(obj.first, isection))
+        {
+            emit sendStatusText(tr("Установлен сигнал"), 2000);
+            return;
+        }
+
         QModelIndex activeGroup;
 
         if(loadToSelected)
@@ -113,6 +126,17 @@ void ContentManager::intersection(const FoundNodes &isection)
         emit sendStatusText(tr("Добавлен объект"), 2000);
     };
 
+    if(ui->removeButt->isChecked())
+    {
+        if(isection.connector)
+        {
+            if(ui->reverseBox->isChecked() && isection.connector->bwdSignal())
+                _database->undoStack->push(new RemoveBwdSignal(isection.connector, _database->topology));
+            else if (!ui->reverseBox->isChecked() && isection.connector->fwdSignal())
+                _database->undoStack->push(new RemoveFwdSignal(isection.connector, _database->topology));
+        }
+    }
+
     auto future = QtConcurrent::run(load).then(this, add);
 }
 
@@ -136,6 +160,24 @@ bool ContentManager::addToTrack(vsg::ref_ptr<route::SceneObject> obj, const Foun
     ct.stack.push(vsg::dmat4());
     traj->accept(ct);
     emit sendObject(obj);
+    return true;
+}
+
+bool ContentManager::addSignal(vsg::ref_ptr<route::SceneObject> obj, const FoundNodes &isection)
+{
+    auto sig = obj.cast<signalling::Signal>();
+    if(!isection.connector || !sig)
+        return false;
+    if(ui->reverseBox->isChecked())
+        sig->setRotation(vsg::dquat(vsg::PI, vsg::dvec3(0.0, 0.0, 1.0)));
+    if(auto ab = sig.cast<signalling::AutoBlockSignal>(); ab)
+        ab->fstate = ui->fstateBox->isChecked();
+
+    bool connect = ui->connectBox->isChecked();
+    if(!isection.connector->fwdSignal() && !ui->reverseBox->isChecked())
+        _database->undoStack->push(new AddFwdSignal(isection.connector, sig, _database->topology, connect));
+    else if(!isection.connector->bwdSignal() && ui->reverseBox->isChecked())
+        _database->undoStack->push(new AddBwdSignal(isection.connector, sig, _database->topology, connect));
     return true;
 }
 

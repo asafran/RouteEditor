@@ -155,7 +155,7 @@ void RailsPointEditor::intersection(const FoundNodes& isection)
     } else if (isection.trajectory)
     {
         auto coord = isection.trajectory->invert(isection.intersection->worldIntersection);
-        ui->lcdNumber->display(isection.trajectory->getMatrixAt(coord).second);
+        ui->lcdNumber->display(isection.trajectory->getElevation(coord));
     }
 
     updateData();

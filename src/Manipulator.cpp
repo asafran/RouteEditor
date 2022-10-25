@@ -29,7 +29,7 @@ Manipulator::~Manipulator()
 
 void Manipulator::createPointer()
 {
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+    QSettings settings(app::ORGANIZATION_NAME, app::APPLICATION_NAME);
 
     auto size = static_cast<float>(settings.value("CURSORSIZE", 1).toInt());
     vsg::GeometryInfo info;

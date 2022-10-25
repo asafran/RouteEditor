@@ -18,7 +18,7 @@ StartDialog::StartDialog(QWidget *parent) :
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());
 
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+    QSettings settings(app::ORGANIZATION_NAME, app::APPLICATION_NAME);
     auto HMH = settings.value("HMH", 1.0).toDouble();
     auto NFR = settings.value("NFR", 0.0001).toDouble();
 
@@ -44,7 +44,7 @@ StartDialog::StartDialog(QWidget *parent) :
 }
 void StartDialog::updateSettings()
 {
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+    QSettings settings(app::ORGANIZATION_NAME, app::APPLICATION_NAME);
     settings.setValue("HMH", ui->HMHSpin->value());
     settings.setValue("NFR", ui->NFRSpin->value());
     settings.setValue("COLORS", ui->comboBox->currentIndex());

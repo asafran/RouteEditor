@@ -11,7 +11,6 @@
 #include "LambdaVisitor.h"
 #include "ParentVisitor.h"
 #include "ContentManager.h"
-#include "SignalManager.h"
 
 #include "Painter.h"
 
@@ -141,7 +140,7 @@ MainWindow::MainWindow(vsg::ref_ptr<DatabaseManager> dbm, QWidget *parent)
 
 void MainWindow::initializeTools()
 {
-    QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+    QSettings settings(app::ORGANIZATION_NAME, app::APPLICATION_NAME);
 
     toolbox = new QToolBox(ui->splitter);
     ui->splitter->addWidget(toolbox);
@@ -154,8 +153,8 @@ void MainWindow::initializeTools()
     toolbox->addItem(rpe, tr("Изменить параметры путеовй точки"));
     auto cm = new ContentManager(database, contentRoot + "/objects/objects", toolbox);
     toolbox->addItem(cm, tr("Добавить объект"));
-    auto sm = new SignalManager(database, contentRoot + "/objects/trackside/signals/");
-    toolbox->addItem(sm, tr("Добавить сигнал"));
+    //auto sm = new SignalManager(database, contentRoot + "/objects/trackside/signals/");
+    //toolbox->addItem(sm, tr("Добавить сигнал"));
     rm = new AddRails(database, contentRoot + "/objects/rails", toolbox);
     toolbox->addItem(rm, tr("Добавить рельсы"));
     auto pt = new Painter(database, contentRoot + "/textures", toolbox);
@@ -210,7 +209,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
 
     auto windowTraits = vsg::WindowTraits::create();
-    windowTraits->windowTitle = APPLICATION_NAME;
+    windowTraits->windowTitle = app::APPLICATION_NAME;
 
     /*
     SceneModel *scenemodel = new SceneModel(database->getRoot(), this);
@@ -236,7 +235,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         auto memoryBufferPools = vsg::MemoryBufferPools::create("Staging_MemoryBufferPool", vsg::ref_ptr<vsg::Device>(window->getOrCreateDevice()));
         database->copyImageCmd = vsg::CopyAndReleaseImage::create(memoryBufferPools);
 
-        QSettings settings(ORGANIZATION_NAME, APPLICATION_NAME);
+        QSettings settings(app::ORGANIZATION_NAME, app::APPLICATION_NAME);
 
         sorter->setSourceModel(database->tilesModel);
 

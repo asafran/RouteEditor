@@ -38,36 +38,7 @@ void Painter::intersection(const FoundNodes &isection)
     if(!isection.terrain || !ellipsoidModel)
         return;
 
-    struct FindTexture : public vsg::Visitor
-    {
-        vsg::ref_ptr<vsg::ImageInfo> imageInfo;
-        vsg::ref_ptr<vsg::ImageInfo> terrainInfo;
-
-        void apply(vsg::Object& object) override
-        {
-            object.traverse(*this);
-        }
-        void apply(vsg::StateGroup& sg) override
-        {
-            for (auto& sc : sg.stateCommands) { sc->accept(*this); }
-            sg.traverse(*this);
-        }
-        void apply(vsg::DescriptorImage& di) override
-        {
-            if(di.imageInfoList.empty())
-                return;
-
-            auto& info =  di.imageInfoList[0];
-
-            if (info->imageView->format == VK_FORMAT_R32_SFLOAT)
-                terrainInfo = info;
-            else
-                imageInfo = info;
-
-        }
-    };
-
-    FindTexture fdi;
+    route::FindTexture fdi;
     isection.terrain->accept(fdi);
 
     if(!fdi.imageInfo || !fdi.terrainInfo)

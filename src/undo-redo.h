@@ -393,7 +393,7 @@ public:
     }
     void undo() override
     {
-        _object->matrix = _parent->getMatrixAt(_oldPos).first;
+        _object->matrix = _parent->getMatrixAt(_oldPos);
         _object->setValue(app::PROP, _oldPos);
 
         ApplyTransform ct;
@@ -402,7 +402,7 @@ public:
     }
     void redo() override
     {
-        _object->matrix = _parent->getMatrixAt(_newPos).first;
+        _object->matrix = _parent->getMatrixAt(_newPos);
         _object->setValue(app::PROP, _newPos);
 
         ApplyTransform ct;

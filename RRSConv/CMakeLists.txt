@@ -14,6 +14,4 @@ target_include_directories(converter PRIVATE ../tools)
 
 target_compile_definitions(converter PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_compile_definitions(converter PRIVATE)
-
 target_link_libraries(converter tools vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange)

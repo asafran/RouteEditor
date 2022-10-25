@@ -26,6 +26,7 @@ signals:
 
 private:
     bool addToTrack(vsg::ref_ptr<route::SceneObject> obj, const FoundNodes &isection);
+    bool addSignal(vsg::ref_ptr<route::SceneObject> obj, const FoundNodes& isection);
 
     Ui::ContentManager *ui;
 

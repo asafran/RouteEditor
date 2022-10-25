@@ -85,13 +85,13 @@ void SignalManager::intersection(const FoundNodes &isection)
             sig = signalling::AutoBlockSignal::create(node, _database->getStdWireBox(), pause, anim, fstate);
             break;
         case Routing:
-            sig = signalling::RouteSignal::create(node, _database->getStdWireBox(), pause, anim, onDelay, offDelay, fstate);
+            sig = signalling::RouteSignal::create(node, _database->getStdWireBox(), pause, anim, fstate);
             break;
         case RoutingV2:
-            sig = signalling::RouteV2Signal::create(node, _database->getStdWireBox(), pause, anim, onDelay, offDelay, fstate);
+            sig = signalling::RouteV2Signal::create(node, _database->getStdWireBox(), pause, anim, fstate);
             break;
         case StRepeater:
-            sig = signalling::StRepSignal::create(node, _database->getStdWireBox(), pause, anim, onDelay, offDelay, fstate);
+            sig = signalling::StRepSignal::create(node, _database->getStdWireBox(), pause, anim, fstate);
             break;
         case Sh:
         {

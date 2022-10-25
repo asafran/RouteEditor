@@ -18,6 +18,23 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
+    <widget class="QRadioButton" name="removeButt">
+     <property name="text">
+      <string>Удалить объект</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QRadioButton" name="addButt">
+     <property name="text">
+      <string>Добавить объект</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QTreeView" name="fileView"/>
    </item>
    <item>
@@ -34,6 +51,41 @@
      </property>
      <property name="checked">
       <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Сигналы</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="fstateBox">
+     <property name="text">
+      <string>Четырехзначная автоблокировка</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="connectBox">
+     <property name="text">
+      <string>Соед. рельсовые цепи</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="reverseBox">
+     <property name="text">
+      <string>В обратную сторону</string>
      </property>
     </widget>
    </item>
