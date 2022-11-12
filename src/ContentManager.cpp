@@ -134,10 +134,14 @@ void ContentManager::intersection(const FoundNodes &isection)
                 _database->undoStack->push(new RemoveBwdSignal(isection.connector, _database->topology));
             else if (!ui->reverseBox->isChecked() && isection.connector->fwdSignal())
                 _database->undoStack->push(new RemoveFwdSignal(isection.connector, _database->topology));
+        } else if(!isection.objects.empty())
+        {
+            auto index = _database->tilesModel->index(isection.objects.front());
+            if(index.isValid())
+                _database->undoStack->push(new RemoveNode(_database->tilesModel, index));
         }
-    }
-
-    auto future = QtConcurrent::run(load).then(this, add);
+    } else
+        auto future = QtConcurrent::run(load).then(this, add);
 }
 
 bool ContentManager::addToTrack(vsg::ref_ptr<route::SceneObject> obj, const FoundNodes &isection)
@@ -153,8 +157,10 @@ bool ContentManager::addToTrack(vsg::ref_ptr<route::SceneObject> obj, const Foun
     obj->setValue(app::PARENT, transform.get());
     transform->addChild(obj);
     transform->setValue(app::PROP, coord);
+    obj->world_quat = {0.0, 0.0, 0.0, 1.0};
+    obj->setPosition({0.0, 0.0, 0.0});
     auto model = _database->tilesModel;
-    _database->undoStack->push(new AddSceneObject(_database->tilesModel, model->index(traj), transform));
+    _database->undoStack->push(new AddSceneObject(model, model->index(traj), transform));
     traj->updateAttached();
     ApplyTransform ct;
     ct.stack.push(vsg::dmat4());

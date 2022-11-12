@@ -118,7 +118,7 @@ void DatabaseManager::writeTiles()
     {
         std::string path;
         if(!node->getValue(app::PATH, path))
-            throw DatabaseException(QObject::tr("Ошибка записи"));
+            return;
         auto ext = vsg::lowerCaseFileExtension(path);
         if (ext == ".vsgt" || ext == ".vsgb")
         {
@@ -127,13 +127,8 @@ void DatabaseManager::writeTiles()
         }
     };
 
-    try {
-        auto future = QtConcurrent::map(root->children.begin(), root->children.end(), write);
-
-        future.waitForFinished();
-    }  catch (DatabaseException) {
-        return; //TODO: handle
-    }
+    auto future = QtConcurrent::map(root->children.begin(), root->children.end(), write);
+    future.waitForFinished();
 
     undoStack->setClean();
     vsg::visit<ParentIndexer>(tilesModel->getRoot());

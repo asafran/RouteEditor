@@ -178,35 +178,6 @@ void MainWindow::intersection(const FoundNodes &isection)
 
 QWindow* MainWindow::initilizeVSGwindow()
 {
-    vsg::RegisterWithObjectFactoryProxy<route::SceneObject>();
-    vsg::RegisterWithObjectFactoryProxy<route::SingleLoader>();
-    vsg::RegisterWithObjectFactoryProxy<route::RailPoint>();
-    vsg::RegisterWithObjectFactoryProxy<route::RailConnector>();
-    vsg::RegisterWithObjectFactoryProxy<route::SwitchConnector>();
-
-    vsg::RegisterWithObjectFactoryProxy<signalling::Signal>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::ShSignal>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::Sh2Signal>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::AutoBlockSignal>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::StRepSignal>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::RouteSignal>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::RouteV2Signal>();
-
-    vsg::RegisterWithObjectFactoryProxy<signalling::JunctionCommand>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::SignalCommand>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::RouteCommand>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::Route>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::Routes>();
-    vsg::RegisterWithObjectFactoryProxy<signalling::Station>();
-
-    vsg::RegisterWithObjectFactoryProxy<route::StraitTrajectory>();
-    vsg::RegisterWithObjectFactoryProxy<route::SplineTrajectory>();
-    vsg::RegisterWithObjectFactoryProxy<route::PointsTrajectory>();
-    vsg::RegisterWithObjectFactoryProxy<route::Junction>();
-
-    vsg::RegisterWithObjectFactoryProxy<PointsGroup>();
-    vsg::RegisterWithObjectFactoryProxy<route::Topology>();
-
 
     auto windowTraits = vsg::WindowTraits::create();
     windowTraits->windowTitle = app::APPLICATION_NAME;

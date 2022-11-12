@@ -104,7 +104,7 @@ namespace route {
     public:
         ApplyTransform();
 
-        vsg::MatrixStack stack;
+        std::stack<vsg::dmat4> stack;
 
         void apply(vsg::Node &node) override;
 

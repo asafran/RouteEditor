@@ -114,7 +114,6 @@
 
     void ApplyTransform::apply(route::SceneObject &object)
     {
-        auto newWorld = vsg::inverse(stack.top());
         object.localToWorld = stack.top();
     }
 
@@ -122,7 +121,7 @@
     {
         if(auto object = transform.cast<route::SceneObject>(); object)
             apply(*object);
-        stack.push(transform);
+        stack.push(transform.transform(stack.top()));
         transform.traverse(*this);
         stack.pop();
     }
