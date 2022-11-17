@@ -10,6 +10,7 @@
 #include <vsgQt/ViewerWindow.h>
 
 #include "sceneobjects.h"
+#include "IntersectionHandler.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -33,12 +34,14 @@ private:
     QWindow* initilizeVSGwindow();
     QWidget *embedded;
 
+    vsg::ref_ptr<IntersectionHandler> handler;
+
     void constructWidgets();
 
     Ui::MainWindow *ui;
-    vsg::ref_ptr<vsg::Node> scene;
+    vsg::ref_ptr<vsg::Group> scene;
+    vsg::ref_ptr<vsg::Group> model;
     vsg::ref_ptr<vsg::Options> options;
-    //vsg::ref_ptr<vsg::Builder> builder;
     vsgQt::ViewerWindow *viewerWindow;
 
 };

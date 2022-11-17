@@ -64,7 +64,7 @@ else()
     add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
 endif()
 
-#add_subdirectory(RRSConv)
+add_subdirectory(RRSConv)
 
 add_executable(editor ${SOURCES})
 
