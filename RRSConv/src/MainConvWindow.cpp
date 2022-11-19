@@ -1,4 +1,4 @@
-#include "MainConvWindow.h"
+﻿#include "MainConvWindow.h"
 #include "ui_MainConvWindow.h"
 
 #include <QFileDialog>
@@ -56,7 +56,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     options = vsg::Options::create();
 
     scene = vsg::Group::create();
-    model = vsg::Group::create();
+    model = AnimatedModel::create();
 
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());

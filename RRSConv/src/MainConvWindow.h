@@ -9,7 +9,7 @@
 #include <QtWidgets/QMainWindow>
 #include <vsgQt/ViewerWindow.h>
 
-#include "sceneobjects.h"
+#include "animated-model.h"
 #include "IntersectionHandler.h"
 
 QT_BEGIN_NAMESPACE
@@ -40,7 +40,7 @@ private:
 
     Ui::MainWindow *ui;
     vsg::ref_ptr<vsg::Group> scene;
-    vsg::ref_ptr<vsg::Group> model;
+    vsg::ref_ptr<AnimatedModel> model;
     vsg::ref_ptr<vsg::Options> options;
     vsgQt::ViewerWindow *viewerWindow;
 

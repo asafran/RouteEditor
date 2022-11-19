@@ -6,6 +6,7 @@
 #include <vsg/io/Options.h>
 
 #include "animation.h"
+#include "AnimationModel.h"
 
 #include "QWidget"
 
@@ -19,7 +20,7 @@ public:
     vsg::ref_ptr<vsg::Builder> builder;
     vsg::ref_ptr<vsg::Camera> camera;
 
-    IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<vsg::Group> model, QWidget *parent);
+    IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<AnimatedModel> model, QWidget *parent);
 
     void apply(vsg::ButtonPressEvent& buttonPressEvent) override;
 
@@ -57,7 +58,8 @@ protected:
     Ui::IntersectionHandler *ui;
     vsg::ref_ptr<Animation> _animation;
     vsg::ref_ptr<vsg::Group> _scenegraph;
-    vsg::ref_ptr<vsg::Group> _model;
+
+    AnimationModel *_model;
 
     vsg::ref_ptr<vsg::MatrixTransform> _selected;
 };

@@ -20,14 +20,15 @@
 
 #include "filesystem.h"
 
-IntersectionHandler::IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<vsg::Group> model, QWidget *parent) :
+IntersectionHandler::IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<AnimatedModel> model, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::IntersectionHandler),
     _scenegraph(scenegraph),
-    _model(model),
     _selected(vsg::MatrixTransform::create())
 {
     ui->setupUi(this);
+
+    _model = new AnimationModel(model, this);
 
     connect(ui->addButt, &QPushButton::pressed, this, &IntersectionHandler::add);
     connect(ui->startButt, &QPushButton::pressed, this, &IntersectionHandler::start);
@@ -109,9 +110,8 @@ void IntersectionHandler::add()
 
 
     }
-    auto transform = vsg::MatrixTransform::create(_selected->matrix);
-    transform->addChild(_animation);
-    _model->addChild(transform);
+    _animation->matrix = _selected->matrix;
+    _model->addAnimation(ui->nameEdit->text(), _animation);
 }
 
 void IntersectionHandler::start()
@@ -144,12 +144,12 @@ void IntersectionHandler::down()
 
 void IntersectionHandler::addBase()
 {
-    _model->addChild(_selected);
+    _model->addBase(_selected);
 }
 
 void IntersectionHandler::reset()
 {
-    _model->children.clear();
+    //_model->children.clear();
 }
 
 void IntersectionHandler::processSelection()
