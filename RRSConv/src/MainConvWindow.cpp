@@ -71,6 +71,8 @@ QWindow* MainWindow::initilizeVSGwindow()
 
     viewerWindow->traits = windowTraits;
 
+    viewerWindow->viewer = vsg::Viewer::create();
+
     viewerWindow->initializeCallback = [&](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height)
     {
 
@@ -152,7 +154,7 @@ void MainWindow::constructWidgets()
     embedded = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
     ui->centralsplitter->addWidget(embedded);
 
-    handler = new IntersectionHandler(scene, model, ui->centralsplitter);
+    handler = new IntersectionHandler(scene, model, viewerWindow->viewer, ui->centralsplitter);
     ui->centralsplitter->addWidget(handler);
 
     handler->builder = vsg::Builder::create();

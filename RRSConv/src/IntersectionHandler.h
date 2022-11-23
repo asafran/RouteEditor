@@ -1,7 +1,7 @@
 #ifndef INTERSECTIONHANDLER_H
 #define INTERSECTIONHANDLER_H
 
-#include <vsg/traversals/LineSegmentIntersector.h>
+#include <vsg/utils/LineSegmentIntersector.h>
 #include <vsg/utils/Builder.h>
 #include <vsg/io/Options.h>
 
@@ -20,7 +20,7 @@ public:
     vsg::ref_ptr<vsg::Builder> builder;
     vsg::ref_ptr<vsg::Camera> camera;
 
-    IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<AnimatedModel> model, QWidget *parent);
+    IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<AnimatedModel> model, vsg::ref_ptr<vsg::Viewer> viewer, QWidget *parent);
 
     void apply(vsg::ButtonPressEvent& buttonPressEvent) override;
 
@@ -58,6 +58,7 @@ protected:
     Ui::IntersectionHandler *ui;
     vsg::ref_ptr<Animation> _animation;
     vsg::ref_ptr<vsg::Group> _scenegraph;
+    vsg::ref_ptr<vsg::Viewer> _viewer;
 
     AnimationModel *_model;
 
