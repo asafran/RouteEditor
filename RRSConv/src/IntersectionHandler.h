@@ -34,7 +34,7 @@ private slots:
     void up();
     void down();
     void addBase();
-    void reset();
+    void remove();
     void typeChanged();
 
 protected:

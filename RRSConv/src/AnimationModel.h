@@ -16,8 +16,11 @@ public:
     virtual ~AnimationModel();
 
     void setModel(vsg::ref_ptr<AnimatedModel> model);
-    void addAnimation(QString key, vsg::ref_ptr<Animation> animation);
+    QModelIndex addAnimation(QString key, vsg::ref_ptr<Animation> animation);
     void addBase(vsg::ref_ptr<vsg::Node> base);
+    void remove(const QModelIndex &index);
+
+    Animation *animationIndex(const QModelIndex &index) const;
 
     int rowCount(const QModelIndex &parent) const;
     QVariant data(const QModelIndex &index, int role) const;

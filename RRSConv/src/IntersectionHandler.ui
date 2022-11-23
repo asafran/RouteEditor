@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>814</height>
+    <width>650</width>
+    <height>805</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,90 +16,32 @@
   <property name="locale">
    <locale language="Russian" country="Russia"/>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <item>
-    <widget class="QCheckBox" name="feedbackBox">
-     <property name="text">
-      <string>Обратная связь</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QCheckBox" name="autoBox">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="text">
-      <string>Автовозврат</string>
-     </property>
-    </widget>
-   </item>
-   <item>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="2" column="0">
     <widget class="QLabel" name="label">
      <property name="text">
       <string>Длительность</string>
      </property>
     </widget>
    </item>
-   <item>
-    <widget class="QDoubleSpinBox" name="durationSpin">
-     <property name="minimum">
-      <double>1.000000000000000</double>
-     </property>
-     <property name="maximum">
-      <double>10000000.000000000000000</double>
+   <item row="0" column="0">
+    <widget class="QCheckBox" name="feedbackBox">
+     <property name="text">
+      <string>Обратная связь</string>
      </property>
     </widget>
    </item>
-   <item>
-    <widget class="QLineEdit" name="modelEdit"/>
-   </item>
-   <item>
-    <widget class="QLineEdit" name="nameEdit">
+   <item row="4" column="0">
+    <widget class="QLineEdit" name="modelEdit">
      <property name="placeholderText">
-      <string>Введите имя анимации</string>
+      <string>Ведите имя модели</string>
      </property>
     </widget>
    </item>
-   <item>
-    <widget class="QPushButton" name="addKeyButt">
-     <property name="text">
-      <string>Добавить точку</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QPushButton" name="upButt">
-     <property name="text">
-      <string>Выше по дереву</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QPushButton" name="downButt">
-     <property name="text">
-      <string>Ниже по дереву</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QPushButton" name="resetButt">
-     <property name="text">
-      <string>Сбросить выбор</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QPushButton" name="baseButt">
-     <property name="text">
-      <string>Базовая модель</string>
-     </property>
-    </widget>
-   </item>
-   <item>
+   <item row="11" column="0" rowspan="2">
     <layout class="QGridLayout" name="gridLayout">
-     <item row="2" column="0">
-      <widget class="QDoubleSpinBox" name="x2">
+     <item row="5" column="0">
+      <widget class="QDoubleSpinBox" name="xr2">
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -112,64 +54,22 @@
        </property>
       </widget>
      </item>
+     <item row="4" column="0">
+      <widget class="QDoubleSpinBox" name="xr1">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QRadioButton" name="illumButt">
+       <property name="text">
+        <string>Освещение</string>
+       </property>
+      </widget>
+     </item>
      <item row="4" column="2">
       <widget class="QDoubleSpinBox" name="zr1">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="2">
-      <widget class="QDoubleSpinBox" name="z1">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="2">
-      <widget class="QDoubleSpinBox" name="zr2">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="9" column="0">
-      <widget class="QRadioButton" name="alphaButt">
-       <property name="text">
-        <string>Альфа</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1">
-      <widget class="QDoubleSpinBox" name="y2">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="0">
-      <widget class="QRadioButton" name="moveButt">
-       <property name="text">
-        <string>Перемещение</string>
-       </property>
-      </widget>
-     </item>
-     <item row="7" column="0" colspan="3">
-      <widget class="QDoubleSpinBox" name="illum1">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="0">
-      <widget class="QDoubleSpinBox" name="x1">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="1">
-      <widget class="QDoubleSpinBox" name="yr2">
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -189,22 +89,22 @@
        </property>
       </widget>
      </item>
-     <item row="6" column="0">
-      <widget class="QRadioButton" name="illumButt">
+     <item row="9" column="0">
+      <widget class="QRadioButton" name="alphaButt">
        <property name="text">
-        <string>Освещение</string>
+        <string>Альфа</string>
        </property>
       </widget>
      </item>
-     <item row="3" column="0">
-      <widget class="QRadioButton" name="rotButt">
-       <property name="text">
-        <string>Вращение</string>
+     <item row="2" column="1">
+      <widget class="QDoubleSpinBox" name="y2">
+       <property name="enabled">
+        <bool>false</bool>
        </property>
       </widget>
      </item>
-     <item row="5" column="0">
-      <widget class="QDoubleSpinBox" name="xr2">
+     <item row="7" column="0" colspan="3">
+      <widget class="QDoubleSpinBox" name="illum1">
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -226,6 +126,48 @@
        </property>
       </widget>
      </item>
+     <item row="1" column="2">
+      <widget class="QDoubleSpinBox" name="z1">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="2">
+      <widget class="QDoubleSpinBox" name="zr2">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QDoubleSpinBox" name="yr2">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="0" colspan="3">
+      <widget class="QDoubleSpinBox" name="illum2">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QDoubleSpinBox" name="x2">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="QRadioButton" name="moveButt">
+       <property name="text">
+        <string>Перемещение</string>
+       </property>
+      </widget>
+     </item>
      <item row="4" column="1">
       <widget class="QDoubleSpinBox" name="yr1">
        <property name="enabled">
@@ -233,10 +175,10 @@
        </property>
       </widget>
      </item>
-     <item row="4" column="0">
-      <widget class="QDoubleSpinBox" name="xr1">
-       <property name="enabled">
-        <bool>false</bool>
+     <item row="3" column="0">
+      <widget class="QRadioButton" name="rotButt">
+       <property name="text">
+        <string>Вращение</string>
        </property>
       </widget>
      </item>
@@ -256,8 +198,8 @@
        </property>
       </widget>
      </item>
-     <item row="8" column="0" colspan="3">
-      <widget class="QDoubleSpinBox" name="illum2">
+     <item row="1" column="0">
+      <widget class="QDoubleSpinBox" name="x1">
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -265,24 +207,75 @@
      </item>
     </layout>
    </item>
-   <item>
+   <item row="1" column="0">
+    <widget class="QCheckBox" name="autoBox">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Автовозврат</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1" rowspan="9">
+    <widget class="QListView" name="listView"/>
+   </item>
+   <item row="6" column="0">
+    <widget class="QPushButton" name="upButt">
+     <property name="text">
+      <string>Выше по дереву</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="0">
     <widget class="QPushButton" name="addButt">
      <property name="text">
       <string>Создать анимацию для выбранного узла</string>
      </property>
     </widget>
    </item>
-   <item>
-    <widget class="Line" name="line">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+   <item row="5" column="0">
+    <widget class="QLineEdit" name="nameEdit">
+     <property name="placeholderText">
+      <string>Введите имя анимации</string>
      </property>
     </widget>
    </item>
-   <item>
+   <item row="7" column="0">
+    <widget class="QPushButton" name="downButt">
+     <property name="text">
+      <string>Ниже по дереву</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="0">
+    <widget class="QPushButton" name="baseButt">
+     <property name="text">
+      <string>Базовая модель</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
     <widget class="QPushButton" name="startButt">
      <property name="text">
-      <string>Запустить анимацию</string>
+      <string>Запустить выбранную анимацию</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <widget class="QPushButton" name="removeButt">
+     <property name="text">
+      <string>Удалить анимацию</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QDoubleSpinBox" name="durationSpin">
+     <property name="minimum">
+      <double>1.000000000000000</double>
+     </property>
+     <property name="maximum">
+      <double>10000000.000000000000000</double>
      </property>
     </widget>
    </item>

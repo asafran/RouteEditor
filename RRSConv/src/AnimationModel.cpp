@@ -19,16 +19,35 @@ void AnimationModel::setModel(vsg::ref_ptr<AnimatedModel> model)
     endResetModel();
 }
 
-void AnimationModel::addAnimation(QString key, vsg::ref_ptr<Animation> animation)
+QModelIndex AnimationModel::addAnimation(QString key, vsg::ref_ptr<Animation> animation)
 {
     beginResetModel();
-    _model->animations.insert({key.toStdString(), animation});
+    auto pos = _model->animations.insert({key.toStdString(), animation});
     endResetModel();
+
+    return index(std::distance(_model->animations.begin(), pos.first));
 }
 
 void AnimationModel::addBase(vsg::ref_ptr<vsg::Node> base)
 {
     _model->addChild(base);
+}
+
+void AnimationModel::remove(const QModelIndex &index)
+{
+    Q_ASSERT(index.row() < _model->animations.size());
+    auto it = std::next(_model->animations.cbegin(), index.row());
+
+    beginResetModel();
+    _model->animations.erase(it);
+    endResetModel();
+}
+
+Animation *AnimationModel::animationIndex(const QModelIndex &index) const
+{
+    Q_ASSERT(index.row() < _model->animations.size());
+    auto it = std::next(_model->animations.cbegin(), index.row());
+    return it->second;
 }
 
 int AnimationModel::rowCount(const QModelIndex &parent) const
