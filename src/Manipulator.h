@@ -1,7 +1,7 @@
 #ifndef MANIPULATOR_H
 #define MANIPULATOR_H
 
-#include <vsg/viewer/Trackball.h>
+#include <vsg/app/Trackball.h>
 #include <QObject>
 #include <vsg/nodes/Switch.h>
 #include "SceneObjectVisitor.h"

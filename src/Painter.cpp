@@ -1,6 +1,6 @@
 #include "Painter.h"
 #include "ui_Painter.h"
-#include <vsg/traversals/ComputeBounds.h>
+#include <vsg/utils/ComputeBounds.h>
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/nodes/CullNode.h>
 #include <vsg/io/read.h>

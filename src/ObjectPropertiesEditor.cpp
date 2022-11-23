@@ -1,7 +1,7 @@
 #include "ObjectPropertiesEditor.h"
 #include "ui_ObjectPropertiesEditor.h"
 #include "undo-redo.h"
-#include <vsg/traversals/ComputeBounds.h>
+#include <vsg/utils/ComputeBounds.h>
 #include "ParentVisitor.h"
 #include "tools.h"
 #include <QSignalBlocker>

@@ -6,7 +6,7 @@
 #include "ParentVisitor.h"
 #include <vsg/nodes/MatrixTransform.h>
 #include <vsg/utils/Builder.h>
-#include <vsg/traversals/ComputeBounds.h>
+#include <vsg/utils/ComputeBounds.h>
 #include <QInputDialog>
 
 Manipulator::Manipulator(vsg::ref_ptr<vsg::Camera> camera,

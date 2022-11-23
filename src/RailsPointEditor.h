@@ -3,7 +3,7 @@
 
 #include "tool.h"
 #include <QItemSelectionModel>
-#include <vsg/viewer/EllipsoidModel.h>
+#include <vsg/app/EllipsoidModel.h>
 
 namespace Ui {
 class RailsPointEditor;

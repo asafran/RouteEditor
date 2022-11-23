@@ -4,7 +4,7 @@
 #include "tool.h"
 #include "stmodels.h"
 #include <QItemSelectionModel>
-#include <vsg/viewer/EllipsoidModel.h>
+#include <vsg/app/EllipsoidModel.h>
 
 namespace Ui {
 class ObjectPropertiesEditor;

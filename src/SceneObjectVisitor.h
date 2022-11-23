@@ -3,7 +3,7 @@
 
 #include <vsg/core/Visitor.h>
 #include <vsg/core/ConstVisitor.h>
-#include <vsg/traversals/LineSegmentIntersector.h>
+#include <vsg/utils/LineSegmentIntersector.h>
 
 #include <QUndoStack>
 #include <vsg/ui/KeyEvent.h>

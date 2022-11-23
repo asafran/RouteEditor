@@ -3,7 +3,7 @@
 #include <vsg/nodes/Switch.h>
 #include <vsg/io/read.h>
 #include "ParentVisitor.h"
-#include <vsg/viewer/Viewer.h>
+#include <vsg/app/Viewer.h>
 
 
 AddRails::AddRails(DatabaseManager *database, QString root, QWidget *parent) : Tool(database, parent)

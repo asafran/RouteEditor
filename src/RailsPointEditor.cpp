@@ -1,7 +1,7 @@
 #include "RailsPointEditor.h"
 #include "ui_RailsPointEditor.h"
 #include "undo-redo.h"
-#include <vsg/traversals/ComputeBounds.h>
+#include <vsg/utils/ComputeBounds.h>
 #include "ParentVisitor.h"
 #include "sceneobjects.h"
 #include <QSignalBlocker>

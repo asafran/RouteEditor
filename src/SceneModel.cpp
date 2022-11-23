@@ -7,7 +7,7 @@
 #include <sstream>
 #include "trajectory.h"
 #include <vsg/nodes/LOD.h>
-#include <vsg/traversals/CompileTraversal.h>
+#include <vsg/app/CompileTraversal.h>
 #include <vsg/io/VSG.h>
 
 SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QObject *parent) :
