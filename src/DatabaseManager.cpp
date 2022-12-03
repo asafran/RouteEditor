@@ -1,8 +1,10 @@
 #include "DatabaseManager.h"
 #include "LambdaVisitor.h"
-#include "vsgGIS/TileDatabase.h"
 #include <QtConcurrent/QtConcurrent>
 #include <QInputDialog>
+#include <vsg/app/Viewer.h>
+#include <vsg/nodes/VertexIndexDraw.h>
+#include <vsg/io/write.h>
 #include "undo-redo.h"
 #include "topology.h"
 #include "ParentVisitor.h"
@@ -27,6 +29,14 @@ DatabaseManager::DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr
     modelroot->addChild(database);
 
     vsg::visit<ParentIndexer>(modelroot);
+
+    auto fixPaths = [](vsg::PagedLOD& plod)
+    {
+        QFileInfo fi(plod.filename.c_str());
+        plod.filename = fi.fileName().toStdString();
+    };
+    LambdaVisitor<decltype (fixPaths), vsg::PagedLOD> fp(fixPaths);
+    database->accept(fp);
 
     tilesModel = new SceneModel(modelroot, builder, undoStack);
 }
@@ -119,12 +129,7 @@ void DatabaseManager::writeTiles()
         std::string path;
         if(!node->getValue(app::PATH, path))
             return;
-        auto ext = vsg::lowerCaseFileExtension(path);
-        if (ext == ".vsgt" || ext == ".vsgb")
-        {
-            vsg::VSG rw;
-            rw.write(node, path, options);
-        }
+        vsg::write(node, path, options);
     };
 
     auto future = QtConcurrent::map(root->children.begin(), root->children.end(), write);
