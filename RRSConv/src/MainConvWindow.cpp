@@ -18,14 +18,13 @@ MainWindow::MainWindow( QWidget *parent)
 
     //scene = vsg::Group::create();
 
-    /*if (const auto file = QFileDialog::getOpenFileName(this, tr("Загрузить модели"), qgetenv("RRS2_ROOT")); !file.isEmpty())
+
+    if (const auto file = QFileDialog::getOpenFileName(this, tr("Загрузить модели"), qgetenv("RRS2_ROOT")); !file.isEmpty())
     {
         auto model = vsg::read_cast<vsg::Node>(file.toStdString(), options);
         if(model)
             scene->addChild(model);
-    }*/
-    scene->addChild(vsg::read_cast<vsg::Node>("/home/asafr/RRS/objects/trackside/signals/Выходной.dae", options));
-
+    }
 }
 
 vsg::ref_ptr<vsg::Camera> createCameraForScene(vsg::Node* scenegraph, int32_t x, int32_t y, uint32_t width, uint32_t height)
