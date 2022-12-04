@@ -212,7 +212,6 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         // compute the bounds of the scene graph to help position camera
         vsg::ComputeBounds computeBounds;
-        computeBounds.traversalMask = route::SceneObjects | route::Tiles;
         database->root->accept(computeBounds);
         vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
         //double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;

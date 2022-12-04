@@ -42,10 +42,6 @@ void Manipulator::createPointer()
     _pointer->addChild(cone);
 }
 
-void Manipulator::setMask(uint32_t mask)
-{
-    _mask = mask;
-}
 void Manipulator::apply(vsg::KeyPressEvent& keyPress)
 {
      _keyModifier = keyPress.keyModifier;
@@ -83,14 +79,14 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
             _isMoving = false;
         }
         else
-            emit sendIntersection(intersectedObjects(_mask, buttonPress));
+            emit sendIntersection(intersectedObjects(buttonPress));
     } else if (buttonPress.mask & vsg::BUTTON_MASK_2)
         _updateMode = ROTATE;
     else if (buttonPress.mask & vsg::BUTTON_MASK_3 && _ellipsoidModel)
     {
         _updateMode = INACTIVE;
 
-        auto isection = intersectedObjects(route::Tiles, buttonPress);
+        auto isection = intersectedObjects(buttonPress);
         if(isection.tile == nullptr)
             return;
         setViewpoint(isection.intersection->worldIntersection);
@@ -120,72 +116,16 @@ void Manipulator::rotate(double angle, const vsg::dvec3& axis)
     _lookAt->up = normalize(matrix * (_lookAt->eye + _lookAt->up) - matrix * _lookAt->eye);
     _lookAt->center = matrix * _lookAt->center;
     _lookAt->eye = matrix * _lookAt->eye;
-
-    //clampToGlobe();
 }
 
 void Manipulator::zoom(double ratio)
 {
     vsg::dvec3 lookVector = _lookAt->center - _lookAt->eye;
     _lookAt->eye = _lookAt->eye + lookVector * ratio;
-
-    //clampToGlobe();
 }
 
 void Manipulator::pan(const vsg::dvec2& delta)
 {
-    /*
-    vsg::dvec3 lookVector = _lookAt->center - _lookAt->eye;
-    vsg::dvec3 lookNormal = vsg::normalize(lookVector);
-    vsg::dvec3 upNormal = _lookAt->up;
-    vsg::dvec3 sideNormal = vsg::cross(lookNormal, upNormal);
-
-    double distance = length(lookVector);
-    distance *= 0.25; // TODO use Camera project matrix to guide how much to scale
-
-    if (_ellipsoidModel)
-    {
-        double scale = distance;
-        double angle = (length(delta) * scale) / _ellipsoidModel->radiusEquator();
-
-        if (angle != 0.0)
-        {
-            vsg::dvec3 globeNormal = normalize(_lookAt->center);
-            vsg::dvec3 m = upNormal * (-delta.y) + sideNormal * (delta.x); // compute the position relative to the center in the eye plane
-            vsg::dvec3 v = m + lookNormal * dot(m, globeNormal);           // compensate for any tile relative to the globenormal
-            vsg::dvec3 axis = normalize(cross(globeNormal, v));            // compute the axis of rotation to map the mouse pan
-
-            vsg::dmat4 matrix = vsg::rotate(-angle, axis);
-
-            _lookAt->up = normalize(matrix * (_lookAt->eye + _lookAt->up) - matrix * _lookAt->eye);
-            _lookAt->center = matrix * _lookAt->center;
-            _lookAt->eye = matrix * _lookAt->eye;void Manipulator::addWireframe(const QModelIndex &index, const vsg::Node *node, vsg::dmat4 ltw)
-{
-    vsg::ComputeBounds cb;
-    node->accept(cb);
-
-    vsg::dvec3 centre = ltw * ((cb.bounds.min + cb.bounds.max) * 0.5);
-    //setViewpoint(centre);
-
-    auto matrix = vsg::translate(centre) * vsg::scale(cb.bounds.max - cb.bounds.min) *
-            vsg::rotate(vsg::dquat(vsg::dvec3(0.0, 0.0, -1.0), vsg::normalize(centre)));
-    auto transform = vsg::MatrixTransform::create(matrix);
-    transform->addChild(_compiledWireframe);
-    _wireframes->children.push_back(transform);
-    _selectedObjects.insert(std::make_pair(index, _wireframes->children.end()));
-}
-
-            //clampToGlobe();
-        }
-    }
-    else
-    {
-        vsg::dvec3 translation = sideNormal * (-delta.x * distance) + upNormal * (delta.y * distance);
-
-        _lookAt->eye = _lookAt->eye + translation;
-        _lookAt->center = _lookAt->center + translation;
-    }
-    */
 }
 
 
@@ -260,7 +200,7 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
         return;
 
 
-        auto isections = intersections(route::Tiles, pointerEvent);
+        auto isections = intersections(pointerEvent);
         if(isections.empty())
             return;
         auto isection = isections.front();
@@ -313,16 +253,15 @@ FindNode Manipulator::intersectedObjects(vsg::LineSegmentIntersector::Intersecti
     return fn;
 }
 
-FindNode Manipulator::intersectedObjects(uint32_t mask, const vsg::PointerEvent &pointerEvent)
+FindNode Manipulator::intersectedObjects(const vsg::PointerEvent &pointerEvent)
 {
-    return intersectedObjects(intersections(mask, pointerEvent));
+    return intersectedObjects(intersections(pointerEvent));
 }
 
-vsg::LineSegmentIntersector::Intersections Manipulator::intersections(uint32_t mask, const vsg::PointerEvent& pointerEvent)
+vsg::LineSegmentIntersector::Intersections Manipulator::intersections(const vsg::PointerEvent& pointerEvent)
 {
     auto intersector = vsg::LineSegmentIntersector::create(*_camera, pointerEvent.x, pointerEvent.y);
-    intersector->traversalMask = mask;
-    _database->tilesModel->getRoot()->accept(*intersector);
+    _database->root->accept(*intersector);
 
     if (intersector->intersections.empty()) return vsg::LineSegmentIntersector::Intersections();
 

@@ -33,18 +33,6 @@ private:
     QString err_path;
 };
 
-class PointsGroup : public vsg::Inherit<vsg::Group, PointsGroup>
-{
-public:
-    PointsGroup() : vsg::Inherit<vsg::Group, PointsGroup>() {}
-
-    void read(vsg::Input& input) override { vsg::Node::read(input); }
-    void write(vsg::Output& output) const override { vsg::Node::write(output); }
-
-protected:
-    virtual ~PointsGroup(){}
-};
-
 class DatabaseManager : public vsg::Inherit<vsg::Object, DatabaseManager>
 {
 public:

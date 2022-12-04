@@ -5,7 +5,8 @@
 #include <QColorDialog>
 #include <QErrorMessage>
 #include <QMessageBox>
-//#include "LambdaVisitor.h"
+#include "Constants.h"
+#include "Register.h"
 
 MainWindow::MainWindow( QWidget *parent)
     : QMainWindow(parent)
@@ -18,6 +19,7 @@ MainWindow::MainWindow( QWidget *parent)
 
     //scene = vsg::Group::create();
 
+    app::registerObjectFactoy();
 
     if (const auto file = QFileDialog::getOpenFileName(this, tr("Загрузить модели"), qgetenv("RRS2_ROOT")); !file.isEmpty())
     {
@@ -80,8 +82,6 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         auto& viewer = vw.viewer;
         if (!viewer) viewer = vsg::Viewer::create();
-
-        vsg::RegisterWithObjectFactoryProxy<route::SceneObject>();
 
         viewer->addWindow(window);
 

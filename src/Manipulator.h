@@ -28,11 +28,11 @@ public:
     void zoom(double ratio) override;
     void pan(const vsg::dvec2& delta) override;
 
-    FindNode intersectedObjects(uint32_t mask, const vsg::PointerEvent &pointerEvent);
+    FindNode intersectedObjects(const vsg::PointerEvent &pointerEvent);
 
     FindNode intersectedObjects(vsg::LineSegmentIntersector::Intersections isections);
 
-    vsg::LineSegmentIntersector::Intersections intersections(uint32_t mask, const vsg::PointerEvent& pointerEvent);
+    vsg::LineSegmentIntersector::Intersections intersections(const vsg::PointerEvent& pointerEvent);
 
 public slots:
     void moveToObject(const QModelIndex &index);
@@ -41,7 +41,6 @@ public slots:
     void setViewpoint(const vsg::dvec3 &pos);
     void setLatLongAlt(const vsg::dvec3 &pos);
     void setViewpoint(const vsg::dvec4 &pos_mat);
-    void setMask(uint32_t mask);
 
 signals:
     void sendPos(const vsg::dvec3 &pos);
@@ -53,39 +52,17 @@ signals:
 protected:
     inline void createPointer();
 
-    //void handlePress(vsg::ButtonPressEvent& buttonPressEvent);
-/*
-    enum MovingAxis
-    {
-        X,
-        Y,
-        Z,
-        TERRAIN
-    };
-
-    MovingAxis _axis = TERRAIN;*/
-
     DatabaseManager *_database;
 
     vsg::ref_ptr<vsg::MatrixTransform> _pointer;
 
     bool _isMoving;
     vsg::ref_ptr<route::SceneObject> _movingObject;
-    //vsg::dvec3 _prev = {};
-
-    uint32_t _mask = 0xFFFFFF;
 
     uint16_t _keyModifier = 0x0;
 
     vsg::LineSegmentIntersector::Intersection _lastIntersection;
 };
-/*
-template<class T>
-bool isCompatible(const vsg::Node* node)
-{
-    return node->is_compatible(typeid (T));
-}
-*/
 
 
 #endif // MANIPULATOR_H

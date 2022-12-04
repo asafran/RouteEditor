@@ -11,18 +11,20 @@
 #include <QRegularExpression>
 
 DatabaseManager::DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr<vsg::Group> nodes, vsg::ref_ptr<vsg::Options> options)
-  : root(nodes)
+  : root(vsg::Group::create())
   , _database(database)
 {
     builder = vsg::Builder::create();
     builder->options = options;
 
-    topology = _database->getObject<route::Topology>(app::TOPOLOGY);
+    topology = database->children.back().cast<route::Topology>();
     if(!topology)
     {
         topology = route::Topology::create();
-        _database->setObject(app::TOPOLOGY, topology);
+        _database->addChild(topology);
     }
+    root->addChild(topology);
+    root->addChild(nodes);
 
     auto modelroot = vsg::Group::create();
     modelroot->addChild(nodes);
@@ -38,7 +40,7 @@ DatabaseManager::DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr
     LambdaVisitor<decltype (fixPaths), vsg::PagedLOD> fp(fixPaths);
     database->accept(fp);
 
-    tilesModel = new SceneModel(modelroot, builder, undoStack);
+    tilesModel = new SceneModel(modelroot, builder);
 }
 DatabaseManager::~DatabaseManager()
 {
@@ -117,6 +119,8 @@ void DatabaseManager::writeTiles()
 
     tilesModel->getRoot()->accept(lv);
     tilesModel->getRoot()->accept(lvmp);
+
+    vsg::visit<route::SetStatic>(root);
 
     std::string path;
     if(!_database->getValue(app::PATH, path))

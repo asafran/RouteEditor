@@ -135,5 +135,5 @@ void AddRails::intersection(const FoundNodes &isection)
 
     traj->recalculate();
 
-    _database->undoStack->push(new AddSceneObject(_database->tilesModel, _database->root, traj));
+    _database->undoStack->push(new AddSceneObject(_database->tilesModel, _database->topology, traj));
 }

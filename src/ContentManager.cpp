@@ -7,6 +7,7 @@
 #include "DatabaseManager.h"
 #include <vsg/app/Viewer.h>
 #include "signals.h"
+#include "tile.h"
 
 ContentManager::ContentManager(DatabaseManager *database, QString root, QWidget *parent) : Tool(database, parent)
     , ui(new Ui::ContentManager)

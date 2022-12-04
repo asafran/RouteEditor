@@ -13,6 +13,7 @@ namespace route {
     class SceneTrajectory;
     class SceneObject;
     class Trajectory;
+    class Tile;
     class RailPoint;
     class RailConnector;
 }
@@ -123,8 +124,7 @@ namespace route {
         route::Trajectory* trajectory = nullptr;
         route::RailPoint* trackpoint = nullptr;
         route::RailConnector* connector = nullptr;
-        vsg::Switch* tile = nullptr;
-        vsg::StateGroup* terrain = nullptr;
+        route::Tile* tile = nullptr;
 
         vsg::ref_ptr<vsg::LineSegmentIntersector::Intersection> intersection;
 
@@ -139,9 +139,7 @@ namespace route {
 
         void apply(vsg::Node &node) override;
 
-        void apply(vsg::StateGroup &group) override;
-
-        void apply(vsg::Switch &sw) override;
+        void apply(vsg::Group &group) override;
     };
 /*
     class CreateAddCommand : public vsg::ConstVisitor, public vsg::LineSegmentIntersector::Intersection

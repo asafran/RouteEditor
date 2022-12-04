@@ -2,6 +2,7 @@
 
 #include "sceneobjects.h"
 #include "trajectory.h"
+#include "tile.h"
 #include "undo-redo.h"
 #include <vsg/nodes/Switch.h>
 
@@ -151,17 +152,10 @@
             trackpoint = point;
     }
 
-    void FindNode::apply(vsg::StateGroup &group)
+    void FindNode::apply(vsg::Group &group)
     {
-        vsg::Node *parent = nullptr;
-        if(group.getValue(app::PARENT, parent) && parent == tile)
-            terrain = &group;
-    }
-
-    void FindNode::apply(vsg::Switch &sw)
-    {
-        if(sw.children.front().mask == route::Tiles)
-            tile = &sw;
+        if(auto casted = group.cast<route::Tile>(); casted)
+            tile = casted;
     }
 /*
 CreateAddCommand::CreateAddCommand(const vsg::LineSegmentIntersector::Intersection &lsi,

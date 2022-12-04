@@ -42,20 +42,9 @@ QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) co
 
         auto autoF = [&child, row](const auto& node) { child = node.children.at(row).node; };
         auto groupF = [&child, row](const vsg::Group& node) { child = node.children.at(row); };
-        auto swF = [&child, row](const vsg::Switch& node)
-        {
-            auto object = std::find_if(node.children.begin(), node.children.end(), [](const vsg::Switch::Child &ch)
-            {
-                return (ch.mask & route::SceneObjects) != 0;
-            });
-            object += row;
-            Q_ASSERT(object < node.children.cend());
-            child = object->node;
-        };
 
         CFunctionVisitor<decltype (autoF)> fv(autoF);
         fv.groupFunction = groupF;
-        fv.swFunction = swF;
 
         parentNode->accept(fv);
 
@@ -87,7 +76,6 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
         return QModelIndex();
 
     FindPositionVisitor fpv(parent);
-    fpv.traversalMask = route::SceneObjects;
     return createIndex(fpv(grandParent), 0, parent);
 }
 
@@ -109,25 +97,8 @@ bool SceneModel::removeRows(int row, int count, const QModelIndex &parent)
         else
             node.children.erase(begin, end);
     };
-    auto groupF = [autoF](vsg::Group& node) { autoF(node); };
-    auto lodF = [autoF](vsg::LOD& node) { autoF(node); };
 
-    auto swF = [row, count](vsg::Switch& node)
-    {
-        auto begin = std::find_if(node.children.begin(), node.children.end(), [](const vsg::Switch::Child &ch)
-        {
-            return (ch.mask & route::SceneObjects) != 0;}
-        );
-        begin += row;
-        auto end = begin + count - 1;
-        Q_ASSERT(end < node.children.end());
-        if(begin == end)
-            node.children.erase(begin);
-        else
-            node.children.erase(begin, end);
-    };
-
-    FunctionVisitor fv(groupF, swF, lodF);
+    AutoFunctionVisitor<decltype (autoF)> fv(autoF);
     beginRemoveRows(parent, row, row + count - 1);
     parentNode->accept(fv);
     endRemoveRows();
@@ -152,7 +123,10 @@ int SceneModel::addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loade
     auto lodF = [loaded](vsg::LOD& node) { node.addChild(vsg::LOD::Child{0.0, loaded}); };
 
     beginInsertRows(parent, row, row);
-    FunctionVisitor fv(groupF, swF);
+    FunctionVisitor fv;
+    fv.groupFunction = groupF;
+    fv.swFunction = swF;
+    fv.lodFunction = lodF;
     parentNode->accept(fv);
     endInsertRows();
     return row;
@@ -183,7 +157,7 @@ QModelIndex SceneModel::index(const vsg::Node *node) const
 QModelIndex SceneModel::index(const vsg::Node *node, const vsg::Node *parent) const
 {
     FindPositionVisitor fpv(node);
-    fpv.traversalMask = route::SceneObjects;
+    //fpv.traversalMask = route::SceneObjects;
     return createIndex(fpv(parent), 0, node);
 }
 
@@ -273,17 +247,9 @@ int SceneModel::rowCount(const QModelIndex &parent) const
     int rows = 0;
 
     auto autoF = [&rows](const auto& node) { rows = node.children.size(); };
-    auto swF = [&rows](const vsg::Switch& node)
-    {
-        rows = std::count_if(node.children.begin(), node.children.end(), [](const vsg::Switch::Child &child)
-        {
-            return ((child.mask & route::SceneObjects) != 0);
-        });
-    };
 
     CFunctionVisitor<decltype (autoF)> fv(autoF);
     fv.groupFunction = autoF;
-    fv.swFunction = swF;
 
     parentNode->accept(fv);
 
