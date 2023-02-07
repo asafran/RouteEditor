@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include "undo-redo.h"
+#include "DatabaseManager.h"
 
 class Tool : public QWidget
 {

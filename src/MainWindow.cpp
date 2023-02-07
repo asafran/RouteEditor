@@ -87,11 +87,6 @@ MainWindow::MainWindow(vsg::ref_ptr<DatabaseManager> dbm, QWidget *parent)
             auto parent = static_cast<vsg::Node*>(parentIndex.internalPointer());
             Q_ASSERT(parent);
 
-            ParentTracer pt;
-            parent->accept(pt);
-            auto ltw = vsg::computeTransform(pt.nodePath);
-            auto wtl = vsg::inverse(ltw);
-
             auto node = static_cast<vsg::Node*>(front.internalPointer());
             auto object = node->cast<route::SceneObject>();
             if(!object)
@@ -100,10 +95,8 @@ MainWindow::MainWindow(vsg::ref_ptr<DatabaseManager> dbm, QWidget *parent)
                 return;
             }
 
-            auto world = object->getWorldPosition();
-            auto norm = vsg::normalize(world);
-            //vsg::dquat quat(vsg::dvec3(0.0, 0.0, 1.0), norm);
-            auto group = route::SceneObject::create(database->getStdWireBox(), world * wtl, vsg::dquat(), wtl);
+            auto position = object->getWorldPosition();
+            auto group = route::SceneObject::create(database->getStdWireBox(), object->getPosition());
 
             database->undoStack->beginMacro(tr("Создана группа объектов"));
 
@@ -112,18 +105,21 @@ MainWindow::MainWindow(vsg::ref_ptr<DatabaseManager> dbm, QWidget *parent)
             for (const auto &index : selected)
             {
                 Q_ASSERT(index.isValid());
-                auto object = static_cast<vsg::Node*>(index.internalPointer());
+                auto node = static_cast<vsg::Node*>(index.internalPointer());
+                auto object = node->cast<route::SceneObject>();
+                if(!object)
+                {
+                    ui->statusbar->showMessage(tr("Поддерживается перемещение только объектов"), 2000);
+                    continue;
+                }
+                object->reset();
+                object->setPosition(position - object->getWorldPosition());
+
                 group->children.emplace_back(object);
                 database->undoStack->push(new RemoveNode(database->tilesModel, index));
             }
 
             database->undoStack->push(new AddSceneObject(database->tilesModel, parentIndex, group));
-
-            CalculateTransform ct;
-            ct.undoStack = database->undoStack;
-            ct.stack.push(ltw);
-            group->accept(ct);
-
             database->undoStack->endMacro();
         }
         else
@@ -140,7 +136,7 @@ MainWindow::MainWindow(vsg::ref_ptr<DatabaseManager> dbm, QWidget *parent)
 
 void MainWindow::initializeTools()
 {
-    QSettings settings(app::ORGANIZATION_NAME, app::APPLICATION_NAME);
+    QSettings settings(app::ORGANIZATION_NAME, app::APP_NAME);
 
     toolbox = new QToolBox(ui->splitter);
     ui->splitter->addWidget(toolbox);
@@ -180,7 +176,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 {
 
     auto windowTraits = vsg::WindowTraits::create();
-    windowTraits->windowTitle = app::APPLICATION_NAME;
+    windowTraits->windowTitle = app::APP_NAME;
 
     /*
     SceneModel *scenemodel = new SceneModel(database->getRoot(), this);
@@ -206,7 +202,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         auto memoryBufferPools = vsg::MemoryBufferPools::create("Staging_MemoryBufferPool", vsg::ref_ptr<vsg::Device>(window->getOrCreateDevice()));
         database->copyImageCmd = vsg::CopyAndReleaseImage::create(memoryBufferPools);
 
-        QSettings settings(app::ORGANIZATION_NAME, app::APPLICATION_NAME);
+        QSettings settings(app::ORGANIZATION_NAME, app::APP_NAME);
 
         sorter->setSourceModel(database->tilesModel);
 
@@ -223,22 +219,14 @@ QWindow* MainWindow::initilizeVSGwindow()
         auto lookAt = vsg::LookAt::create(centre + (vsg::normalize(centre)*1000.0), centre, vsg::dvec3(1.0, 0.0, 0.0));
         //auto lookAt = vsg::LookAt::create(centre + vsg::dvec3(0.0, -radius * 3.5, 0.0), centre, vsg::dvec3(0.0, 0.0, 1.0));
 
-        vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
-
-        if(!database)
+        if(!database || !database->ellipsoidModel)
             return false;
 
-        vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel(database->getDatabase()->getObject<vsg::EllipsoidModel>("EllipsoidModel"));
-        if (ellipsoidModel)
-        {
-            perspective = vsg::EllipsoidPerspective::create(
-                lookAt, ellipsoidModel, 60.0,
-                static_cast<double>(width) /
-                    static_cast<double>(height),
-                nearFarRatio, horizonMountainHeight);
-        }
-        else
-            return false;
+        auto perspective = vsg::EllipsoidPerspective::create(
+            lookAt, database->ellipsoidModel, 60.0,
+            static_cast<double>(width) /
+                static_cast<double>(height),
+            nearFarRatio, horizonMountainHeight);
 
         auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
 
@@ -255,7 +243,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         grahics_commandGraph->addChild(vsg::RenderGraph::create(window, view));
 
         // add trackball to enable mouse driven camera view control.
-        auto manipulator = Manipulator::create(camera, ellipsoidModel, database, this);
+        auto manipulator = Manipulator::create(camera, database->ellipsoidModel, database, this);
 
         auto addBins = [&](vsg::View& view)
         {

@@ -83,7 +83,7 @@ namespace route {
             _function1(object);
         }
     };
-*/
+
     class CalculateTransform : public vsg::Visitor
     {
     public:
@@ -113,7 +113,7 @@ namespace route {
 
         void apply(vsg::Transform &transform) override;
     };
-
+*/
     class FoundNodes
     {
     public:

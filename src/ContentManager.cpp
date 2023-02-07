@@ -57,6 +57,8 @@ void ContentManager::intersection(const FoundNodes &isection)
         auto world = isection.intersection->worldIntersection;
         auto norm = vsg::normalize(world);
 
+        auto ltw = database->ellipsoidModel->computeWorldToLocalTransform()
+
         if(loadToSelected)
         {
             auto group = static_cast<vsg::Node*>(activeGroup.internalPointer());
@@ -72,9 +74,9 @@ void ContentManager::intersection(const FoundNodes &isection)
         auto wtl = vsg::inverse(ltw);
 
         if(useLinks)
-            loaded.first = route::SingleLoader::create(node, database->getStdWireBox(), path, wtl * world, wquat, ltw);
+            loaded.first = route::SingleLoader::create(node, database->getStdWireBox(), path, wtl * world, wquat);
         else
-            loaded.first = route::SceneObject::create(node, database->getStdWireBox(), wtl * world, wquat, ltw);
+            loaded.first = route::SceneObject::create(node, database->getStdWireBox(), wtl * world, wquat);
 
         return loaded;
     };
@@ -104,12 +106,6 @@ void ContentManager::intersection(const FoundNodes &isection)
         if(loadToSelected)
         {
             activeGroup = _activeGroup;
-            auto group = static_cast<vsg::Node*>(_activeGroup.internalPointer());
-
-            ParentTracer pt;
-            group->accept(pt);
-            pt.nodePath.push_back(group);
-            obj.first->localToWorld = vsg::inverse(vsg::computeTransform(pt.nodePath));
             obj.first->recalculateWireframe();
         }
         else if(isection.tile)
@@ -158,14 +154,10 @@ bool ContentManager::addToTrack(vsg::ref_ptr<route::SceneObject> obj, const Foun
     obj->setValue(app::PARENT, transform.get());
     transform->addChild(obj);
     transform->setValue(app::PROP, coord);
-    obj->world_quat = {0.0, 0.0, 0.0, 1.0};
-    obj->setPosition({0.0, 0.0, 0.0});
+    obj->reset();
     auto model = _database->tilesModel;
     _database->undoStack->push(new AddSceneObject(model, model->index(traj), transform));
     traj->updateAttached();
-    ApplyTransform ct;
-    ct.stack.push(vsg::dmat4());
-    traj->accept(ct);
     emit sendObject(obj);
     return true;
 }

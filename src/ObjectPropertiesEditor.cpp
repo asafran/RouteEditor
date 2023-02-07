@@ -63,10 +63,9 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 
     connect(ui->latSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getWorldPosition());
+        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
         lla.x = d;
-        auto wtl = vsg::inverse(_firstObject->localToWorld);
-        auto ecef = wtl * _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
+        auto ecef = _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
         auto delta = ecef - _firstObject->getPosition();
 
         if(_selectedObjects.size() != 1)
@@ -80,10 +79,9 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
     });
     connect(ui->lonSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getWorldPosition());
+        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
         lla.y = d;
-        auto wtl = vsg::inverse(_firstObject->localToWorld);
-        auto ecef = wtl * _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
+        auto ecef = _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
         auto delta = ecef - _firstObject->getPosition();
 
         if(_selectedObjects.size() != 1)
@@ -97,10 +95,9 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
     });
     connect(ui->altSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
     {
-        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getWorldPosition());
+        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
         lla.z = d;
-        auto wtl = vsg::inverse(_firstObject->localToWorld);
-        auto ecef = wtl * _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
+        auto ecef = _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
         auto delta = ecef - _firstObject->getPosition();
 
         if(_selectedObjects.size() != 1)
@@ -340,6 +337,7 @@ void ObjectPropertiesEditor::updateData()
         ui->stationBox->setEnabled(false);
 
     vsg::MatrixTransform *rmt = nullptr;
+    route::Tile *tile = nullptr;
     if(_firstObject->getValue(app::PARENT, rmt))
     {
         double val = 0.0;
@@ -349,6 +347,20 @@ void ObjectPropertiesEditor::updateData()
     }
     else
         ui->trjCoordspin->setEnabled(false);
+
+    if(_firstObject->getValue(app::PARENT, tile); tile)
+    {
+        ui->latSpin->setEnabled(true);
+        ui->lonSpin->setEnabled(true);
+        ui->altSpin->setEnabled(true);
+    }
+    else
+    {
+        ui->latSpin->setEnabled(false);
+        ui->lonSpin->setEnabled(false);
+        ui->altSpin->setEnabled(false);
+    }
+
 
     ui->nameEdit->clear();
     std::string name;
@@ -360,7 +372,7 @@ void ObjectPropertiesEditor::updateData()
     ui->ecefYspin->setValue(position.y);
     ui->ecefZspin->setValue(position.z);
 
-    auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getWorldPosition());
+    auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
 
     ui->latSpin->setValue(lla.x);
     ui->lonSpin->setValue(lla.y);

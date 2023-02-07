@@ -71,7 +71,7 @@
         if (_objectFunction)
             _objectFunction(object);
     }
-*/
+
     CalculateTransform::CalculateTransform() : vsg::Visitor()
     {
     }
@@ -127,7 +127,7 @@
         stack.pop();
     }
 
-
+*/
     //----------------------------------------------------------------------------------------------------
     FindNode::FindNode(vsg::ref_ptr<vsg::LineSegmentIntersector::Intersection> lsi)
         : vsg::Visitor()

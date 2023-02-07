@@ -32,8 +32,6 @@ public:
 
     FindNode intersectedObjects(vsg::LineSegmentIntersector::Intersections isections);
 
-    vsg::LineSegmentIntersector::Intersections intersections(const vsg::PointerEvent& pointerEvent);
-
 public slots:
     void moveToObject(const QModelIndex &index);
     void setFirst(vsg::ref_ptr<route::SceneObject> firstObject);

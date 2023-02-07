@@ -57,7 +57,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     options = vsg::Options::create();
 
     scene = vsg::Group::create();
-    model = AnimatedModel::create();
+    model = AnimatedObject::create();
 
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());

@@ -10,9 +10,9 @@
 #include <vsg/app/CompileTraversal.h>
 #include <vsg/io/VSG.h>
 
-SceneModel::SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QObject *parent) :
+SceneModel::SceneModel(std::vector<route::SceneObject> &&root, vsg::ref_ptr<vsg::Builder> builder, QObject *parent) :
     QAbstractItemModel(parent)
-  , _root(group)
+  , _root(root)
   , _compile(builder->compileTraversal)
   , _options(builder->options)
   , _undoStack(nullptr)
@@ -219,9 +219,6 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
         return false;
 
     node->accept(*_compile);
-
-    CalculateTransform ct;
-    node->accept(ct);
 
     Q_ASSERT(_undoStack != nullptr);
 

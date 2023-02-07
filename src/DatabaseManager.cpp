@@ -26,6 +26,8 @@ DatabaseManager::DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr
     root->addChild(topology);
     root->addChild(nodes);
 
+    ellipsoidModel = _database->getObject<vsg::EllipsoidModel>("EllipsoidModel");
+
     auto modelroot = vsg::Group::create();
     modelroot->addChild(nodes);
     modelroot->addChild(database);

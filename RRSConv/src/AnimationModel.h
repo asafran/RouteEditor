@@ -11,11 +11,11 @@ class AnimationModel : public QAbstractListModel
 {
     Q_OBJECT
 public:
-    explicit AnimationModel(vsg::ref_ptr<AnimatedModel> model, QObject *parent = nullptr);
+    explicit AnimationModel(vsg::ref_ptr<AnimatedObject> model, QObject *parent = nullptr);
 
     virtual ~AnimationModel();
 
-    void setModel(vsg::ref_ptr<AnimatedModel> model);
+    void setModel(vsg::ref_ptr<AnimatedObject> model);
     QModelIndex addAnimation(QString key, vsg::ref_ptr<Animation> animation);
     void addBase(vsg::ref_ptr<vsg::Node> base);
     void remove(const QModelIndex &index);
@@ -26,7 +26,7 @@ public:
     QVariant data(const QModelIndex &index, int role) const;
 
 private:
-    vsg::ref_ptr<AnimatedModel> _model;
+    vsg::ref_ptr<AnimatedObject> _model;
 };
 
 #endif // ANIMATIONMODEL_H

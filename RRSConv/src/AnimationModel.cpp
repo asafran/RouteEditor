@@ -1,6 +1,6 @@
 #include "AnimationModel.h"
 
-AnimationModel::AnimationModel(vsg::ref_ptr<AnimatedModel> model, QObject *parent)
+AnimationModel::AnimationModel(vsg::ref_ptr<AnimatedObject> model, QObject *parent)
     : QAbstractListModel{parent}
     , _model(model)
 {
@@ -12,7 +12,7 @@ AnimationModel::~AnimationModel()
 
 }
 
-void AnimationModel::setModel(vsg::ref_ptr<AnimatedModel> model)
+void AnimationModel::setModel(vsg::ref_ptr<AnimatedObject> model)
 {
     beginResetModel();
     _model = model;

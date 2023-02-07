@@ -39,12 +39,13 @@ set(SOURCES
     src/Manipulator.cpp
     src/TilesSorter.cpp
     src/TilesSorter.h
-    src/SceneModel.h
-    src/SceneModel.cpp
+    src/SceneObjectsModel.h
+    src/SceneObjectsModel.cpp
     src/PointsModel.h
     src/PointsModel.cpp
-    src/SceneObjectVisitor.h
-    src/SceneObjectVisitor.cpp
+    #src/SceneObjectVisitor.h
+    #src/SceneObjectVisitor.cpp
+    #src/ModelVisitor.h
     src/undo-redo.h
     src/undo-redo.cpp
     src/InterlockDialog.h

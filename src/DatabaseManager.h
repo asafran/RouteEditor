@@ -51,6 +51,7 @@ public:
 
     vsg::ref_ptr<vsg::Builder> builder;
     vsg::ref_ptr<vsg::Viewer> viewer;
+    vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel;
 
     vsg::ref_ptr<route::Topology> topology;
     vsg::ref_ptr<vsg::CopyAndReleaseImage> copyImageCmd;

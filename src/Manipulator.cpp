@@ -29,7 +29,7 @@ Manipulator::~Manipulator()
 
 void Manipulator::createPointer()
 {
-    QSettings settings(app::ORGANIZATION_NAME, app::APPLICATION_NAME);
+    QSettings settings(app::ORGANIZATION_NAME, app::APP_NAME);
 
     auto size = static_cast<float>(settings.value("CURSORSIZE", 1).toInt());
     vsg::GeometryInfo info;
@@ -161,10 +161,10 @@ void Manipulator::moveToObject(const QModelIndex &index)
 
     auto object = static_cast<vsg::Node*>(index.internalPointer());
     Q_ASSERT(object);
-
-    if(auto sceneobject = object->cast<route::SceneObject>(); sceneobject)
+    auto sceneobject = object->cast<route::SceneObject>();
+    if(sceneobject && sceneobject->isGlobal())
     {
-        setViewpoint(sceneobject->getWorldPosition());
+        setViewpoint(sceneobject->getPosition());
         return;
     }
     ParentTracer pt;
@@ -192,55 +192,30 @@ void Manipulator::startMoving()
 
 void Manipulator::apply(vsg::MoveEvent &pointerEvent)
 {
-    Trackball::apply(pointerEvent);
+    if(!_isMoving || !_movingObject)
+    {
+        Trackball::apply(pointerEvent);
+        _previousPointerEvent = &pointerEvent;
+        return;
+    }
+
+    auto isections = route::testIntersections(pointerEvent, _database->root, _camera);
+    if(isections.empty())
+        return;
+    auto isectionPrev = isections.front();
+
+    isections = route::testIntersections(pointerEvent, _database->root, _camera);
+    if(isections.empty())
+        return;
+    auto isection = isections.front();
+
+    vsg::dvec3 delta;
+
+    delta = isection->worldIntersection - isectionPrev->worldIntersection;
+
+    emit sendMovingDelta(delta);
 
     _previousPointerEvent = &pointerEvent;
-
-    if(!_isMoving || !_movingObject)
-        return;
-
-
-        auto isections = intersections(pointerEvent);
-        if(isections.empty())
-            return;
-        auto isection = isections.front();
-
-        vsg::dvec3 delta;
-
-        delta = isection->worldIntersection - _movingObject->getWorldPosition();
-
-        emit sendMovingDelta(delta);
-        /*
-    case MovingAxis::X:
-    {
-        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 4;
-        auto quat = _movingObject->getWorldRotation();
-
-        auto rotated = vsg::inverse(vsg::rotate(quat)) * vsg::dvec3(delta, 0.0, 0.0);
-
-        emit sendMovingDelta(rotated);
-    }
-    case MovingAxis::Y:
-    {
-        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 4;
-        auto quat = _movingObject->getWorldRotation();
-
-        auto rotated = route::mult(quat, vsg::dvec3(0.0, delta, 0.0));
-
-        emit sendMovingDelta(rotated);
-    }
-    case MovingAxis::Z:
-    {
-        auto delta = (pointerEvent.y - _previousPointerEvent->y) / 4;
-        auto quat = _movingObject->getWorldRotation();
-
-        auto rotated = route::mult(quat, vsg::dvec3(0.0, 0.0, delta));
-
-        emit sendMovingDelta(rotated);
-    }
-
-    }
-    */
 
 }
 
@@ -255,20 +230,5 @@ FindNode Manipulator::intersectedObjects(vsg::LineSegmentIntersector::Intersecti
 
 FindNode Manipulator::intersectedObjects(const vsg::PointerEvent &pointerEvent)
 {
-    return intersectedObjects(intersections(pointerEvent));
-}
-
-vsg::LineSegmentIntersector::Intersections Manipulator::intersections(const vsg::PointerEvent& pointerEvent)
-{
-    auto intersector = vsg::LineSegmentIntersector::create(*_camera, pointerEvent.x, pointerEvent.y);
-    _database->root->accept(*intersector);
-
-    if (intersector->intersections.empty()) return vsg::LineSegmentIntersector::Intersections();
-
-    // sort the intersectors front to back
-    std::sort(intersector->intersections.begin(), intersector->intersections.end(), [](auto lhs, auto rhs) { return lhs->ratio < rhs->ratio; });
-
-    //_lastIntersection = fn;
-
-    return intersector->intersections;
+    return intersectedObjects(route::testIntersections(pointerEvent, _database->root, _camera));
 }

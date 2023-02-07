@@ -3,7 +3,6 @@
 
 #include "SceneModel.h"
 #include "topology.h"
-#include "DatabaseManager.h"
 
 class AddSceneObject : public QUndoCommand
 {
@@ -395,19 +394,11 @@ public:
     {
         _object->matrix = _parent->getMatrixAt(_oldPos);
         _object->setValue(app::PROP, _oldPos);
-
-        ApplyTransform ct;
-        ct.stack.push(vsg::dmat4());
-        _parent->accept(ct);
     }
     void redo() override
     {
         _object->matrix = _parent->getMatrixAt(_newPos);
         _object->setValue(app::PROP, _newPos);
-
-        ApplyTransform ct;
-        ct.stack.push(vsg::dmat4());
-        _parent->accept(ct);
     }
     int id() const override
     {
@@ -510,7 +501,7 @@ private:
     vsg::ref_ptr<route::SplineTrajectory> _trajectory;
     vsg::ref_ptr<route::RailPoint> _point;
 };
-
+/*
 class ApplyTransformCalculation : public MoveObject
 {
 public:
@@ -544,7 +535,7 @@ private:
     const vsg::dmat4 _oldLtw;
     const vsg::dmat4 _newLtw;
 };
-
+*/
 template<typename F, typename V>
 class ExecuteLambda : public QUndoCommand
 {

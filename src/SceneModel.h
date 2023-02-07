@@ -11,7 +11,7 @@ class SceneModel : public QAbstractItemModel
     Q_OBJECT
 public:
 
-    explicit SceneModel(vsg::ref_ptr<vsg::Group> group, QObject* parent = 0);
+    explicit SceneModel(std::vector<route::SceneObject> &&root, QObject* parent = 0);
     SceneModel(vsg::ref_ptr<vsg::Group> group, vsg::ref_ptr<vsg::Builder> builder, QObject* parent = 0);
 
     ~SceneModel();
@@ -93,7 +93,7 @@ private:
             ColumnCount
         };
 
-    vsg::ref_ptr<vsg::Group> _root;
+    std::vector<route::SceneObject> _root;
     vsg::ref_ptr<vsg::CompileTraversal> _compile;
     vsg::ref_ptr<vsg::Options> _options;
 

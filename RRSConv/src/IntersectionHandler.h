@@ -20,7 +20,7 @@ public:
     vsg::ref_ptr<vsg::Builder> builder;
     vsg::ref_ptr<vsg::Camera> camera;
 
-    IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<AnimatedModel> model, vsg::ref_ptr<vsg::Viewer> viewer, QWidget *parent);
+    IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<AnimatedObject> model, vsg::ref_ptr<vsg::Viewer> viewer, QWidget *parent);
 
     void apply(vsg::ButtonPressEvent& buttonPressEvent) override;
 

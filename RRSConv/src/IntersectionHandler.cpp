@@ -15,17 +15,13 @@
 
 #include <vsg/app/Viewer.h>
 
-#include "move-animation.h"
-#include "rotate-animation.h"
-#include "alpha-animation.h"
-#include "light-animation.h"
-#include "animation-path-handler.h"
+#include "animation-common.h"
 
 #include "LambdaVisitor.h"
 
 #include "filesystem.h"
 
-IntersectionHandler::IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<AnimatedModel> model, vsg::ref_ptr<vsg::Viewer> viewer, QWidget *parent) :
+IntersectionHandler::IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<AnimatedObject> model, vsg::ref_ptr<vsg::Viewer> viewer, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::IntersectionHandler),
     _scenegraph(scenegraph),
@@ -114,14 +110,14 @@ void IntersectionHandler::add()
     {
         vsg::dvec3 min{ui->x1->value(), ui->y1->value(), ui->z1->value()};
         vsg::dvec3 max{ui->x2->value(), ui->y2->value(), ui->z2->value()};
-        animation = MoveAnimation<Animation>::create(node, path, min, max, duration);
+        //animation = MoveAnimation<Animation>::create(node, path, min, max, duration);
         break;
     }
     case IntersectionHandler::Rot:
     {
         auto quat1 = route::toQuaternion(qDegreesToRadians(ui->xr1->value()), qDegreesToRadians(ui->yr1->value()), qDegreesToRadians(ui->zr1->value()));
         auto quat2 = route::toQuaternion(qDegreesToRadians(ui->xr2->value()), qDegreesToRadians(ui->yr2->value()), qDegreesToRadians(ui->zr2->value()));
-        animation = RotateAnimation<Animation>::create(node, path, quat1, quat2, duration);
+        //animation = RotateAnimation<Animation>::create(node, path, quat1, quat2, duration);
         break;
     }
     case IntersectionHandler::Light:
@@ -139,7 +135,7 @@ void IntersectionHandler::add()
         auto max = static_cast<float>(ui->illum2->value());
 
         if(found)
-            animation = LightAnimation<Animation>::create(found, min, max, duration);
+            //animation = LightAnimation<Animation>::create(found, min, max, duration);
         break;
     }
     case IntersectionHandler::Alpha:
@@ -167,7 +163,7 @@ void IntersectionHandler::add()
         depthSorted->bound.radius = vsg::length(cb.bounds.max - cb.bounds.min) * 0.6;
         depthSorted->child = node;
 
-        animation = AlphaAnimation<Animation>::create(depthSorted, data, min, max, duration);
+        //animation = AlphaAnimation<Animation>::create(depthSorted, data, min, max, duration);
         break;
     }
 
@@ -187,8 +183,8 @@ void IntersectionHandler::start()
 {
     if(_animation)
     {
-        _animation->runReverse();
-        _animation->run();
+        _animation->resetReverse();
+        _animation->resetRun();
     }
 }
 

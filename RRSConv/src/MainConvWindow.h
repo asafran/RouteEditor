@@ -40,7 +40,7 @@ private:
 
     Ui::MainWindow *ui;
     vsg::ref_ptr<vsg::Group> scene;
-    vsg::ref_ptr<AnimatedModel> model;
+    vsg::ref_ptr<AnimatedObject> model;
     vsg::ref_ptr<vsg::Options> options;
     vsgQt::ViewerWindow *viewerWindow;
 
