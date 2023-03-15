@@ -15,7 +15,7 @@ public:
     explicit Painter(DatabaseManager *database, QString root, QWidget *parent = nullptr);
     ~Painter();
 
-    void intersection(const FoundNodes& isection) override;
+    //void intersection(const FoundNodes& isection) override;
 
 public slots:
     void activeTextureChanged(const QItemSelection &selected, const QItemSelection &);

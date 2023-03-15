@@ -2,7 +2,6 @@
 #include "ui_AddRails.h"
 #include <vsg/nodes/Switch.h>
 #include <vsg/io/read.h>
-#include "ParentVisitor.h"
 #include <vsg/app/Viewer.h>
 
 
@@ -50,7 +49,7 @@ tinyobj::ObjReader AddRails::loadObj(std::string path)
 
     return reader;
 }*/
-
+/*
 void AddRails::intersection(const FoundNodes &isection)
 {
     if(ui->railView->selectionModel()->selection().empty() ||
@@ -137,3 +136,4 @@ void AddRails::intersection(const FoundNodes &isection)
 
     _database->undoStack->push(new AddSceneObject(_database->tilesModel, _database->topology, traj));
 }
+*/

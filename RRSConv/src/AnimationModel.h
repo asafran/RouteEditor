@@ -5,17 +5,17 @@
 #include <QObject>
 
 #include <vsg/nodes/Node.h>
-#include "animated-model.h"
+#include "sceneobjects.h"
 
 class AnimationModel : public QAbstractListModel
 {
     Q_OBJECT
 public:
-    explicit AnimationModel(vsg::ref_ptr<AnimatedObject> model, QObject *parent = nullptr);
+    explicit AnimationModel(vsg::ref_ptr<route::AnimatedObject> model, QObject *parent = nullptr);
 
     virtual ~AnimationModel();
 
-    void setModel(vsg::ref_ptr<AnimatedObject> model);
+    void setModel(vsg::ref_ptr<route::AnimatedObject> model);
     QModelIndex addAnimation(QString key, vsg::ref_ptr<Animation> animation);
     void addBase(vsg::ref_ptr<vsg::Node> base);
     void remove(const QModelIndex &index);
@@ -26,7 +26,7 @@ public:
     QVariant data(const QModelIndex &index, int role) const;
 
 private:
-    vsg::ref_ptr<AnimatedObject> _model;
+    vsg::ref_ptr<route::AnimatedObject> _model;
 };
 
 #endif // ANIMATIONMODEL_H

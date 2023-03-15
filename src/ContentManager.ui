@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>435</width>
-    <height>300</height>
+    <height>366</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -52,6 +52,35 @@
      <property name="checked">
       <bool>true</bool>
      </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QComboBox" name="typeBox">
+     <item>
+      <property name="text">
+       <string>Видны всегда</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Низкая детализация</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Средняя детализация</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Высокая детализация</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Видны только в редакторе</string>
+      </property>
+     </item>
     </widget>
    </item>
    <item>

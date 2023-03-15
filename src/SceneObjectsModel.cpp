@@ -1,5 +1,4 @@
 #include "SceneObjectsModel.h"
-#include "ParentVisitor.h"
 #include "sceneobjectvisitor.h"
 #include "tile.h"
 #include "undo-redo.h"
@@ -10,7 +9,7 @@
 #include <vsg/app/CompileTraversal.h>
 #include <vsg/io/VSG.h>
 
-SceneModel::SceneModel(vsg::ref_ptr<route::SceneObject> group, vsg::ref_ptr<vsg::Builder> builder, QObject *parent) :
+SceneModel::SceneModel(vsg::ref_ptr<route::MVCObject> group, vsg::ref_ptr<vsg::Builder> builder, QObject *parent) :
     QAbstractItemModel(parent)
   , _root(group)
   , _compile(builder->compileTraversal)
@@ -18,7 +17,7 @@ SceneModel::SceneModel(vsg::ref_ptr<route::SceneObject> group, vsg::ref_ptr<vsg:
   , _undoStack(nullptr)
 {
 }
-SceneModel::SceneModel(vsg::ref_ptr<route::SceneObject> group, QObject *parent) :
+SceneModel::SceneModel(vsg::ref_ptr<route::MVCObject> group, QObject *parent) :
     QAbstractItemModel(parent)
   , _root(group)
   , _undoStack(nullptr)
@@ -36,20 +35,12 @@ QModelIndex SceneModel::index(int row, int column, const QModelIndex &parent) co
         return QModelIndex();
     }
     try {
-        auto* parentNode = parent.isValid() ? static_cast<route::SceneObject*>(parent.internalPointer()) : _root.get();
+        auto* parentNode = parent.isValid() ? static_cast<route::MVCObject*>(parent.internalPointer()) : _root.get();
+        auto node = parentNode->at(row);
 
-        route::SceneObject* child = 0;
+        Q_ASSERT(node != nullptr);
 
-        auto autoF = [&child, row](const auto& node) { child = node.children.at(row).node; };
-        auto groupF = [&child, row](const route::SceneObject& node) { child = node.chidrenObjects().at(row); };
-        auto tileF = [&child, row](const route::Tile& node) { child = node.at(row).get(); };
-
-        route::CFunctionObjectsVisitor fv;
-        fv.groupFunction = groupF;
-
-        parentNode->accept(fv);
-
-        return createIndex(row, column, child);
+        return createIndex(row, column, node);
     }
     catch (std::out_of_range){
         return QModelIndex();
@@ -62,73 +53,45 @@ QModelIndex SceneModel::parent(const QModelIndex &child) const
         return QModelIndex();
     }
 
-    auto childNode = static_cast<route::SceneObject*>(child.internalPointer());
+    auto childNode = static_cast<route::MVCObject*>(child.internalPointer());
 
-    Q_ASSERT(childNode != nullptr);
-
-    route::SceneObject *parent = nullptr;
-    parent = childNode->parent();
+    auto parent = childNode->parent();
     if(!parent)
         return QModelIndex();
 
-    route::SceneObject *grandParent = nullptr;
-    parent->parent();
+    auto grandParent = parent->parent();
     if (!grandParent)
         return QModelIndex();
 
-    FindPositionVisitor fpv(parent);
-    return createIndex(fpv(grandParent), 0, parent);
+    return createIndex(grandParent->findPos(parent), 0, parent);
 }
 
 bool SceneModel::removeRows(int row, int count, const QModelIndex &parent)
 {
-    route::SceneObject* parentNode = parent.isValid() ? static_cast<route::SceneObject*>(parent.internalPointer()) : _root.get();
+    auto parentNode = parent.isValid() ? static_cast<route::MVCObject*>(parent.internalPointer()) : _root.get();
     Q_ASSERT(count > 0);
 
-    if (parentNode->is_compatible(typeid (vsg::PagedLOD)))
+    if (!parentNode->canAdd())
         return false;
 
-    auto autoF = [row, count](auto& node)
-    {
-        auto begin = node.children.cbegin() + row;
-        auto end = begin + count - 1;
-        Q_ASSERT(end < node.children.end());
-        if(begin == end)
-            node.children.erase(begin);
-        else
-            node.children.erase(begin, end);
-    };
-
-    AutoFunctionVisitor<decltype (autoF)> fv(autoF);
     beginRemoveRows(parent, row, row + count - 1);
-    parentNode->accept(fv);
+    parentNode->removeChildren(row, count);
     endRemoveRows();
 
     return true;
-
 }
 
-int SceneModel::addNode(const QModelIndex &parent, vsg::ref_ptr<route::SceneObject> loaded, uint64_t mask)
+int SceneModel::addNode(const QModelIndex &parent, vsg::ref_ptr<route::MVCObject> loaded)
 {
     int row = rowCount(parent);
 
-    route::SceneObject* parentNode = static_cast<route::SceneObject*>(parent.internalPointer());
+    auto parentNode = static_cast<route::MVCObject*>(parent.internalPointer());
 
-    if (parentNode->is_compatible(typeid (vsg::PagedLOD)))
+    if (!parentNode->canAdd())
         return false;
 
-    loaded->setValue(app::PARENT, parentNode);
-
-    auto groupF = [loaded](vsg::Group& group) { group.addChild(loaded); };
-    auto swF = [loaded, mask](vsg::Switch& sw) { sw.addChild(mask, loaded); };
-    auto lodF = [loaded](vsg::LOD& node) { node.addChild(vsg::LOD::Child{0.0, loaded}); };
-
     beginInsertRows(parent, row, row);
-    FunctionVisitor fv;
-    fv.groupFunction = groupF;
-    fv.swFunction = swF;
-    fv.lodFunction = lodF;
-    parentNode->accept(fv);
+    parentNode->addChild(loaded);
     endInsertRows();
     return row;
 }
@@ -141,25 +104,16 @@ QModelIndex SceneModel::removeNode(const QModelIndex &index)
 }
 void SceneModel::removeNode(const QModelIndex &index, const QModelIndex &parent)
 {
-    route::SceneObject* childNode = static_cast<route::SceneObject*>(index.internalPointer());
-    childNode->removeObject(app::PARENT);
     removeRow(index.row(), parent);
 }
 
-QModelIndex SceneModel::index(const route::SceneObject *node) const
+QModelIndex SceneModel::index(const route::MVCObject *node) const
 {
-    route::SceneObject *parent = nullptr;
-    if(node->getValue(app::PARENT, parent))
-        return SceneModel::index(node, parent);
+    auto parent = node->parent();
+    if(parent)
+        return createIndex(parent->findPos(node), 0, node);
     else
         return QModelIndex();
-}
-
-QModelIndex SceneModel::index(const route::SceneObject *node, const route::SceneObject *parent) const
-{
-    FindPositionVisitor fpv(node);
-    //fpv.traversalMask = route::SceneObjects;
-    return createIndex(fpv(parent), 0, node);
 }
 
 int SceneModel::columnCount ( const QModelIndex & /*parent = QModelIndex()*/ ) const
@@ -190,7 +144,7 @@ QMimeData *SceneModel::mimeData(const QModelIndexList &indexes) const
     std::ostringstream oss;
 
     if (indexes.at(0).isValid()) {
-        if(auto node = static_cast<route::SceneObject*>(indexes.at(0).internalPointer()); node)
+        if(auto node = static_cast<route::MVCObject*>(indexes.at(0).internalPointer()); node)
         {
             io.write(node, oss, _options);
         }
@@ -215,7 +169,7 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
     vsg::VSG io;
 
     auto object = io.read(iss, _options);
-    auto node = object.cast<route::SceneObject>();
+    auto node = object.cast<route::MVCObject>();
     if(!node)
         return false;
 
@@ -226,6 +180,14 @@ bool SceneModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
     _undoStack->push(new AddSceneObject(this, parent, node));
 
     return true;
+}
+
+bool SceneModel::canAdd(const QModelIndex &index) const
+{
+    if(!index.isValid())
+        return false;
+    auto node = static_cast<route::MVCObject*>(index.internalPointer());
+    return node->canAdd();
 }
 /*
 void SceneModel::fetchMore(const QModelIndex &parent)
@@ -238,29 +200,19 @@ void SceneModel::fetchMore(const QModelIndex &parent)
 int SceneModel::rowCount(const QModelIndex &parent) const
 {
     if (!parent.isValid()) {
-        return _root->children.size();
+        return _root->childrenCount();
     }
-    auto parentNode = static_cast<route::SceneObject*>(parent.internalPointer());
-
-    int rows = 0;
-
-    auto autoF = [&rows](const auto& node) { rows = node.children.size(); };
-
-    CFunctionVisitor<decltype (autoF)> fv(autoF);
-    fv.groupFunction = autoF;
-
-    parentNode->accept(fv);
-
-    return rows;
+    auto parentNode = static_cast<route::MVCObject*>(parent.internalPointer());
+    return parentNode->childrenCount();
 }
 QVariant SceneModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid())
         return QVariant();
 
-    auto nodeInfo = static_cast<route::SceneObject*>(index.internalPointer());
+    auto nodeInfo = static_cast<route::MVCObject*>(index.internalPointer());
 
-    //Q_ASSERT(nodeInfo != nullptr);
+    Q_ASSERT(nodeInfo != nullptr);
 
     switch (index.column()) {
     case Type:
@@ -276,9 +228,7 @@ QVariant SceneModel::data(const QModelIndex &index, int role) const
     {
         if (role == Qt::DisplayRole || role == Qt::EditRole)
         {
-            std::string name;
-            if(nodeInfo->getValue(app::NAME, name))
-                return name.c_str();
+            return nodeInfo->getName();
         }
         break;
     }
@@ -299,18 +249,8 @@ bool SceneModel::hasChildren(const QModelIndex &parent) const
 {
     if (parent.isValid()) {
 
-        auto parentNode = static_cast<route::SceneObject*>(parent.internalPointer());
-
-        Q_ASSERT(parentNode != nullptr);
-
-        bool has = false;
-        auto autoF = [&has](const auto &node) { has = !node.children.empty(); };
-        auto plodF = [&has](const vsg::PagedLOD& node) { has = false; };
-        CFunctionVisitor<decltype (autoF)> fv(autoF);
-        fv.groupFunction = autoF;
-        fv.plodFunction = plodF;
-        parentNode->accept(fv);
-        return has;
+        auto parentNode = static_cast<route::MVCObject*>(parent.internalPointer());
+        return parentNode->childrenCount() > 0;
     }
     return QAbstractItemModel::hasChildren(parent);
 }
@@ -320,20 +260,8 @@ bool SceneModel::setData(const QModelIndex &index, const QVariant &value, int ro
     if (!index.isValid())
         return false;
 
-    auto nodeInfo = static_cast<route::SceneObject*>(index.internalPointer());
+    auto nodeInfo = static_cast<route::MVCObject*>(index.internalPointer());
 
-    if(role == Qt::CheckStateRole && index.parent().isValid())
-    {
-        /*
-        auto visit = [index, value](vsg::Switch& node)
-        {
-            node.children.at(index.row()).enabled = value.toBool();
-        };
-        Lambda1Visitor<decltype (visit), vsg::Switch> lv(visit);
-        static_cast<route::SceneObject*>(index.parent().internalPointer())->accept(lv);
-        */
-        return false;
-    }
     if (role != Qt::EditRole)
         return false;
     if (index.column() == Name)
@@ -370,7 +298,9 @@ Qt::ItemFlags SceneModel::flags(const QModelIndex &index) const
         switch (index.column()) {
         case Name:
         {
-            if(parent(index).isValid())
+            auto parent = static_cast<route::MVCObject*>(index.parent().internalPointer());
+            auto node = static_cast<route::MVCObject*>(index.internalPointer());
+            if(parent && !node->is_compatible(typeid(route::Tile)) && !parent->is_compatible(typeid(route::Tile)))
                 flags |= Qt::ItemIsEditable ;
             break;
         }

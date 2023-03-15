@@ -57,7 +57,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     options = vsg::Options::create();
 
     scene = vsg::Group::create();
-    model = AnimatedObject::create();
+    model = route::AnimatedObject::create();
 
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());
@@ -65,16 +65,16 @@ QWindow* MainWindow::initilizeVSGwindow()
     auto windowTraits = vsg::WindowTraits::create();
     windowTraits->windowTitle = "vsgQt viewer";
 
-    viewerWindow = new vsgQt::ViewerWindow();
+    _viewerWindow = new vsgQt::ViewerWindow();
 
     // if required set the QWindow's SurfaceType to QSurface::VulkanSurface.
-    viewerWindow->setSurfaceType(QSurface::VulkanSurface);
+    _viewerWindow->setSurfaceType(QSurface::VulkanSurface);
 
-    viewerWindow->traits = windowTraits;
+    _viewerWindow->traits = windowTraits;
 
-    viewerWindow->viewer = vsg::Viewer::create();
+    _viewerWindow->viewer = vsg::Viewer::create();
 
-    viewerWindow->initializeCallback = [&](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height)
+    _viewerWindow->initializeCallback = [&](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height)
     {
 
         auto& window = vw.windowAdapter;
@@ -92,7 +92,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         // create an RenderinGraph to add an secondary vsg::View on the top right part of the window.
         auto secondary_camera = createCameraForScene(scene, width / 2, 0, width / 2, height);
-        auto secondary_view = vsg::View::create(secondary_camera, model);
+        auto secondary_view = vsg::View::create(secondary_camera, vsg::Node::create());
         secondary_view->addChild(vsg::createHeadlight());
 
         handler->camera = main_camera;
@@ -125,7 +125,7 @@ QWindow* MainWindow::initilizeVSGwindow()
     };
 
     // provide the calls to invokve the vsg::Viewer to render a frame.
-    viewerWindow->frameCallback = [this](vsgQt::ViewerWindow& vw) {
+    _viewerWindow->frameCallback = [this](vsgQt::ViewerWindow& vw) {
 
         if (!vw.viewer || !vw.viewer->advanceToNextFrame()) return false;
 
@@ -140,7 +140,7 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         return true;
     };
-    return viewerWindow;
+    return _viewerWindow;
 }
 /*
 void MainWindow::addObject()
@@ -150,10 +150,10 @@ void MainWindow::addObject()
 */
 void MainWindow::constructWidgets()
 {
-    embedded = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
-    ui->centralsplitter->addWidget(embedded);
+    _embedded = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
+    ui->centralsplitter->addWidget(_embedded);
 
-    handler = new IntersectionHandler(scene, model, viewerWindow->viewer, ui->centralsplitter);
+    handler = new IntersectionHandler(scene, model, _viewerWindow->viewer, ui->centralsplitter);
     ui->centralsplitter->addWidget(handler);
 
     handler->builder = vsg::Builder::create();

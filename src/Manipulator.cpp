@@ -1,9 +1,7 @@
 #include "Manipulator.h"
-#include "LambdaVisitor.h"
 #include <QSettings>
-#include "undo-redo.h"
 #include "DatabaseManager.h"
-#include "ParentVisitor.h"
+#include "tools.h"
 #include <vsg/nodes/MatrixTransform.h>
 #include <vsg/utils/Builder.h>
 #include <vsg/utils/ComputeBounds.h>
@@ -41,7 +39,7 @@ void Manipulator::createPointer()
     auto cone = _database->builder->createCone(info);
     _pointer->addChild(cone);
 }
-
+/*
 void Manipulator::apply(vsg::KeyPressEvent& keyPress)
 {
      _keyModifier = keyPress.keyModifier;
@@ -62,7 +60,7 @@ void Manipulator::apply(vsg::KeyReleaseEvent& keyRelease)
 {
      _keyModifier &= !keyRelease.keyModifier;
 }
-
+*/
 void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
 {
     if (buttonPress.handled) return;
@@ -70,29 +68,17 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
     _hasFocus = withinRenderArea(buttonPress);
     _lastPointerEventWithinRenderArea = _hasFocus;
 
-    if (buttonPress.mask & vsg::BUTTON_MASK_1)
-    {
-        _updateMode = INACTIVE;
-        if(_isMoving)
-        {
-            _database->undoStack->endMacro();
-            _isMoving = false;
-        }
-        else
-            emit sendIntersection(intersectedObjects(buttonPress));
-    } else if (buttonPress.mask & vsg::BUTTON_MASK_2)
+    if (buttonPress.mask & vsg::BUTTON_MASK_2)
         _updateMode = ROTATE;
-    else if (buttonPress.mask & vsg::BUTTON_MASK_3 && _ellipsoidModel)
+    else if (buttonPress.mask & vsg::BUTTON_MASK_3)
     {
         _updateMode = INACTIVE;
 
-        auto isection = intersectedObjects(buttonPress);
-        if(isection.tile == nullptr)
+        auto isections = route::testIntersections(buttonPress, _database->root, _camera);
+        if(isections.empty())
             return;
-        setViewpoint(isection.intersection->worldIntersection);
-        //FindPositionVisitor fpv(isection.tile.first);
-        //auto model = _database->getTilesModel();
-        //emit objectClicked(model->index(fpv(model->getRoot()), 0, QModelIndex()));
+
+        setViewpoint(isections.front()->worldIntersection);
     } else
         _updateMode = INACTIVE;
 
@@ -159,24 +145,11 @@ void Manipulator::moveToObject(const QModelIndex &index)
     if(!index.isValid())
         return;
 
-    auto object = static_cast<vsg::Node*>(index.internalPointer());
-    Q_ASSERT(object);
-    auto sceneobject = object->cast<route::SceneObject>();
-    if(sceneobject && sceneobject->isGlobal())
-    {
-        setViewpoint(sceneobject->getPosition());
-        return;
-    }
-    ParentTracer pt;
-    object->accept(pt);
-    auto ltw = vsg::computeTransform(pt.nodePath);
-
-    vsg::ComputeBounds computeBounds;
-    object->accept(computeBounds);
-    vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
-    setViewpoint(ltw * centre);
+    auto object = static_cast<route::MVCObject*>(index.internalPointer());
+    auto pos = object->getWorldTransform()[3];
+    setViewpoint(pos);
 }
-
+/*
 void Manipulator::setFirst(vsg::ref_ptr<route::SceneObject> firstObject)
 {
     _movingObject = firstObject;
@@ -189,7 +162,8 @@ void Manipulator::startMoving()
         _database->undoStack->beginMacro(tr("Перемещены объекты"));
     }
 }
-
+*/
+/*
 void Manipulator::apply(vsg::MoveEvent &pointerEvent)
 {
     if(!_isMoving || !_movingObject)
@@ -218,17 +192,4 @@ void Manipulator::apply(vsg::MoveEvent &pointerEvent)
     _previousPointerEvent = &pointerEvent;
 
 }
-
-FindNode Manipulator::intersectedObjects(vsg::LineSegmentIntersector::Intersections isections)
-{
-    if(isections.empty())
-        return FindNode();
-    FindNode fn(isections.front());
-    fn.keyModifier = _keyModifier;
-    return fn;
-}
-
-FindNode Manipulator::intersectedObjects(const vsg::PointerEvent &pointerEvent)
-{
-    return intersectedObjects(route::testIntersections(pointerEvent, _database->root, _camera));
-}
+*/

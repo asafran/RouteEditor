@@ -1,11 +1,14 @@
 #include "ContentManager.h"
 #include "sceneobjects.h"
+#include "sceneobjectvisitor.h"
 #include "ui_ContentManager.h"
 #include <QSettings>
 #include <vsg/io/read.h>
-#include "ParentVisitor.h"
 #include "DatabaseManager.h"
+#include "trajectory.h"
+#include "undo-redo.h"
 #include <vsg/app/Viewer.h>
+#include <vsg/threading/OperationThreads.h>
 #include "signals.h"
 #include "tile.h"
 
@@ -20,127 +23,7 @@ ContentManager::ContentManager(DatabaseManager *database, QString root, QWidget 
     ui->fileView->setModel(_fsmodel);
     ui->fileView->setRootIndex(_fsmodel->index(root));
 }
-
-void ContentManager::intersection(const FoundNodes &isection)
-{
-    bool loadToSelected = !ui->autoGroup->isChecked();
-    auto activeFile = ui->fileView->selectionModel()->selectedIndexes().front();
-    if(!activeFile.isValid())
-    {
-        emit sendStatusText(tr("Выберите файл"), 2000);
-        return;
-    }
-    else if(!_activeGroup.isValid() && loadToSelected)
-    {
-        emit sendStatusText(tr("Выберите группу для объекта"), 2000);
-        return;
-    }
-    auto path = _fsmodel->filePath(activeFile).toStdString();
-
-    auto load = [database=_database, activeGroup=_activeGroup, loadToSelected=!ui->autoGroup->isChecked(), useLinks=ui->useLinks->isChecked(), path, isection]()
-    {
-        std::pair<vsg::ref_ptr<route::SceneObject>, vsg::CompileResult> loaded;
-        auto node = vsg::read_cast<vsg::Node>(path, database->builder->options);
-        if(!node)
-            return loaded;
-
-        loaded.second = database->viewer->compileManager->compile(node);
-
-        if(auto object = node->cast<route::SceneObject>(); object)
-        {
-            loaded.first = object;
-            return loaded;
-        }
-
-        vsg::dmat4 ltw;
-        vsg::dquat wquat;
-        auto world = isection.intersection->worldIntersection;
-        auto norm = vsg::normalize(world);
-
-        auto ltw = database->ellipsoidModel->computeWorldToLocalTransform()
-
-        if(loadToSelected)
-        {
-            auto group = static_cast<vsg::Node*>(activeGroup.internalPointer());
-
-            ParentTracer pt;
-            group->accept(pt);
-            pt.nodePath.push_back(group);
-            ltw = vsg::computeTransform(pt.nodePath);
-        }
-        else
-            wquat = vsg::dquat(vsg::dvec3(0.0, 0.0, 1.0), norm);
-
-        auto wtl = vsg::inverse(ltw);
-
-        if(useLinks)
-            loaded.first = route::SingleLoader::create(node, database->getStdWireBox(), path, wtl * world, wquat);
-        else
-            loaded.first = route::SceneObject::create(node, database->getStdWireBox(), wtl * world, wquat);
-
-        return loaded;
-    };
-
-    auto add = [this, isection, loadToSelected=!ui->autoGroup->isChecked(), path](std::pair<vsg::ref_ptr<route::SceneObject>, vsg::CompileResult> obj)
-    {
-        if(!obj.first)
-        {
-            emit sendStatusText(tr("Ошибка чтения файла %1").arg(path.c_str()), 2000);
-            return;
-        }
-
-        if(addToTrack(obj.first, isection))
-        {
-            emit sendStatusText(tr("Объект привязян к траектории"), 2000);
-            return;
-        }
-
-        if(addSignal(obj.first, isection))
-        {
-            emit sendStatusText(tr("Установлен сигнал"), 2000);
-            return;
-        }
-
-        QModelIndex activeGroup;
-
-        if(loadToSelected)
-        {
-            activeGroup = _activeGroup;
-            obj.first->recalculateWireframe();
-        }
-        else if(isection.tile)
-            activeGroup = _database->tilesModel->index(isection.tile);
-        else
-        {
-            emit sendStatusText(tr("Кликните по тайлу"), 2000);
-            return;
-        }
-
-        updateViewer(*_database->viewer, obj.second);
-
-        _database->undoStack->push(new AddSceneObject(_database->tilesModel, activeGroup, obj.first));
-        emit sendObject(obj.first);
-        emit sendStatusText(tr("Добавлен объект"), 2000);
-    };
-
-    if(ui->removeButt->isChecked())
-    {
-        if(isection.connector)
-        {
-            if(ui->reverseBox->isChecked() && isection.connector->bwdSignal())
-                _database->undoStack->push(new RemoveBwdSignal(isection.connector, _database->topology));
-            else if (!ui->reverseBox->isChecked() && isection.connector->fwdSignal())
-                _database->undoStack->push(new RemoveFwdSignal(isection.connector, _database->topology));
-        } else if(!isection.objects.empty())
-        {
-            auto index = _database->tilesModel->index(isection.objects.front());
-            if(index.isValid())
-                _database->undoStack->push(new RemoveNode(_database->tilesModel, index));
-        }
-    } else
-        auto future = QtConcurrent::run(load).then(this, add);
-}
-
+/*
 bool ContentManager::addToTrack(vsg::ref_ptr<route::SceneObject> obj, const FoundNodes &isection)
 {
     if(!isection.trajectory)
@@ -179,7 +62,7 @@ bool ContentManager::addSignal(vsg::ref_ptr<route::SceneObject> obj, const Found
         _database->undoStack->push(new AddBwdSignal(isection.connector, sig, _database->topology, connect));
     return true;
 }
-
+*/
 void ContentManager::activeGroupChanged(const QModelIndex &index)
 {
     _activeGroup = index;
@@ -189,3 +72,113 @@ ContentManager::~ContentManager()
 {
     delete ui;
 }
+
+
+void ContentManager::apply(vsg::ButtonPressEvent &buttonPress)
+{
+    if(!isVisible() || buttonPress.button != 1)
+        return;
+    auto isections = route::testIntersections(buttonPress, _database->root, _camera);
+    if(isections.empty())
+        return;
+    auto isection = isections.front();
+
+    bool loadToSelected = !ui->autoGroup->isChecked();
+    auto activeFile = ui->fileView->selectionModel()->selectedIndexes().front();
+    if(!activeFile.isValid())
+    {
+        emit sendStatusText(tr("Выберите файл"), 2000);
+        return;
+    }
+    else if(!_activeGroup.isValid() && loadToSelected)
+    {
+        emit sendStatusText(tr("Выберите группу для объекта"), 2000);
+        return;
+    }
+    auto path = _fsmodel->filePath(activeFile).toStdString();
+
+    auto load = [database=_database, useLinks=ui->useLinks->isChecked(), path]()
+    {
+        vsg::ref_ptr<route::SceneObject> object;
+        auto node = vsg::read_cast<vsg::Node>(path, database->builder->options);
+        if(!node)
+            return object;
+
+        if(object = node->cast<route::SceneObject>(); object)
+            return object;
+
+        if(useLinks)
+            object = route::SingleLoader::create(database->getStdWireBox(), node, path);
+        else
+            object = route::SceneObject::create(database->getStdWireBox(), node);
+
+        return object;
+    };
+
+    auto add = [this, type=ui->typeBox->currentIndex(), loadToSelected=!ui->autoGroup->isChecked(), isection](vsg::ref_ptr<route::SceneObject> object)
+    {
+        auto model = _database->tilesModel;
+        if(!object)
+            return;
+        if(loadToSelected)
+        {
+            auto group = static_cast<route::MVCObject*>(_activeGroup.internalPointer());
+            auto ltw = group->getWorldTransform();
+            auto wtl = vsg::inverse(ltw);
+            auto world = isection->worldIntersection;
+
+            object->setPosition(world * wtl);
+
+            _database->undoStack->push(new AddSceneObject(model, _activeGroup, object));
+        }
+        else
+        {
+            route::AddCast visitor;
+            visitor.tileFunction = [this, model, object, &isection, type](route::Tile *tile)
+            {
+                auto model = _database->tilesModel;
+                auto index = model->index(type, 0, model->index(tile));
+                auto world = isection->worldIntersection;
+                auto position = vsg::inverse(tile->transform->matrix) * world;
+                object->setPosition(position);
+                _database->undoStack->push(new AddSceneObject(model, index, object));
+                return true;
+            };
+            visitor.trjFunction = [this, model, object, &isection](route::Trajectory *traj)
+            {
+                auto coord = traj->invert(isection->worldIntersection);
+                auto trjObject = route::TrajectoryObject::create();
+                trjObject->coord = coord;
+                trjObject->addChild(object);
+                _database->undoStack->push(new AddSceneObject(model, model->index(traj), trjObject));
+                traj->updateAttached();
+                return true;
+            };
+            vsg::visit(visitor, isection->nodePath);
+        }
+    };
+
+    auto loadOperation = LoadOperation<decltype(load), decltype(add)>::create(_database->viewer, load, add);
+
+    _database->opThreads->add(loadOperation);
+
+
+/*
+    if(ui->removeButt->isChecked())
+    {
+        if(isection.connector)
+        {
+            if(ui->reverseBox->isChecked() && isection.connector->bwdSignal())
+                _database->undoStack->push(new RemoveBwdSignal(isection.connector, _database->topology));
+            else if (!ui->reverseBox->isChecked() && isection.connector->fwdSignal())
+                _database->undoStack->push(new RemoveFwdSignal(isection.connector, _database->topology));
+        } else if(!isection.objects.empty())
+        {
+            auto index = _database->tilesModel->index(isection.objects.front());
+            if(index.isValid())
+                _database->undoStack->push(new RemoveNode(_database->tilesModel, index));
+        }
+    } else
+        auto future = QtConcurrent::run(load).then(this, add);*/
+}
+

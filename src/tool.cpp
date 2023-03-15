@@ -6,3 +6,8 @@ Tool::Tool(DatabaseManager *database, QWidget *parent) : QWidget(parent)
 
 }
 Tool::~Tool() {}
+
+void Tool::setCamera(vsg::ref_ptr<vsg::Camera> camera)
+{
+    _camera = camera;
+}

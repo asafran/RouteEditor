@@ -2,23 +2,24 @@
 #define TOOL_H
 
 #include <QWidget>
-#include "undo-redo.h"
 #include "DatabaseManager.h"
+#include <vsg/app/Camera.h>
 
-class Tool : public QWidget
+class Tool : public QWidget, public vsg::Visitor
 {
     Q_OBJECT
 public:
     explicit Tool(DatabaseManager *database, QWidget *parent = nullptr);
     virtual ~Tool();
 
-    virtual void intersection(const FoundNodes&) = 0;
+    void setCamera(vsg::ref_ptr<vsg::Camera> camera);
 
 signals:
     void sendStatusText(const QString &message, int timeout);
 
 protected:
     DatabaseManager *_database;
+    vsg::ref_ptr<vsg::Camera> _camera;
 };
 
 #endif // TOOL_H

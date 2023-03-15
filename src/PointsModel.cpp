@@ -35,9 +35,9 @@ QVariant PointsModel::data(const QModelIndex &index, int role) const
     {
         vsg::ref_ptr<route::RailPoint> rp;
         if(row == -1)
-            rp = _trajectory->_fwdPoint;
+            rp = _trajectory->_frontPoint;
         else if(row == _trajectory->_points.size())
-            rp = _trajectory->_bwdPoint;
+            rp = _trajectory->_endPoint;
         else
             rp = _trajectory->_points.at(row);
         switch (col) {
@@ -46,7 +46,7 @@ QVariant PointsModel::data(const QModelIndex &index, int role) const
         case Tangent:
             return rp->_tangent;
         case Tilt:
-            return rp->_tilt;
+            return rp->getTilt();
         case CatenaryHeight:
             return rp->_cheight;
         }

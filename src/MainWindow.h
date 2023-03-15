@@ -4,6 +4,7 @@
 #include <QGridLayout>
 #include <QSplitter>
 #include <QTreeView>
+#include "ContentManager.h"
 #include "DatabaseManager.h"
 #include "Manipulator.h"
 #include <vsgQt/ViewerWindow.h>
@@ -15,6 +16,7 @@
 #include "ObjectPropertiesEditor.h"
 #include "RailsPointEditor.h"
 #include "AddRails.h"
+#include "Painter.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -28,12 +30,9 @@ public:
     MainWindow(vsg::ref_ptr<DatabaseManager> dbm, QWidget *parent = nullptr);
     ~MainWindow();
 
-public slots:
-    void intersection(const FoundNodes& isection);
-
 private:
     QWindow* initilizeVSGwindow();
-    QWidget *embedded;
+    QWidget *_embedded;
 
     void constructWidgets();
 
@@ -41,20 +40,18 @@ private:
 
     Ui::MainWindow *ui;
 
-    ObjectPropertiesEditor *ope;
+    ObjectPropertiesEditor *_objectsPrpEditor;
+    ContentManager *_contentManager;
+    RailsPointEditor *_railsPointEditor;
+    AddRails *_railsManager;
+    Painter *_painter;
 
-    AddRails *rm;
+    vsgQt::ViewerWindow *_viewerWindow;
 
-    double horizonMountainHeight;
-    vsgQt::ViewerWindow *viewerWindow;
-    DatabaseManager *database;
+    DatabaseManager *_database;
 
-    QString pathDB;
-
-    TilesSorter *sorter;
-
-    QToolBox *toolbox;
-
-    QUndoView *undoView;
+    TilesSorter *_sorter;
+    QToolBox *_toolbox;
+    QUndoView *_undoView;
 
 };

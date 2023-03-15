@@ -7,10 +7,9 @@
 #include <vsg/io/write.h>
 #include "undo-redo.h"
 #include "topology.h"
-#include "ParentVisitor.h"
 #include <QRegularExpression>
 
-DatabaseManager::DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr<vsg::Group> nodes, vsg::ref_ptr<vsg::Options> options)
+DatabaseManager::DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr<route::SceneGroup> nodes, vsg::ref_ptr<vsg::Options> options)
   : root(vsg::Group::create())
   , _database(database)
 {
@@ -23,16 +22,15 @@ DatabaseManager::DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr
         topology = route::Topology::create();
         _database->addChild(topology);
     }
-    root->addChild(topology);
-    root->addChild(nodes);
+    //root->addChild(topology);
+    //root->addChild(nodes);
 
     ellipsoidModel = _database->getObject<vsg::EllipsoidModel>("EllipsoidModel");
 
-    auto modelroot = vsg::Group::create();
+    auto modelroot = route::SceneGroup::create();
     modelroot->addChild(nodes);
-    modelroot->addChild(database);
-
-    vsg::visit<ParentIndexer>(modelroot);
+    //modelroot->addChild(database);
+    root->addChild(modelroot);
 
     auto fixPaths = [](vsg::PagedLOD& plod)
     {
@@ -66,7 +64,7 @@ void DatabaseManager::setViewer(vsg::ref_ptr<vsg::Viewer> viewer)
     vsg::GeometryInfo gi;
     _stdWireBox = builder->createBox(gi, si);
 
-    builder->options->setObject(app::WIREFRAME, _stdWireBox.get());
+    builder->options->setObject(app::WIREFRAME, _stdWireBox);
 
     _stdAxis = vsg::Group::create();
 
@@ -112,15 +110,7 @@ void DatabaseManager::writeTiles()
         object.removeObject("bound");
     };
     LambdaVisitor<decltype (removeBounds), vsg::VertexIndexDraw> lv(removeBounds);
-
-    auto removeParents = [](vsg::Node& node)
-    {
-        node.removeObject(app::PARENT);
-    };
-    LambdaVisitor<decltype (removeParents), vsg::Node> lvmp(removeParents);
-
     tilesModel->getRoot()->accept(lv);
-    tilesModel->getRoot()->accept(lvmp);
 
     vsg::visit<route::SetStatic>(root);
 
@@ -142,7 +132,6 @@ void DatabaseManager::writeTiles()
     future.waitForFinished();
 
     undoStack->setClean();
-    vsg::visit<ParentIndexer>(tilesModel->getRoot());
 }
 
 void DatabaseManager::compile()

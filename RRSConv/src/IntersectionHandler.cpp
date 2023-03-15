@@ -21,7 +21,7 @@
 
 #include "filesystem.h"
 
-IntersectionHandler::IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<AnimatedObject> model, vsg::ref_ptr<vsg::Viewer> viewer, QWidget *parent) :
+IntersectionHandler::IntersectionHandler(vsg::ref_ptr<vsg::Group> scenegraph, vsg::ref_ptr<route::AnimatedObject> model, vsg::ref_ptr<vsg::Viewer> viewer, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::IntersectionHandler),
     _scenegraph(scenegraph),
@@ -153,7 +153,7 @@ void IntersectionHandler::add()
         si.image = data;
         si.lighting = false;
 
-        route::assignStateGroup(fdi.imageStateGroup, si, builder->options);
+        //route::assignStateGroup(fdi.imageStateGroup, si, builder->options);
 
         auto cb = vsg::visit<vsg::ComputeBounds>(node);
 

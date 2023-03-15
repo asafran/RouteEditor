@@ -89,8 +89,10 @@ void StartDialog::load()
         if (!database)
             throw (DatabaseException(databasePath));
         database->setValue(app::PATH, databasePath.toStdString());
-        auto group = vsg::Group::create();
-        std::move(f.begin(), f.end(), std::back_inserter(group->children));
+        auto group = route::SceneGroup::create();
+        for (const auto &ptr : f) {
+            group->addChild(ptr);
+        }
         return DatabaseManager::create(database, group, options);
     });
 

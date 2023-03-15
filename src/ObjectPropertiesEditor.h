@@ -2,7 +2,7 @@
 #define OBJECTPROPERTIESEDITOR_H
 
 #include "tool.h"
-#include "stmodels.h"
+#include <unordered_set>
 #include <QItemSelectionModel>
 #include <vsg/app/EllipsoidModel.h>
 
@@ -19,14 +19,15 @@ public:
 
     //void addWireframe(const QModelIndex &index, const vsg::Node *node, vsg::dmat4 ltw);
 
-    void intersection(const FoundNodes& isection) override;
-
 public slots:
     void updateData();
     void clearSelection();
     void selectIndex(const QItemSelection &selected, const QItemSelection &deselected);
-    void move(const vsg::dvec3 &delta);
+    void applyTransform(const vsg::dvec3 &delta);
     void selectObject(route::SceneObject *object);
+
+    void updatePositionECEF(double);
+    void updatePositionLLA(double);
 
     void updateRotation(double);
 
@@ -34,25 +35,29 @@ signals:
     void objectClicked(const QModelIndex &index);
     void deselect();
     void deselectItem(const QModelIndex &index);
-    void sendFirst(vsg::ref_ptr<route::SceneObject> firstObject);
+    //void sendFirst(vsg::ref_ptr<route::SceneObject> firstObject);
 
 private:
     void clear();
     void toggle(route::SceneObject* object);
-    void select(const QModelIndex &index, route::SceneObject *object);
     void setSpinEanbled(bool enabled);
 
     Ui::ObjectPropertiesEditor *ui;
 
     vsg::ref_ptr<vsg::EllipsoidModel> _ellipsoidModel;
 
-    vsg::ref_ptr<route::SceneObject> _firstObject;
-
-    std::map<QModelIndex, route::SceneObject*> _selectedObjects;
+    QSet<QModelIndex> _selectedObjects;
 
     bool _single = true;
+    bool _shift = false;
 
-    std::map<std::string, vsg::ref_ptr<signalling::Station>>::iterator _idx;
+    // Visitor interface
+public:
+    void apply(vsg::KeyPressEvent &press) override;
+    void apply(vsg::KeyReleaseEvent &release) override;
+    void apply(vsg::ButtonPressEvent &) override;
+    void apply(vsg::ButtonReleaseEvent &) override;
+    void apply(vsg::MoveEvent &) override;
 };
 
 #endif // OBJECTPROPERTIESEDITOR_H

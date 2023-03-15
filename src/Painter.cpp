@@ -34,6 +34,11 @@ Painter::~Painter()
     delete ui;
 }
 
+void Painter::activeTextureChanged(const QItemSelection &selected, const QItemSelection &)
+{
+
+}
+/*
 void Painter::intersection(const FoundNodes &isection)
 {
     vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel(_database->getDatabase()->getObject<vsg::EllipsoidModel>("EllipsoidModel"));
@@ -100,3 +105,4 @@ void Painter::activeTextureChanged(const QItemSelection &selected, const QItemSe
     auto path = _fsmodel->filePath(index);
     _image = QImage(path);
 }
+*/

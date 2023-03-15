@@ -2,7 +2,7 @@
 #include "ui_ObjectPropertiesEditor.h"
 #include "undo-redo.h"
 #include <vsg/utils/ComputeBounds.h>
-#include "ParentVisitor.h"
+#include "sceneobjectvisitor.h"
 #include "tools.h"
 #include <QSignalBlocker>
 
@@ -14,101 +14,17 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
 
     auto stack = _database->undoStack;
 
-    ui->stationBox->setModel(new StationsModel(_database->topology));
+    //ui->stationBox->setModel(new StationsModel(_database->topology));
 
     connect(stack, &QUndoStack::indexChanged, this, &ObjectPropertiesEditor::updateData);
 
-    connect(ui->ecefXspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
-    {
-        auto newpos = _firstObject->getPosition();
-        auto delta = vsg::dvec3(d - newpos.x, 0.0, 0.0);
+    connect(ui->ecefXspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updatePositionECEF);
+    connect(ui->ecefYspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updatePositionECEF);
+    connect(ui->ecefZspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updatePositionECEF);
 
-        if(_selectedObjects.size() != 1)
-        {
-            stack->beginMacro(tr("Перемещены объекты по x"));
-            move(delta);
-            stack->endMacro();
-        }
-        else
-            move(delta);
-    });
-    connect(ui->ecefYspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
-    {
-        auto newpos = _firstObject->getPosition();
-        auto delta = vsg::dvec3(0.0, d - newpos.y, 0.0);
-
-        if(_selectedObjects.size() != 1)
-        {
-            stack->beginMacro(tr("Перемещены объекты по y"));
-            move(delta);
-            stack->endMacro();
-        }
-        else
-            move(delta);
-    });
-    connect(ui->ecefZspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
-    {
-        auto newpos = _firstObject->getPosition();
-        auto delta = vsg::dvec3(0.0, 0.0, d - newpos.z);
-
-        if(_selectedObjects.size() != 1)
-        {
-            stack->beginMacro(tr("Перемещены объекты по z"));
-            move(delta);
-            stack->endMacro();
-        }
-        else
-            move(delta);
-    });
-
-    connect(ui->latSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
-    {
-        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
-        lla.x = d;
-        auto ecef = _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
-        auto delta = ecef - _firstObject->getPosition();
-
-        if(_selectedObjects.size() != 1)
-        {
-            stack->beginMacro(tr("Перемещены объекты по широте"));
-            move(delta);
-            stack->endMacro();
-        }
-        else
-            move(delta);
-    });
-    connect(ui->lonSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
-    {
-        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
-        lla.y = d;
-        auto ecef = _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
-        auto delta = ecef - _firstObject->getPosition();
-
-        if(_selectedObjects.size() != 1)
-        {
-            stack->beginMacro(tr("Перемещены объекты по долготе"));
-            move(delta);
-            stack->endMacro();
-        }
-        else
-            move(delta);
-    });
-    connect(ui->altSpin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
-    {
-        auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
-        lla.z = d;
-        auto ecef = _ellipsoidModel->convertLatLongAltitudeToECEF(lla);
-        auto delta = ecef - _firstObject->getPosition();
-
-        if(_selectedObjects.size() != 1)
-        {
-            stack->beginMacro(tr("Перемещены объекты по высоте"));
-            move(delta);
-            stack->endMacro();
-        }
-        else
-            move(delta);
-    });
+    connect(ui->latSpin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updatePositionLLA);
+    connect(ui->lonSpin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updatePositionLLA);
+    connect(ui->altSpin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updatePositionLLA);
 
     connect(ui->rotXspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updateRotation);
     connect(ui->rotYspin, &QDoubleSpinBox::valueChanged, this, &ObjectPropertiesEditor::updateRotation);
@@ -138,19 +54,20 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
     });
 
     connect(ui->trjCoordspin, &QDoubleSpinBox::valueChanged, this, [stack, this](double d)
-    {
+    {/*
         vsg::MatrixTransform *mt = nullptr;
         if(_firstObject->getValue(app::PARENT, mt))
-            stack->push(new MoveObjectOnTraj(mt, d));
+            stack->push(new MoveObjectOnTraj(mt, d));*/
     });
 
     connect(ui->nameEdit, &QLineEdit::textEdited, this, [stack, this](const QString &text)
     {
-        stack->push(new RenameObject(_firstObject.get(), text));
+        stack->push(new RenameObject(*_selectedObjects.begin(), text));
     });
 
     connect(ui->stationBox, &QComboBox::currentIndexChanged, this, [this](int idx)
     {
+        /*
         auto sig = _firstObject.cast<signalling::Signal>();
         Q_ASSERT(sig);
         if(_idx != _database->topology->stations.end())
@@ -163,7 +80,7 @@ ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidge
         _idx = std::next(_database->topology->stations.begin(), idx);
         _idx->second->rsignals.insert({sig, signalling::Routes::create()});
         sig->station = _idx->first;
-
+        */
     });
 }
 
@@ -172,66 +89,40 @@ ObjectPropertiesEditor::~ObjectPropertiesEditor()
     delete ui;
 }
 
-void ObjectPropertiesEditor::updateRotation(double)
+void ObjectPropertiesEditor::applyTransform(const vsg::dvec3 &delta)
 {
-    auto x = qDegreesToRadians(ui->rotXspin->value());
-    auto y = qDegreesToRadians(ui->rotYspin->value());
-    auto z = qDegreesToRadians(ui->rotZspin->value());
-    _database->undoStack->push(new RotateObject(_firstObject, route::toQuaternion(x, y, z)));
-}
-
-void ObjectPropertiesEditor::move(const vsg::dvec3 &delta)
-{
-    for(auto &index : _selectedObjects)
+    if(_selectedObjects.size() > 1)
+        _database->undoStack->push(new MoveObjects(_selectedObjects, delta));
+    else
     {
-        auto object = index.second;
-        _database->undoStack->push(new MoveObject(object, object->getPosition() + delta));
+        auto object = static_cast<route::MVCObject*>(_selectedObjects.begin()->internalPointer());
+        auto pos = object->getPosition() + delta;
+        _database->undoStack->push(new MoveObject(object, pos));
     }
 }
 
 void ObjectPropertiesEditor::selectIndex(const QItemSelection &selected, const QItemSelection &deselected)
 {
     for (const auto &index : deselected.indexes())
-        if(!selected.contains(index) && (_selectedObjects.find(index) != _selectedObjects.end()))
+    {
+        if(auto it = _selectedObjects.find(index); it != _selectedObjects.end())
         {
-            auto deselectObject = _selectedObjects.at(index);
-            deselectObject->setSelection(false);
-            _selectedObjects.erase(index);
-            if(deselectObject == _firstObject)
-                _firstObject = _selectedObjects.empty() ? nullptr : _selectedObjects.begin()->second;
-            emit sendFirst(_firstObject);
+            auto object = static_cast<route::MVCObject*>(index.internalPointer());
+            object->setSelection(false);
+            _selectedObjects.erase(it);
         }
+    }
 
     for (const auto &index : selected.indexes())
     {
         if(_selectedObjects.find(index) != _selectedObjects.end())
             continue;
-        auto object = static_cast<vsg::Node*>(index.internalPointer());
-        Q_ASSERT(object);
+        auto object = static_cast<route::MVCObject*>(index.internalPointer());
 
-        if(auto sceneobject = object->cast<route::SceneObject>(); sceneobject)
-        {
-            select(index, sceneobject);
-        }
+        object->setSelection(true);
+        _selectedObjects.insert(index);
+        emit objectClicked(index);
     }
-    updateData();
-}
-
-void ObjectPropertiesEditor::intersection(const FoundNodes &isection)
-{
-    _single = (isection.keyModifier & vsg::MODKEY_Control) == 0;
-
-    if(_single)
-        clear();
-
-    if(!isection.objects.empty())
-    {
-        if((isection.keyModifier & vsg::MODKEY_Shift) == 0)
-            toggle(isection.objects.back());
-        else
-            toggle(isection.objects.front());
-    }
-
     updateData();
 }
 
@@ -242,47 +133,103 @@ void ObjectPropertiesEditor::selectObject(route::SceneObject *object)
     updateData();
 }
 
+void ObjectPropertiesEditor::updatePositionECEF(double)
+{
+    auto object = static_cast<route::MVCObject*>(_selectedObjects.begin()->internalPointer());
+    auto x = ui->ecefXspin->value();
+    auto y = ui->ecefYspin->value();
+    auto z = ui->ecefZspin->value();
+
+    vsg::dvec3 pos{x,y,z};
+
+    if(_selectedObjects.size() > 1)
+    {
+        pos -= object->getPosition();
+        _database->undoStack->push(new MoveObjects(_selectedObjects, pos));
+    }
+    else
+        _database->undoStack->push(new MoveObject(object, pos));
+}
+
+void ObjectPropertiesEditor::updatePositionLLA(double)
+{
+    auto object = static_cast<route::MVCObject*>(_selectedObjects.begin()->internalPointer());
+    auto lat = ui->latSpin->value();
+    auto lon = ui->lonSpin->value();
+    auto alt = ui->altSpin->value();
+    auto ltw = object->getWorldTransform();
+    auto ecef = _ellipsoidModel->convertLatLongAltitudeToECEF({lat, lon, alt});
+
+    if(_selectedObjects.size() > 1)
+    {
+        ecef -= vsg::dvec3{ltw(3,0), ltw(3,1), ltw(3,2)};
+        _database->undoStack->push(new MoveObjects(_selectedObjects, ecef));
+    }
+    else
+    {
+        auto pos = vsg::inverse(ltw) * ecef;
+        _database->undoStack->push(new MoveObject(object, pos));
+    }
+}
+/*
+void ObjectPropertiesEditor::updateRotationX(double val)
+{
+    auto object = static_cast<route::MVCObject*>(_selectedObjects.begin()->internalPointer());
+    auto x = qDegreesToRadians(val);
+    auto delta = x - object->getEulerRotation().x;
+    _database->undoStack->push(new RotateObjects(_selectedObjects, delta, {1.0, 0.0, 0.0}));
+}
+
+void ObjectPropertiesEditor::updateRotationY(double val)
+{
+    auto object = static_cast<route::MVCObject*>(_selectedObjects.begin()->internalPointer());
+    auto y = qDegreesToRadians(val);
+    auto delta = y - object->getEulerRotation().y;
+    _database->undoStack->push(new RotateObjects(_selectedObjects, delta, {0.0, 1.0, 0.0}));
+}
+
+void ObjectPropertiesEditor::updateRotationZ(double val)
+{
+    auto object = static_cast<route::MVCObject*>(_selectedObjects.begin()->internalPointer());
+    auto z = qDegreesToRadians(val);
+    auto delta = z - object->getEulerRotation().z;
+    _database->undoStack->push(new RotateObjects(_selectedObjects, delta, {0.0, 0.0, 1.0}));
+}
+*/
+void ObjectPropertiesEditor::updateRotation(double)
+{
+    auto x = qDegreesToRadians(ui->rotXspin->value());
+    auto y = qDegreesToRadians(ui->rotYspin->value());
+    auto z = qDegreesToRadians(ui->rotZspin->value());
+    _database->undoStack->push(new RotateObjects(_selectedObjects, route::toQuaternion(x, y, z)));
+}
+
 void ObjectPropertiesEditor::toggle(route::SceneObject *object)
 {
     auto index = _database->tilesModel->index(object);
     if(auto selectedIt = _selectedObjects.find(index); selectedIt != _selectedObjects.end())
     {
-        auto selected = selectedIt->second;
+        auto selected = static_cast<route::MVCObject*>(index.internalPointer());
         selected->setSelection(false);
 
         //_selectedObjects.erase(selectedIt);
-        emit deselectItem(selectedIt->first);
-
-
-        if(selected == _firstObject)
-        {
-            _firstObject = _selectedObjects.empty() ? nullptr : _selectedObjects.begin()->second;
-            emit sendFirst(_firstObject);
-        }
-        return;
+        emit deselectItem(*selectedIt);
     }
-    select(index, object);
-    emit objectClicked(index);
+    else
+    {
+        object->setSelection(true);
+        _selectedObjects.insert(index);
+        emit objectClicked(index);
+    }
 }
 void ObjectPropertiesEditor::clear()
 {
-    _firstObject = nullptr;
-    emit sendFirst(_firstObject);
-    for (auto &object : _selectedObjects) {
-        object.second->setSelection(false);
+    for (auto &index : qAsConst(_selectedObjects)) {
+        auto object = static_cast<route::MVCObject*>(index.internalPointer());
+        object->setSelection(false);
     }
     _selectedObjects.clear();
     emit deselect();
-}
-void ObjectPropertiesEditor::select(const QModelIndex &index, route::SceneObject* object)
-{
-    if(!_firstObject)
-    {
-        _firstObject = object;
-        emit sendFirst(_firstObject);
-    }
-    object->setSelection(true);
-    _selectedObjects.insert({index, object});
 }
 
 void ObjectPropertiesEditor::setSpinEanbled(bool enabled)
@@ -313,11 +260,17 @@ void ObjectPropertiesEditor::updateData()
     QSignalBlocker l9(ui->rotZspin);
     QSignalBlocker l10(ui->trjCoordspin);
 
-    setEnabled(_firstObject && !_firstObject->is_compatible(typeid (route::SplineTrajectory)));
-    //setSpinEanbled(_firstObject && !_firstObject->is_compatible(typeid (route::SplineTrajectory)));
-    if(!_firstObject)
+    if(_selectedObjects.empty())
+    {
+        setEnabled(false);
         return;
+    }
+    else
+        setEnabled(true);
+    setSpinEanbled(true);
 
+    auto object = static_cast<route::MVCObject*>(_selectedObjects.begin()->internalPointer());
+/*
     if(_firstObject->is_compatible(typeid (route::RailPoint)))
     {
         //ui->rotXspin->setEnabled(false);
@@ -366,19 +319,19 @@ void ObjectPropertiesEditor::updateData()
     std::string name;
     if(_firstObject->getValue(app::NAME, name))
         ui->nameEdit->setText(name.c_str());
-
-    auto position = _firstObject->getPosition();
+*/
+    auto position = object->getPosition();
     ui->ecefXspin->setValue(position.x);
     ui->ecefYspin->setValue(position.y);
     ui->ecefZspin->setValue(position.z);
 
-    auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(_firstObject->getPosition());
+    auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(object->getPosition());
 
     ui->latSpin->setValue(lla.x);
     ui->lonSpin->setValue(lla.y);
     ui->altSpin->setValue(lla.z);
 
-    auto quat = _firstObject->getRotation();
+    auto quat = object->getRotation();
 
     double sinr_cosp = 2 * (quat.w * quat.x + quat.y * quat.z);
     double cosr_cosp = 1 - 2 * (quat.x * quat.x + quat.y * quat.y);
@@ -397,10 +350,72 @@ void ObjectPropertiesEditor::updateData()
     double cosy_cosp = 1 - 2 * (quat.y * quat.y + quat.z * quat.z);
     auto _zrot = std::atan2(siny_cosp, cosy_cosp);
     ui->rotZspin->setValue(qRadiansToDegrees(_zrot));
+
 }
 
 void ObjectPropertiesEditor::clearSelection()
 {
     clear();
     updateData();
+}
+
+
+void ObjectPropertiesEditor::apply(vsg::KeyPressEvent &press)
+{
+    if(press.keyModifier & vsg::MODKEY_Control)
+        _single = true;
+    if(press.keyModifier & vsg::MODKEY_Shift)
+        _shift = true;
+
+    switch (press.keyBase) {
+    case vsg::KEY_M:
+    {
+        break;
+    }
+    default:
+        break;
+
+    }
+}
+
+void ObjectPropertiesEditor::apply(vsg::KeyReleaseEvent &release)
+{
+    if(release.keyModifier & vsg::MODKEY_Control)
+        _single = false;
+    if(release.keyModifier & vsg::MODKEY_Shift)
+        _shift = false;
+}
+
+void ObjectPropertiesEditor::apply(vsg::ButtonPressEvent &press)
+{
+    auto isection = route::testIntersections(press, _database->root, _camera);
+
+     if(_single)
+         clear();
+
+     if(isection.empty())
+         return;
+
+     auto toogleObject = [this](route::SceneObject *object)
+     {
+         toggle(object);
+         return true;
+     };
+
+     route::SceneObjLambdaCast<route::SceneObject> lv(toogleObject);
+     auto& nodePath = isection.front()->nodePath;
+     if(_shift)
+         vsg::visit(lv, nodePath.rbegin(), nodePath.rend());
+     else
+         vsg::visit(lv, nodePath.begin(), nodePath.end());
+
+     updateData();
+}
+
+void ObjectPropertiesEditor::apply(vsg::ButtonReleaseEvent &)
+{
+}
+
+void ObjectPropertiesEditor::apply(vsg::MoveEvent &)
+{
 }

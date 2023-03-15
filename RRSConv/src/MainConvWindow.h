@@ -9,7 +9,7 @@
 #include <QtWidgets/QMainWindow>
 #include <vsgQt/ViewerWindow.h>
 
-#include "animated-model.h"
+#include "sceneobjects.h"
 #include "IntersectionHandler.h"
 
 QT_BEGIN_NAMESPACE
@@ -32,7 +32,7 @@ public slots:
 */
 private:
     QWindow* initilizeVSGwindow();
-    QWidget *embedded;
+    QWidget *_embedded;
 
     vsg::ref_ptr<IntersectionHandler> handler;
 
@@ -40,8 +40,8 @@ private:
 
     Ui::MainWindow *ui;
     vsg::ref_ptr<vsg::Group> scene;
-    vsg::ref_ptr<AnimatedObject> model;
+    vsg::ref_ptr<route::AnimatedObject> model;
     vsg::ref_ptr<vsg::Options> options;
-    vsgQt::ViewerWindow *viewerWindow;
+    vsgQt::ViewerWindow *_viewerWindow;
 
 };

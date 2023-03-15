@@ -5,15 +5,16 @@
 #include <QDirIterator>
 #include <QFileSystemWatcher>
 #include <QException>
-#include "SceneModel.h"
+#include "SceneObjectsModel.h"
 #include <QSettings>
 #include <QProgressBar>
 #include <QFileSystemModel>
+#include <vsg/app/EllipsoidModel.h>
 #include <vsgXchange/all.h>
 #include <QtConcurrent>
-#include "SceneObjectVisitor.h"
 #include <vsg/nodes/MatrixTransform.h>
 #include <vsg/nodes/Switch.h>
+#include <vsg/threading/OperationThreads.h>
 
 namespace route {
     class Topology;
@@ -36,14 +37,13 @@ private:
 class DatabaseManager : public vsg::Inherit<vsg::Object, DatabaseManager>
 {
 public:
-    DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr<vsg::Group> nodes, vsg::ref_ptr<vsg::Options> options);
+    DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr<route::SceneGroup> nodes, vsg::ref_ptr<vsg::Options> options);
     virtual ~DatabaseManager();
 
     void setUndoStack(QUndoStack *stack);
     void setViewer(vsg::ref_ptr<vsg::Viewer> viewer);
 
     vsg::ref_ptr<vsg::Group> getDatabase() const noexcept;
-    QFuture<void> loadTiles(QProgressBar *bar = nullptr);
     vsg::ref_ptr<vsg::Node> getStdWireBox();
     vsg::ref_ptr<vsg::Node> getStdAxis();
 
@@ -54,7 +54,7 @@ public:
     vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel;
 
     vsg::ref_ptr<route::Topology> topology;
-    vsg::ref_ptr<vsg::CopyAndReleaseImage> copyImageCmd;
+    vsg::ref_ptr<vsg::OperationThreads> opThreads;
 
     vsg::ref_ptr<vsg::Group> root;
 

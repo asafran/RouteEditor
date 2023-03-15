@@ -2,7 +2,6 @@
 #include "ui_RailsPointEditor.h"
 #include "undo-redo.h"
 #include <vsg/utils/ComputeBounds.h>
-#include "ParentVisitor.h"
 #include "sceneobjects.h"
 #include <QSignalBlocker>
 
@@ -57,8 +56,8 @@ RailsPointEditor::RailsPointEditor(DatabaseManager *database, QWidget *parent) :
         for(auto object : qAsConst(_selectedObjects))
         {
             vsg::ref_ptr<route::RailPoint> ref(object);
-            auto fn = [ref](double val){ ref->setTilt(val); };
-            new ExecuteLambda<decltype (fn), double>(fn, ref->_tilt, d, 7, parent);
+            auto fn = [ref](double val){  };
+            new ExecuteLambda<decltype (fn), double>(fn, ref->getTilt(), d, 7, parent);
         }
 
         stack->push(parent);
@@ -108,7 +107,7 @@ RailsPointEditor::~RailsPointEditor()
 {
     delete ui;
 }
-
+/*
 void RailsPointEditor::intersection(const FoundNodes& isection)
 {
     if(ui->connectButt->isChecked())
@@ -160,7 +159,7 @@ void RailsPointEditor::intersection(const FoundNodes& isection)
 
     updateData();
 }
-
+*/
 void RailsPointEditor::toggle(route::RailPoint *object)
 {
     if(auto selectedIt = _selectedObjects.find(object); selectedIt != _selectedObjects.end())
@@ -194,6 +193,7 @@ void RailsPointEditor::setSpinEanbled(bool enabled)
 
 void RailsPointEditor::updateData()
 {
+    /*
     QSignalBlocker l2(ui->tangSpin);
     QSignalBlocker l3(ui->tiltSpin);
     QSignalBlocker l4(ui->cheightSpin);
@@ -213,6 +213,7 @@ void RailsPointEditor::updateData()
     ui->tangSpin->setValue(point->_tangent);
     ui->tiltSpin->setValue(point->_tilt);
     ui->cheightSpin->setValue(point->_cheight);
+    */
 }
 
 void RailsPointEditor::clearSelection()
@@ -223,9 +224,11 @@ void RailsPointEditor::clearSelection()
 
 void RailsPointEditor::setActive()
 {
+    /*
     for (auto &point : qAsConst(_selectedObjects))
     {
-        if(auto connector = point->cast<route::RailConnector>(); connector)
+        if(auto connector = point->cast<route::Connector>(); connector)
             connector->staticConnector = false;
     }
+    */
 }

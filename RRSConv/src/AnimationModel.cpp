@@ -1,6 +1,6 @@
 #include "AnimationModel.h"
 
-AnimationModel::AnimationModel(vsg::ref_ptr<AnimatedObject> model, QObject *parent)
+AnimationModel::AnimationModel(vsg::ref_ptr<route::AnimatedObject> model, QObject *parent)
     : QAbstractListModel{parent}
     , _model(model)
 {
@@ -12,7 +12,7 @@ AnimationModel::~AnimationModel()
 
 }
 
-void AnimationModel::setModel(vsg::ref_ptr<AnimatedObject> model)
+void AnimationModel::setModel(vsg::ref_ptr<route::AnimatedObject> model)
 {
     beginResetModel();
     _model = model;
@@ -30,7 +30,7 @@ QModelIndex AnimationModel::addAnimation(QString key, vsg::ref_ptr<Animation> an
 
 void AnimationModel::addBase(vsg::ref_ptr<vsg::Node> base)
 {
-    _model->addChild(base);
+    //_model->addChild(base);
 }
 
 void AnimationModel::remove(const QModelIndex &index)

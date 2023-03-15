@@ -11,8 +11,8 @@ class SceneModel : public QAbstractItemModel
     Q_OBJECT
 public:
 
-    explicit SceneModel(vsg::ref_ptr<route::SceneObject> group, QObject* parent = 0);
-    SceneModel(vsg::ref_ptr<route::SceneObject> group, vsg::ref_ptr<vsg::Builder> builder, QObject* parent = 0);
+    explicit SceneModel(vsg::ref_ptr<route::MVCObject> group, QObject* parent = 0);
+    SceneModel(vsg::ref_ptr<route::MVCObject> group, vsg::ref_ptr<vsg::Builder> builder, QObject* parent = 0);
 
     ~SceneModel();
 
@@ -41,47 +41,20 @@ public:
 
     bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent);
 
-//    bool canFetchMore(const QModelIndex &parent) const;
+    bool canAdd( const QModelIndex & index ) const;
 
-//    void fetchMore(const QModelIndex &parent);
+    int addNode(const QModelIndex &parent, vsg::ref_ptr<route::MVCObject> loaded);
 
-    /*
-    template<typename F1, typename... Args>
-    void fetchMore(const QModelIndex &parent, F1 function1, Args&... args)
-    {
-        int rows = rowCount(parent);
-        function1(root, args...);
-        beginInsertRows(parent, rows, rowCount(parent));
-        endInsertRows();
-    }*/
-
-    int addNode(const QModelIndex &parent, vsg::ref_ptr<vsg::Node> loaded, uint64_t mask = 0x0);
-    /*
-    uint32_t setMask(uint32_t mask, int row, const QModelIndex &parent);
-    uint32_t setMask(uint32_t mask, const QModelIndex &index);
-    */
     QModelIndex removeNode(const QModelIndex &index);
     void removeNode(const QModelIndex &index, const QModelIndex &parent);
-    //void removeNode(vsg::ref_ptr<vsg::Node> node);
-    //void removeNode(const QModelIndex &parent, int row, vsg::ref_ptr<vsg::Node> node);
 
-    //int findRow(const vsg::Node *parentNode, const vsg::Node *childNode) const;
+    QModelIndex index(const route::MVCObject *node) const;
 
-    QModelIndex index(const vsg::Node *node) const;
-    QModelIndex index(const vsg::Node *node, const vsg::Node *parent) const;
-
-//    void clear();
     bool hasChildren(const QModelIndex &parent) const;
 
-    vsg::ref_ptr<vsg::Group> getRoot() { return _root; }
+    vsg::ref_ptr<route::MVCObject> getRoot() { return _root; }
 
     void setUndoStack(QUndoStack *stack) { _undoStack = stack; }
-
-/*
-signals:
-    void sendCommand(QUndoCommand *command);
-    void sendMap(QMap<vsg::Group *, QModelIndex> groupMap);
-*/
 
 private:
 
@@ -93,7 +66,7 @@ private:
             ColumnCount
         };
 
-    vsg::ref_ptr<route::SceneObject> _root;
+    vsg::ref_ptr<route::MVCObject> _root;
     vsg::ref_ptr<vsg::CompileTraversal> _compile;
     vsg::ref_ptr<vsg::Options> _options;
 
