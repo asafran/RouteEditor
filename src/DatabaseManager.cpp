@@ -1,6 +1,6 @@
 #include "DatabaseManager.h"
 #include "LambdaVisitor.h"
-#include <QtConcurrent/QtConcurrent>
+#include <execution>
 #include <QInputDialog>
 #include <vsg/app/Viewer.h>
 #include <vsg/nodes/VertexIndexDraw.h>
@@ -9,28 +9,14 @@
 #include "topology.h"
 #include <QRegularExpression>
 
-DatabaseManager::DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr<route::SceneGroup> nodes, vsg::ref_ptr<vsg::Options> options)
+DatabaseManager::DatabaseManager(vsg::ref_ptr<route::Route> in_route, vsg::ref_ptr<vsg::Options> options)
   : root(vsg::Group::create())
-  , _database(database)
+  , route(in_route)
 {
     builder = vsg::Builder::create();
     builder->options = options;
 
-    topology = database->children.back().cast<route::Topology>();
-    if(!topology)
-    {
-        topology = route::Topology::create();
-        _database->addChild(topology);
-    }
-    //root->addChild(topology);
-    //root->addChild(nodes);
-
-    ellipsoidModel = _database->getObject<vsg::EllipsoidModel>("EllipsoidModel");
-
-    auto modelroot = route::SceneGroup::create();
-    modelroot->addChild(nodes);
-    //modelroot->addChild(database);
-    root->addChild(modelroot);
+    root->addChild(route);
 
     auto fixPaths = [](vsg::PagedLOD& plod)
     {
@@ -38,9 +24,9 @@ DatabaseManager::DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr
         plod.filename = fi.fileName().toStdString();
     };
     LambdaVisitor<decltype (fixPaths), vsg::PagedLOD> fp(fixPaths);
-    database->accept(fp);
+    in_route->plods->accept(fp);
 
-    tilesModel = new SceneModel(modelroot, builder);
+    tilesModel = new SceneModel(route, builder);
 }
 DatabaseManager::~DatabaseManager()
 {
@@ -85,8 +71,6 @@ void DatabaseManager::setViewer(vsg::ref_ptr<vsg::Viewer> viewer)
     _stdAxis->addChild(builder->createBox(gi));
 }
 
-vsg::ref_ptr<vsg::Group> DatabaseManager::getDatabase() const noexcept { return _database; }
-
 vsg::ref_ptr<vsg::Node> DatabaseManager::getStdWireBox()
 {
     if(!_compiled)
@@ -115,10 +99,10 @@ void DatabaseManager::writeTiles()
     vsg::visit<route::SetStatic>(root);
 
     std::string path;
-    if(!_database->getValue(app::PATH, path))
+    if(!route->getValue(app::PATH, path))
         throw DatabaseException(QObject::tr("Ошибка записи"));
 
-    vsg::write(_database, path, builder->options);
+    vsg::write(route, path, builder->options);
 
     auto write = [options=builder->options](const auto node)
     {
@@ -128,8 +112,7 @@ void DatabaseManager::writeTiles()
         vsg::write(node, path, options);
     };
 
-    auto future = QtConcurrent::map(root->children.begin(), root->children.end(), write);
-    future.waitForFinished();
+    std::for_each(std::execution::par, route->tiles->childrenObjects().begin(), route->tiles->childrenObjects().end(), write);
 
     undoStack->setClean();
 }

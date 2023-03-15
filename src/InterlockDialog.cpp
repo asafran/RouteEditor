@@ -37,7 +37,7 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
              qOverload<const QModelIndex &, QItemSelectionModel::SelectionFlags>(&QItemSelectionModel::select));
     connect(sorter, &TilesSorter::viewExpandSignal, ui->tilesView, &QTreeView::expand);*/
 
-    ui->stationBox->setModel(new StationsModel(_database->topology));
+    ui->stationBox->setModel(new StationsModel(_database->route->topology));
     ui->stationBox->setCurrentIndex(-1);
 
     connect(ui->stationBox, &QComboBox::currentIndexChanged, this, [this](int idx)
@@ -47,7 +47,7 @@ InterlockDialog::InterlockDialog(DatabaseManager *db, QWidget *parent)
             _station = nullptr;
             return;
         }
-        _station = std::next(_database->topology->stations.begin(), idx)->second;
+        _station = std::next(_database->route->topology->stations.begin(), idx)->second;
         ui->beginList->selectionModel()->clear();
         ui->sigList->selectionModel()->clear();
         ui->trajsList->selectionModel()->clear();

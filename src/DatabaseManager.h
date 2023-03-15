@@ -6,6 +6,7 @@
 #include <QFileSystemWatcher>
 #include <QException>
 #include "SceneObjectsModel.h"
+#include "route.h"
 #include <QSettings>
 #include <QProgressBar>
 #include <QFileSystemModel>
@@ -37,13 +38,12 @@ private:
 class DatabaseManager : public vsg::Inherit<vsg::Object, DatabaseManager>
 {
 public:
-    DatabaseManager(vsg::ref_ptr<vsg::Group> database, vsg::ref_ptr<route::SceneGroup> nodes, vsg::ref_ptr<vsg::Options> options);
+    DatabaseManager(vsg::ref_ptr<route::Route> in_route, vsg::ref_ptr<vsg::Options> options);
     virtual ~DatabaseManager();
 
     void setUndoStack(QUndoStack *stack);
     void setViewer(vsg::ref_ptr<vsg::Viewer> viewer);
 
-    vsg::ref_ptr<vsg::Group> getDatabase() const noexcept;
     vsg::ref_ptr<vsg::Node> getStdWireBox();
     vsg::ref_ptr<vsg::Node> getStdAxis();
 
@@ -51,11 +51,10 @@ public:
 
     vsg::ref_ptr<vsg::Builder> builder;
     vsg::ref_ptr<vsg::Viewer> viewer;
-    vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel;
 
-    vsg::ref_ptr<route::Topology> topology;
     vsg::ref_ptr<vsg::OperationThreads> opThreads;
 
+    vsg::ref_ptr<route::Route> route;
     vsg::ref_ptr<vsg::Group> root;
 
     SceneModel *tilesModel;
@@ -66,7 +65,7 @@ private:
     void compile();
     bool _compiled = false;
 
-    vsg::ref_ptr<vsg::Group> _database;
+
     vsg::ref_ptr<vsg::Node> _stdWireBox;
     vsg::ref_ptr<vsg::Group> _stdAxis;
 };

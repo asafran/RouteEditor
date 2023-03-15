@@ -1,10 +1,12 @@
 #include "StartDialog.h"
+#include "route.h"
 #include "ui_StartDialog.h"
 #include <QSettings>
 #include <vsg/io/read.h>
 #include <vsgXchange/all.h>
 #include "Constants.h"
 #include "Register.h"
+#include <execution>
 
 StartDialog::StartDialog(QWidget *parent) :
     QDialog(parent),
@@ -59,16 +61,8 @@ void StartDialog::load()
 {
     app::registerObjectFactoy();
 
-    QFutureWatcher<vsg::ref_ptr<route::Tile>> loadWatcher;
-    connect(&loadWatcher, &QFutureWatcher<vsg::ref_ptr<vsg::Node>>::progressValueChanged, ui->progressBar, &QProgressBar::setValue);
-    connect(&loadWatcher, &QFutureWatcher<vsg::ref_ptr<vsg::Node>>::progressRangeChanged, ui->progressBar, &QProgressBar::setRange);
-    connect(ui->buttonBox, &QDialogButtonBox::rejected, &loadWatcher, &QFutureWatcher<vsg::ref_ptr<vsg::Node>>::cancel);
-
-    QFutureWatcher<vsg::ref_ptr<DatabaseManager>> dbWatcher;
-    connect(&dbWatcher, &QFutureWatcher<vsg::ref_ptr<DatabaseManager>>::finished, this, &StartDialog::accept);
-    connect(ui->buttonBox, &QDialogButtonBox::rejected, &dbWatcher, &QFutureWatcher<vsg::ref_ptr<DatabaseManager>>::cancel);
-
     auto selected = ui->routeTree->selectionModel()->selectedRows();
+    std::vector<vsg::ref_ptr<route::Tile>> loaded(selected.size());
 
     auto load = [this](const QModelIndex &idx)
     {
@@ -81,23 +75,18 @@ void StartDialog::load()
         node->setValue(app::PATH, path.toStdString());
         return node;
     };
-    auto loadFuture = QtConcurrent::mapped(selected, load);
-    database = loadFuture.then([fi=routeModel->fileInfo(selected.front()), options=options](QFuture<vsg::ref_ptr<route::Tile>> f)
-    {
-        auto databasePath = fi.absolutePath() + QDir::separator() + "database." + fi.suffix();
-        auto database = vsg::read_cast<vsg::Group>(databasePath.toStdString(), options);
-        if (!database)
-            throw (DatabaseException(databasePath));
-        database->setValue(app::PATH, databasePath.toStdString());
-        auto group = route::SceneGroup::create();
-        for (const auto &ptr : f) {
-            group->addChild(ptr);
-        }
-        return DatabaseManager::create(database, group, options);
-    });
+    std::transform(std::execution::par, selected.begin(), selected.end(), loaded.begin(), load);
 
-    loadWatcher.setFuture(loadFuture);
-    dbWatcher.setFuture(database);
+    auto fi = routeModel->fileInfo(selected.front());
+    auto databasePath = fi.absolutePath() + QDir::separator() + "database." + fi.suffix();
+    auto route = vsg::read_cast<route::Route>(databasePath.toStdString(), options);
+    if (!route)
+        throw (DatabaseException(databasePath));
+    route->setValue(app::PATH, databasePath.toStdString());
+    for (const auto &ptr : loaded) {
+        route->tiles->addChild(ptr);
+    }
+    database = DatabaseManager::create(route, options);
 }
 
 StartDialog::~StartDialog()

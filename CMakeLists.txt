@@ -71,4 +71,4 @@ add_executable(editor ${SOURCES})
 
 target_compile_definitions(editor PRIVATE VK_USE_PLATFORM_XCB_KHR)
 
-target_link_libraries(editor objects vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange)
+target_link_libraries(editor objects TBB::tbb vsgQt::vsgQt vsg::vsg vsgXchange::vsgXchange)

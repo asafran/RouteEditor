@@ -203,11 +203,11 @@ QWindow* MainWindow::initilizeVSGwindow()
         // set up the camera
         auto lookAt = vsg::LookAt::create(centre + (vsg::normalize(centre)*1000.0), centre, vsg::dvec3(1.0, 0.0, 0.0));
 
-        if(!_database || !_database->ellipsoidModel)
+        if(!_database || !_database->route->ellipsoidModel)
             return false;
 
         auto perspective = vsg::EllipsoidPerspective::create(
-            lookAt, _database->ellipsoidModel, 60.0,
+            lookAt, _database->route->ellipsoidModel, 60.0,
             static_cast<double>(width) /
                 static_cast<double>(height),
             nearFarRatio, horizonMountainHeight);
@@ -235,7 +235,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         grahics_commandGraph->addChild(vsg::RenderGraph::create(window, view));
 
         // add trackball to enable mouse driven camera view control.
-        auto manipulator = Manipulator::create(camera, _database->ellipsoidModel, _database, this);
+        auto manipulator = Manipulator::create(camera, _database->route->ellipsoidModel, _database, this);
 
         vsg::EventHandlers handlers{manipulator, vsg::CloseHandler::create(viewer)};
         handlers.emplace_back(_contentManager);

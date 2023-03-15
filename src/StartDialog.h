@@ -4,7 +4,6 @@
 #include <QDialog>
 #include <QItemSelectionModel>
 #include <QFileSystemModel>
-#include <QtConcurrent>
 #include <vsg/nodes/Node.h>
 #include "DatabaseManager.h"
 
@@ -25,7 +24,7 @@ public:
     QFileSystemModel *routeModel;
     QString skyboxPath;
 
-    QFuture<vsg::ref_ptr<DatabaseManager>> database;
+    vsg::ref_ptr<DatabaseManager> database;
     vsg::ref_ptr<vsg::Options> options;
 
     enum Colors

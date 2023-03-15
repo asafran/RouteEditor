@@ -7,7 +7,7 @@
 #include <QSignalBlocker>
 
 ObjectPropertiesEditor::ObjectPropertiesEditor(DatabaseManager *database, QWidget *parent) : Tool(database, parent)
-    , _ellipsoidModel(database->getDatabase()->getObject<vsg::EllipsoidModel>("EllipsoidModel"))
+    , _ellipsoidModel(database->route->ellipsoidModel)
     , ui(new Ui::ObjectPropertiesEditor)
 {
     ui->setupUi(this);

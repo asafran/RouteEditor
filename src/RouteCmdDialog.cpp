@@ -15,7 +15,7 @@ RouteCmdDialog::RouteCmdDialog(DatabaseManager *db, QWidget *parent) :
     ui->beginList->setModel(bmodel);
     ui->endList->setModel(emodel);
 
-    ui->stationBox->setModel(new StationsModel(db->topology));
+    ui->stationBox->setModel(new StationsModel(db->route->topology));
     ui->stationBox->setCurrentIndex(0);
 
     connect(ui->stationBox, &QComboBox::currentIndexChanged, this, [this, bmodel, db](int idx)
@@ -25,7 +25,7 @@ RouteCmdDialog::RouteCmdDialog(DatabaseManager *db, QWidget *parent) :
             station = nullptr;
             return;
         }
-        station = std::next(db->topology->stations.begin(), idx)->second;
+        station = std::next(db->route->topology->stations.begin(), idx)->second;
         ui->beginList->selectionModel()->clear();
         ui->beginList->setEnabled(true);
         ui->endList->setEnabled(false);

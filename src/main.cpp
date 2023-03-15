@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     {
         dialog.updateSettings();
         try {
-            MainWindow w(dialog.database.result());
+            MainWindow w(dialog.database);
             w.showMaximized();
             return a.exec();
         }  catch (DatabaseException &ex) {
