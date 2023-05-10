@@ -13,7 +13,7 @@
 
 #include "Painter.h"
 
-
+#include "InverseMatrices.h"
 
 MainWindow::MainWindow(vsg::ref_ptr<DatabaseManager> dbm, QWidget *parent)
     : QMainWindow(parent)
@@ -203,16 +203,24 @@ QWindow* MainWindow::initilizeVSGwindow()
         // set up the camera
         auto lookAt = vsg::LookAt::create(centre + (vsg::normalize(centre)*1000.0), centre, vsg::dvec3(1.0, 0.0, 0.0));
 
-        if(!_database || !_database->route->ellipsoidModel)
+        auto ellipsoidModel = _database->route->atmosphere->ellipsoidModel;
+
+        if(!_database || !ellipsoidModel)
             return false;
 
-        auto perspective = vsg::EllipsoidPerspective::create(
-            lookAt, _database->route->ellipsoidModel, 60.0,
+        /*auto perspective = vsg::EllipsoidPerspective::create(
+            lookAt, ellipsoidModel, 60.0,
             static_cast<double>(width) /
                 static_cast<double>(height),
-            nearFarRatio, horizonMountainHeight);
+            nearFarRatio, horizonMountainHeight);*/
+        auto perspective = vsg::Perspective::create(60.0, static_cast<double>(window->extent2D().width) / static_cast<double>(window->extent2D().height), nearFarRatio, ellipsoidModel->radiusEquator() * 10.0);
 
         auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
+
+        // create the sky camera
+        auto inversePerojection = atmosphere::InverseProjection::create(camera->projectionMatrix);
+        auto inverseView = atmosphere::InverseView::create(camera->viewMatrix);
+        auto skyCamera = vsg::Camera::create(inversePerojection, inverseView, vsg::ViewportState::create(window->extent2D()));
 
         _database->opThreads = vsg::OperationThreads::create(QThread::idealThreadCount(), viewer->status);
 
@@ -225,17 +233,40 @@ QWindow* MainWindow::initilizeVSGwindow()
         // add close handler to respond the close window button and pressing escape
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
-        auto view = vsg::View::create(camera);
-        view->addChild(vsg::createHeadlight());
-        view->addChild(_database->root);
+        auto mainViewDependent = atmosphere::AtmosphereLighting::create(lookAt);
+        mainViewDependent->exposure = 10.0;
+        auto skyViewDependent = atmosphere::AtmosphereLighting::create(inverseView);
+        skyViewDependent->exposure = 3.0;
+        skyViewDependent->transform = false;
 
-        // setup command graph to copy the image data each frame then rendering the scene graph
-        auto grahics_commandGraph = vsg::CommandGraph::create(window);
-        //grahics_commandGraph->addChild(database->copyImageCmd);
-        grahics_commandGraph->addChild(vsg::RenderGraph::create(window, view));
+        auto atmosphere = _database->route->atmosphere;
+
+        atmosphere->setSunAngle(150.0);
+
+        _database->builder->options->shaderSets["phong"] = atmosphere->phongShaderSet;
+
+        mainViewDependent->assignData(atmosphere);
+        skyViewDependent->assignData(atmosphere);
+
+        auto mainView = vsg::View::create(camera);
+        mainView->addChild(_database->root);
+        mainView->viewDependentState = mainViewDependent;
+
+        // set up the render graph
+        auto renderGraph = vsg::RenderGraph::create(window, mainView);
+        renderGraph->contents = VK_SUBPASS_CONTENTS_INLINE;
+
+        auto skyView = vsg::View::create(skyCamera, atmosphere->sky);
+        skyView->viewDependentState = skyViewDependent;
+
+        renderGraph->addChild(skyView);
+        renderGraph->setClearValues({{0.0f, 0.0f, 0.0f, 1.0f}});
+
+        auto grahics_commandGraph = vsg::CommandGraph::create(window, renderGraph);
+        viewer->assignRecordAndSubmitTaskAndPresentation({grahics_commandGraph});
 
         // add trackball to enable mouse driven camera view control.
-        auto manipulator = Manipulator::create(camera, _database->route->ellipsoidModel, _database, this);
+        auto manipulator = Manipulator::create(camera, ellipsoidModel, _database, this);
 
         vsg::EventHandlers handlers{manipulator, vsg::CloseHandler::create(viewer)};
         handlers.emplace_back(_contentManager);
@@ -244,8 +275,6 @@ QWindow* MainWindow::initilizeVSGwindow()
         handlers.emplace_back(_railsManager);
         handlers.emplace_back(_painter);
         viewer->addEventHandlers(std::move(handlers));
-
-        viewer->assignRecordAndSubmitTaskAndPresentation({grahics_commandGraph});
 
         vsg::Path resource = std::string(qgetenv("RRS2_ROOT")) + QDir::separator().toLatin1() + "resource.vsgt";
         auto resourceHints = vsg::read_cast<vsg::ResourceHints>(resource);
