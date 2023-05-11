@@ -325,7 +325,7 @@ void ObjectPropertiesEditor::updateData()
     ui->ecefYspin->setValue(position.y);
     ui->ecefZspin->setValue(position.z);
 
-    auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(object->getPosition());
+    auto lla = _ellipsoidModel->convertECEFToLatLongAltitude(object->getWorldPosition());
 
     ui->latSpin->setValue(lla.x);
     ui->lonSpin->setValue(lla.y);
@@ -363,13 +363,14 @@ void ObjectPropertiesEditor::clearSelection()
 void ObjectPropertiesEditor::apply(vsg::KeyPressEvent &press)
 {
     if(press.keyModifier & vsg::MODKEY_Control)
-        _single = true;
+        _isSingle = true;
     if(press.keyModifier & vsg::MODKEY_Shift)
-        _shift = true;
+        _isShift = true;
 
     switch (press.keyBase) {
-    case vsg::KEY_M:
+    case vsg::KEY_m:
     {
+        _isMpressed = true;
         break;
     }
     default:
@@ -381,16 +382,27 @@ void ObjectPropertiesEditor::apply(vsg::KeyPressEvent &press)
 void ObjectPropertiesEditor::apply(vsg::KeyReleaseEvent &release)
 {
     if(release.keyModifier & vsg::MODKEY_Control)
-        _single = false;
+        _isSingle = false;
     if(release.keyModifier & vsg::MODKEY_Shift)
-        _shift = false;
+        _isShift = false;
+
+    switch (release.keyBase) {
+    case vsg::KEY_m:
+    {
+        _isMpressed = false;
+        break;
+    }
+    default:
+        break;
+
+    }
 }
 
 void ObjectPropertiesEditor::apply(vsg::ButtonPressEvent &press)
 {
     auto isection = route::testIntersections(press, _database->root, _camera);
 
-     if(_single)
+     if(_isSingle)
          clear();
 
      if(isection.empty())
@@ -404,18 +416,54 @@ void ObjectPropertiesEditor::apply(vsg::ButtonPressEvent &press)
 
      route::SceneObjLambdaCast<route::SceneObject> lv(toogleObject);
      auto& nodePath = isection.front()->nodePath;
-     if(_shift)
+     if(_isShift)
          vsg::visit(lv, nodePath.rbegin(), nodePath.rend());
      else
          vsg::visit(lv, nodePath.begin(), nodePath.end());
 
+     _isMoving = _isMpressed;
+
+     _prevIsection = isection.front()->worldIntersection;
+
      updateData();
 }
 
-void ObjectPropertiesEditor::apply(vsg::ButtonReleaseEvent &)
+void ObjectPropertiesEditor::apply(vsg::ButtonReleaseEvent &release)
 {
+    _isMoving = false;
 }
 
-void ObjectPropertiesEditor::apply(vsg::MoveEvent &)
+void ObjectPropertiesEditor::apply(vsg::MoveEvent &pointerEvent)
 {
+    if(!_isMoving || _selectedObjects.empty())
+    {
+        return;
+    }
+
+    auto object = static_cast<route::MVCObject*>(_selectedObjects.begin()->internalPointer());
+
+    auto isections = route::testIntersections(pointerEvent, _database->root, _camera);
+    if(isections.empty())
+        return;
+    auto isection = isections.front();
+
+    vsg::dvec3 delta;
+
+    delta = isection->worldIntersection - _prevIsection;
+
+    auto wtl = vsg::inverse_3x3(object->getWorldTransform());
+    auto localDelta = wtl * delta;
+
+    if(_selectedObjects.size() > 1)
+    {
+        _database->undoStack->push(new MoveObjects(_selectedObjects, localDelta));
+    }
+    else
+    {
+        auto pos = object->getPosition() + localDelta;
+        _database->undoStack->push(new MoveObject(object, pos));
+    }
+
+    _prevIsection = isection->worldIntersection;
+
 }

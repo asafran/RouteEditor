@@ -234,7 +234,7 @@ QWindow* MainWindow::initilizeVSGwindow()
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
         auto mainViewDependent = atmosphere::AtmosphereLighting::create(lookAt);
-        mainViewDependent->exposure = 10.0;
+        mainViewDependent->exposure = 5.0;
         auto skyViewDependent = atmosphere::AtmosphereLighting::create(inverseView);
         skyViewDependent->exposure = 3.0;
         skyViewDependent->transform = false;
@@ -243,13 +243,17 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         atmosphere->setSunAngle(150.0);
 
-        _database->builder->options->shaderSets["phong"] = atmosphere->phongShaderSet;
+        //_database->builder->options->shaderSets["phong"] = atmosphere->phongShaderSet;
 
         mainViewDependent->assignData(atmosphere);
         skyViewDependent->assignData(atmosphere);
 
+        auto l = vsg::AmbientLight::create();
+        l->intensity = 0.5f;
+
         auto mainView = vsg::View::create(camera);
         mainView->addChild(_database->root);
+        mainView->addChild(l);
         mainView->viewDependentState = mainViewDependent;
 
         // set up the render graph

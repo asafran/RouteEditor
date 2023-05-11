@@ -82,7 +82,7 @@ void AddRails::apply(vsg::ButtonPressEvent &buttonPress)
 
     if(connector && connector->isFree())
     {
-        auto trj = connector->connected();
+        auto trj = connector->trajectory;
         if(auto strj = trj->cast<route::SplineTrajectory>(); strj)
         {
             if(ui->noNewBox->isChecked())
@@ -100,7 +100,7 @@ void AddRails::apply(vsg::ButtonPressEvent &buttonPress)
     }
 
     auto worldTolocal = vsg::inverse(_database->route->topology->transform->matrix);
-    auto local = isection->worldIntersection * worldTolocal;
+    auto local = worldTolocal * isection->worldIntersection;
 
     auto front = route::BeginConnector::create(_database->getStdWireBox(), _database->getStdAxis(), local);
     auto back = route::EndConnector::create(_database->getStdWireBox(), _database->getStdAxis(), local);
@@ -121,7 +121,7 @@ void AddRails::apply(vsg::ButtonPressEvent &buttonPress)
     if(ui->genBox->isChecked())
     {
         auto lenght = ui->lenghtSpin->value();
-        back->setPosition((vsg::normalize(front->getTangent()) * lenght) + front->getPosition() + (vsg::normalize(front->getPosition()) * ui->altBox->value()));
+        back->setPositionNoRecalculate((vsg::normalize(front->getTangent()) * lenght) + front->getPosition() + (vsg::normalize(front->getPosition()) * ui->altBox->value()));
         traj = route::StraitTrajectory::create(front,
                                                back,
                                                _database->builder->options,

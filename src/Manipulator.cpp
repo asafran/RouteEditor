@@ -42,12 +42,12 @@ void Manipulator::createPointer()
 /*
 void Manipulator::apply(vsg::KeyPressEvent& keyPress)
 {
-     _keyModifier = keyPress.keyModifier;
+     //_keyModifier = keyPress.keyModifier;
 
-     switch (keyPress.keyBase) {
+     mswitch (keyPress.keyBase) {
      case vsg::KEY_M:
      {
-         startMoving();
+         //startMoving();
          break;
      }
      default:

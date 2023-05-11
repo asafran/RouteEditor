@@ -48,8 +48,12 @@ private:
 
     QSet<QModelIndex> _selectedObjects;
 
-    bool _single = true;
-    bool _shift = false;
+    bool _isSingle = true;
+    bool _isShift = false;
+    bool _isMoving = false;
+    bool _isMpressed = false;
+
+    vsg::dvec3 _prevIsection = {};
 
     // Visitor interface
 public:
@@ -57,7 +61,7 @@ public:
     void apply(vsg::KeyReleaseEvent &release) override;
     void apply(vsg::ButtonPressEvent &) override;
     void apply(vsg::ButtonReleaseEvent &) override;
-    void apply(vsg::MoveEvent &) override;
+    void apply(vsg::MoveEvent &pointerEvent) override;
 };
 
 #endif // OBJECTPROPERTIESEDITOR_H

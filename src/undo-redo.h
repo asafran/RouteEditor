@@ -325,7 +325,7 @@ public:
         if(rcmd->_object != _object)
             return false;
         _final = rcmd->_final;
-        _initial = rcmd->_initial;
+        //_initial = rcmd->_initial;
         return true;
     }
 protected:

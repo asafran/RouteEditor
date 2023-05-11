@@ -76,7 +76,7 @@ ContentManager::~ContentManager()
 
 void ContentManager::apply(vsg::ButtonPressEvent &buttonPress)
 {
-    if(!isVisible() || buttonPress.button != 1)
+    if(!isVisible() || buttonPress.button != 1 || ui->fileView->selectionModel()->selectedIndexes().empty())
         return;
     auto isections = route::testIntersections(buttonPress, _database->root, _camera);
     if(isections.empty())
