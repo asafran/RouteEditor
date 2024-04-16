@@ -65,9 +65,6 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
 {
     if (buttonPress.handled) return;
 
-    _hasFocus = withinRenderArea(buttonPress);
-    _lastPointerEventWithinRenderArea = _hasFocus;
-
     if (buttonPress.mask & vsg::BUTTON_MASK_2)
         _updateMode = ROTATE;
     else if (buttonPress.mask & vsg::BUTTON_MASK_3)
@@ -81,8 +78,6 @@ void Manipulator::apply(vsg::ButtonPressEvent& buttonPress)
         setViewpoint(isections.front()->worldIntersection);
     } else
         _updateMode = INACTIVE;
-
-    if (_hasFocus) buttonPress.handled = true;
 
     _zoomPreviousRatio = 0.0;
     _pan.set(0.0, 0.0);

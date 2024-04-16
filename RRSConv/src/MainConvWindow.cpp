@@ -52,6 +52,7 @@ vsg::ref_ptr<vsg::Camera> createCameraForScene(vsg::Node* scenegraph, int32_t x,
 
 QWindow* MainWindow::initilizeVSGwindow()
 {
+    /*
     // set up vsg::Options to pass in filepaths and ReaderWriter's and other IO
     // realted options to use when reading and writing files.
     options = vsg::Options::create();
@@ -140,7 +141,8 @@ QWindow* MainWindow::initilizeVSGwindow()
 
         return true;
     };
-    return _viewerWindow;
+*/
+    return nullptr;
 }
 /*
 void MainWindow::addObject()
@@ -153,8 +155,8 @@ void MainWindow::constructWidgets()
     _embedded = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
     ui->centralsplitter->addWidget(_embedded);
 
-    handler = new IntersectionHandler(scene, model, _viewerWindow->viewer, ui->centralsplitter);
-    ui->centralsplitter->addWidget(handler);
+    //handler = new IntersectionHandler(scene, model, _viewerWindow->viewer, ui->centralsplitter);
+    //ui->centralsplitter->addWidget(handler);
 
     handler->builder = vsg::Builder::create();
     handler->builder->options = options;

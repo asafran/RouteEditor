@@ -7,7 +7,7 @@
 #include "ContentManager.h"
 #include "DatabaseManager.h"
 #include "Manipulator.h"
-#include <vsgQt/ViewerWindow.h>
+#include <vsgQt/Viewer.h>
 #include <QUndoView>
 #include <QRegularExpression>
 #include <vsg/all.h>
@@ -31,7 +31,7 @@ public:
     ~MainWindow();
 
 private:
-    QWindow* initilizeVSGwindow();
+    vsgQt::Window* createWindow();
     QWidget *_embedded;
 
     void constructWidgets();
@@ -46,7 +46,7 @@ private:
     AddRails *_railsManager;
     Painter *_painter;
 
-    vsgQt::ViewerWindow *_viewerWindow;
+    vsg::ref_ptr<vsgQt::Viewer> _viewer;
 
     DatabaseManager *_database;
 

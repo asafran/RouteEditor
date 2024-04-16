@@ -7,7 +7,7 @@
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QMainWindow>
-#include <vsgQt/ViewerWindow.h>
+#include <vsgQt/Viewer.h>
 
 #include "sceneobjects.h"
 #include "IntersectionHandler.h"
@@ -42,6 +42,6 @@ private:
     vsg::ref_ptr<vsg::Group> scene;
     vsg::ref_ptr<route::AnimatedObject> model;
     vsg::ref_ptr<vsg::Options> options;
-    vsgQt::ViewerWindow *_viewerWindow;
+    vsg::ref_ptr<vsgQt::Viewer> _viewer;
 
 };

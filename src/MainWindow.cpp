@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
-#include <vsgQt/ViewerWindow.h>
+
+#include <vsgQt/Window.h>
 
 #include <QFileDialog>
 #include <QColorDialog>
@@ -167,185 +168,115 @@ void MainWindow::initializeTools()
     connect(_sorter, &TilesSorter::frontSelectionChanged, _contentManager, &ContentManager::activeGroupChanged);
 }
 
-QWindow* MainWindow::initilizeVSGwindow()
+vsgQt::Window* MainWindow::createWindow()
 {
+    auto traits = vsg::WindowTraits::create();
 
-    auto windowTraits = vsg::WindowTraits::create();
-    windowTraits->windowTitle = app::APP_NAME;
+    auto window = new vsgQt::Window(_viewer, traits);
 
-    _viewerWindow = new vsgQt::ViewerWindow();
-    _viewerWindow->setSurfaceType(QSurface::VulkanSurface);
-    _viewerWindow->traits = windowTraits;
-    _viewerWindow->viewer = vsg::Viewer::create();
+    window->setTitle(app::APP_NAME);
 
-    // provide the calls to set up the vsg::Viewer that will be used to render to the QWindow subclass vsgQt::ViewerWindow
-    _viewerWindow->initializeCallback = [&, this](vsgQt::ViewerWindow& vw, uint32_t width, uint32_t height) {
+    window->initializeWindow();
 
-        auto& window = vw.windowAdapter;
-        if (!window) return false;
+    QSettings settings(app::ORGANIZATION_NAME, app::APP_NAME);
 
-        auto& viewer = vw.viewer;
-        if (!viewer) viewer = vsg::Viewer::create();
+    // if this is the first window to be created, use its device for future window creation.
+    if (!traits->device) traits->device = window->windowAdapter->getOrCreateDevice();
 
-        viewer->addWindow(window);
+    auto horizonMountainHeight = settings.value("HMH", 0.0).toDouble();
+    auto nearFarRatio = settings.value("NFR", 0.0001).toDouble();
 
-        QSettings settings(app::ORGANIZATION_NAME, app::APP_NAME);
+    uint32_t width = window->traits->width;
+    uint32_t height = window->traits->height;
 
-        // compute the bounds of the scene graph to help position camera
-        vsg::ComputeBounds computeBounds;
-        _database->root->accept(computeBounds);
-        vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
-        //double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
+    auto ellipsoidModel = _database->route->atmosphere->ellipsoidModel;
+    auto atmosphere = _database->route->atmosphere;
 
-        auto horizonMountainHeight = settings.value("HMH", 0.0).toDouble();
-        auto nearFarRatio = settings.value("NFR", 0.0001).toDouble();
+    auto lookAt = _database->lastLookAt;
+    auto perspective = vsg::EllipsoidPerspective::create(
+        lookAt, ellipsoidModel, 30.0,
+        static_cast<double>(width) /
+            static_cast<double>(height),
+        nearFarRatio, horizonMountainHeight);
+    auto camera = vsg::Camera::create(perspective, _database->lastLookAt, vsg::ViewportState::create(VkExtent2D{width, height}));
 
-        // set up the camera
-        auto lookAt = vsg::LookAt::create(centre + (vsg::normalize(centre)*1000.0), centre, vsg::dvec3(1.0, 0.0, 0.0));
+    // create the sky camera
+    auto inversePerojection = atmosphere::InverseProjection::create(camera->projectionMatrix);
+    auto inverseView = atmosphere::InverseView::create(camera->viewMatrix);
+    auto skyCamera = vsg::Camera::create(inversePerojection, inverseView, vsg::ViewportState::create(window->windowAdapter->extent2D()));
 
-        auto ellipsoidModel = _database->route->atmosphere->ellipsoidModel;
+    _database->opThreads = vsg::OperationThreads::create(QThread::idealThreadCount(), _viewer->status);
 
-        if(!_database || !ellipsoidModel)
-            return false;
+    // add close handler to respond the close window button and pressing escape
+    _viewer->addEventHandler(vsg::CloseHandler::create(_viewer));
 
-        /*auto perspective = vsg::EllipsoidPerspective::create(
-            lookAt, ellipsoidModel, 60.0,
-            static_cast<double>(width) /
-                static_cast<double>(height),
-            nearFarRatio, horizonMountainHeight);*/
-        auto perspective = vsg::Perspective::create(60.0, static_cast<double>(window->extent2D().width) / static_cast<double>(window->extent2D().height), nearFarRatio, ellipsoidModel->radiusEquator() * 10.0);
+    auto l = vsg::AmbientLight::create();
+    l->intensity = 0.5f;
 
-        auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
+    auto mainView = vsg::View::create(camera);
+    auto skyView = vsg::View::create(skyCamera);
 
-        // create the sky camera
-        auto inversePerojection = atmosphere::InverseProjection::create(camera->projectionMatrix);
-        auto inverseView = atmosphere::InverseView::create(camera->viewMatrix);
-        auto skyCamera = vsg::Camera::create(inversePerojection, inverseView, vsg::ViewportState::create(window->extent2D()));
+    auto mainViewDependent = atmosphere::AtmosphereLighting::create(mainView, atmosphere);
+    mainViewDependent->exposure = 5.0;
+    auto skyViewDependent = atmosphere::SkyLighting::create(skyView, atmosphere);
+    skyViewDependent->exposure = 3.0;
 
-        _database->opThreads = vsg::OperationThreads::create(QThread::idealThreadCount(), viewer->status);
+    mainView->addChild(_database->root);
+    mainView->addChild(l);
+    auto sky = atmosphere->createSky();
+    skyView->addChild(sky);
 
-        _contentManager->setCamera(camera);
-        _objectsPrpEditor->setCamera(camera);
-        _railsPointEditor->setCamera(camera);
-        _railsManager->setCamera(camera);
-        _painter->setCamera(camera);
+    atmosphere->setSunAngle(150.0);
 
-        // add close handler to respond the close window button and pressing escape
-        viewer->addEventHandler(vsg::CloseHandler::create(viewer));
+    //_database->builder->options->shaderSets["phong"] = atmosphere->phongShaderSet;
 
-        auto mainViewDependent = atmosphere::AtmosphereLighting::create(lookAt);
-        mainViewDependent->exposure = 5.0;
-        auto skyViewDependent = atmosphere::AtmosphereLighting::create(inverseView);
-        skyViewDependent->exposure = 3.0;
-        skyViewDependent->transform = false;
+    mainView->viewDependentState = mainViewDependent;
+    skyView->viewDependentState = skyViewDependent;
 
-        auto atmosphere = _database->route->atmosphere;
+    // set up the render graph
+    auto renderGraph = vsg::RenderGraph::create(*window, mainView);
+    renderGraph->contents = VK_SUBPASS_CONTENTS_INLINE;
 
-        atmosphere->setSunAngle(150.0);
+    renderGraph->addChild(skyView);
+    renderGraph->setClearValues({{0.0f, 0.0f, 0.0f, 1.0f}});
 
-        //_database->builder->options->shaderSets["phong"] = atmosphere->phongShaderSet;
+    auto grahics_commandGraph = vsg::CommandGraph::create(*window, renderGraph);
+    _viewer->assignRecordAndSubmitTaskAndPresentation({grahics_commandGraph});
 
-        mainViewDependent->assignData(atmosphere);
-        skyViewDependent->assignData(atmosphere);
+    // add trackball to enable mouse driven camera view control.
+    auto manipulator = Manipulator::create(camera, ellipsoidModel, _database, this);
 
-        auto l = vsg::AmbientLight::create();
-        l->intensity = 0.5f;
+    vsg::EventHandlers handlers{manipulator, vsg::CloseHandler::create(_viewer)};
+    handlers.emplace_back(_contentManager);
+    handlers.emplace_back(_objectsPrpEditor);
+    handlers.emplace_back(_railsPointEditor);
+    handlers.emplace_back(_railsManager);
+    handlers.emplace_back(_painter);
+    _viewer->addEventHandlers(std::move(handlers));
 
-        auto mainView = vsg::View::create(camera);
-        mainView->addChild(_database->root);
-        mainView->addChild(l);
-        mainView->viewDependentState = mainViewDependent;
+    vsg::Path resource = std::string(qgetenv("RRS2_ROOT")) + QDir::separator().toLatin1() + "resource.vsgt";
+    auto resourceHints = vsg::read_cast<vsg::ResourceHints>(resource);
 
-        // set up the render graph
-        auto renderGraph = vsg::RenderGraph::create(window, mainView);
-        renderGraph->contents = VK_SUBPASS_CONTENTS_INLINE;
+    if (!resourceHints)
+    {
+        // To help reduce the number of vsg::DescriptorPool that need to be allocated we'll provide a minimum requirement via ResourceHints.
+        resourceHints = vsg::ResourceHints::create();
+        resourceHints->numDescriptorSets = 256;
+        resourceHints->descriptorPoolSizes.push_back(VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256});
+    }
 
-        auto skyView = vsg::View::create(skyCamera, atmosphere->sky);
-        skyView->viewDependentState = skyViewDependent;
+    auto trackball = vsg::Trackball::create(camera, ellipsoidModel);
+    trackball->addWindow(*window);
 
-        renderGraph->addChild(skyView);
-        renderGraph->setClearValues({{0.0f, 0.0f, 0.0f, 1.0f}});
+    _viewer->addEventHandler(trackball);
 
-        auto grahics_commandGraph = vsg::CommandGraph::create(window, renderGraph);
-        viewer->assignRecordAndSubmitTaskAndPresentation({grahics_commandGraph});
-
-        // add trackball to enable mouse driven camera view control.
-        auto manipulator = Manipulator::create(camera, ellipsoidModel, _database, this);
-
-        vsg::EventHandlers handlers{manipulator, vsg::CloseHandler::create(viewer)};
-        handlers.emplace_back(_contentManager);
-        handlers.emplace_back(_objectsPrpEditor);
-        handlers.emplace_back(_railsPointEditor);
-        handlers.emplace_back(_railsManager);
-        handlers.emplace_back(_painter);
-        viewer->addEventHandlers(std::move(handlers));
-
-        vsg::Path resource = std::string(qgetenv("RRS2_ROOT")) + QDir::separator().toLatin1() + "resource.vsgt";
-        auto resourceHints = vsg::read_cast<vsg::ResourceHints>(resource);
-
-        if (!resourceHints)
-        {
-            // To help reduce the number of vsg::DescriptorPool that need to be allocated we'll provide a minimum requirement via ResourceHints.
-            resourceHints = vsg::ResourceHints::create();
-            resourceHints->numDescriptorSets = 256;
-            resourceHints->descriptorPoolSizes.push_back(VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256});
-        }
-
-        // configure the viewers rendering backend, initialize and compile Vulkan objects, passing in ResourceHints to guide the resources allocated.
-        viewer->compile(resourceHints);
-
-        connect(_sorter, &TilesSorter::doubleClicked, manipulator.get(), &Manipulator::moveToObject);
-
-        connect(manipulator.get(), &Manipulator::sendPos, [this](const vsg::dvec3 &pos)
-        {
-            ui->cursorLat->setValue(pos.x);
-            ui->cursorLon->setValue(pos.y);
-            ui->cursorAlt->setValue(pos.z);
-        });
-
-        connect(ui->cursorLat, &QDoubleSpinBox::valueChanged, [this, manipulator](double value)
-        {
-            manipulator->setLatLongAlt(vsg::dvec3(value, ui->cursorLon->value(), ui->cursorAlt->value()));
-        });
-        connect(ui->cursorLon, &QDoubleSpinBox::valueChanged, [this, manipulator](double value)
-        {
-            manipulator->setLatLongAlt(vsg::dvec3(ui->cursorLat->value(), value, ui->cursorAlt->value()));
-        });
-        connect(ui->cursorAlt, &QDoubleSpinBox::valueChanged, [this, manipulator](double value)
-        {
-            manipulator->setLatLongAlt(vsg::dvec3(ui->cursorLat->value(), ui->cursorLon->value(), value));
-        });
-
-        connect(_sorter, &TilesSorter::doubleClicked, manipulator.get(), &Manipulator::moveToObject);
-
-        _database->setViewer(viewer);
-
-        return true;
-    };
-
-    // provide the calls to invokve the vsg::Viewer to render a frame.
-    _viewerWindow->frameCallback = [this](vsgQt::ViewerWindow& vw) {
-
-        if (!vw.viewer || !vw.viewer->advanceToNextFrame()) return false;
-
-        // pass any events into EventHandlers assigned to the Viewer
-        vw.viewer->handleEvents();
-
-        vw.viewer->update();
-
-        vw.viewer->recordAndSubmit();
-
-        vw.viewer->present();
-
-        return true;
-    };
-    return _viewerWindow;
+    return window;
 }
 
 
 void MainWindow::constructWidgets()
 {
-    _embedded = QWidget::createWindowContainer(initilizeVSGwindow(), ui->centralsplitter);
+    _embedded = QWidget::createWindowContainer(createWindow(), ui->centralsplitter);
 
     _sorter = new TilesSorter(this);
     _sorter->setSourceModel(_database->tilesModel);

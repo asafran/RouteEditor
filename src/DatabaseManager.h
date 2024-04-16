@@ -57,6 +57,8 @@ public:
     vsg::ref_ptr<route::Route> route;
     vsg::ref_ptr<vsg::Group> root;
 
+    vsg::ref_ptr<vsg::LookAt> lastLookAt;
+
     SceneModel *tilesModel;
 
     void writeTiles();

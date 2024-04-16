@@ -70,8 +70,6 @@ public:
     explicit Tool(DatabaseManager *database, QWidget *parent = nullptr);
     virtual ~Tool();
 
-    void setCamera(vsg::ref_ptr<vsg::Camera> camera);
-
 signals:
     void sendStatusText(const QString &message, int timeout);
 

@@ -230,7 +230,7 @@ void IntersectionHandler::processSelection()
     vsg::GeometryInfo gi(static_cast<vsg::box>(cb.bounds));
 
     gi.transform = ct.matrix;
-    gi.color = {1.0, 1.0, 1.0, 1.0};
+    gi.color = vsg::vec4{1.0, 1.0, 1.0, 1.0};
 
     vsg::StateInfo si;
     si.lighting = false;
